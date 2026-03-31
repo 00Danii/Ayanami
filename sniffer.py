@@ -3,16 +3,16 @@ from network import get_interfaces_detailed
 from scanner import get_neighbors
 import threading
 
-paused = False
+# paused = False
 
 # Listener de teclado
-def key_listener():
-    global paused
-    while True:
-        key = input()
-        if key.lower() == "p":
-            paused = not paused
-            print("\n[+] Pausa" if paused else "\n[+] Reanudado")
+# def key_listener():
+#     global paused
+#     while True:
+#         key = input()
+#         if key.lower() == "p":
+#             paused = not paused
+#             print("\n[+] Pausa" if paused else "\n[+] Reanudado")
 
 # Mostrar paquetes balanceado
 def packet_full(pkt):
@@ -62,7 +62,7 @@ def sniff_all():
 
     print("\n[+] Sniffing toda la red...\n")
 
-    #  threading.Thread(target=key_listener, daemon=True).start()
+    # threading.Thread(target=key_listener, daemon=True).start()
 
     sniff(
         iface=iface,
@@ -96,7 +96,7 @@ def sniff_by_device():
 
     print(f"\n[+] Sniffing {target}...\n")
 
-    # threading.Thread(target=key_listener, daemon=True).start()
+    # threading.Thread(target=key_listener, daemon=True).start() 
 
     sniff(
         iface=iface,
@@ -114,7 +114,7 @@ def sniff_raw():
 
     print("\n[+] Modo RAW (muy detallado)\n")
 
-    #threading.Thread(target=key_listener, daemon=True).start()
+    # threading.Thread(target=key_listener, daemon=True).start()
 
     sniff(
         iface=iface,
