@@ -3,6 +3,7 @@ from gateway import create_hotspot, show_hotspot_password
 from scanner import show_neighbors
 from monitor_bw import monitor_bandwidth
 from sniffer import sniffer_menu
+from firewall import firewall_menu
 
 def menu():
     while True:
@@ -14,6 +15,7 @@ def menu():
         print("5. Ver dispositivos en la red (ip neigh)")
         print("6. Monitorear ancho de banda")
         print("7. Sniffer de paquetes")
+        print("8. Firewall")
         print("0. Salir")
 
         choice = input("\nOpción: ")
@@ -38,6 +40,9 @@ def menu():
         
         elif choice == "7":
             sniffer_menu()
+
+        elif choice == "8":
+            firewall_menu()
 
         elif choice == "0":
             print("Saliendo...")
