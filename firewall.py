@@ -20,6 +20,11 @@ def block_global(ip):
     print(f"[+] Bloqueo global hacia {ip}")
     run(f"iptables -A FORWARD -d {ip} -j DROP")
 
+# Bloqueo una IP SOLO para dispositivo especifico
+def block_ip_for_device(src_ip, dst_ip):
+    print(f"[+] Bloqueando {dst_ip} para {src_ip}")
+
+    run(f"iptables -A FORWARD -s {src_ip} -d {dst_ip} -j DROP")
 
 # Bloqueo por app (básico pero efectivo)
 def block_app(app):
@@ -69,10 +74,11 @@ def firewall_menu():
         print("\n=== FIREWALL ===")
         print("1. Bloquear dispositivo (IP)")
         print("2. Bloqueo global (IP destino)")
-        print("3. Bloquear app")
-        print("4. Ver reglas")
-        print("5. Eliminar regla")
-        print("6. Limpiar todo")
+        print("3. Bloquear IP destino a dispositivo")
+        print("4. Bloquear app")
+        print("5. Ver reglas")
+        print("6. Eliminar regla")
+        print("7. Limpiar todo")
         print("0. Volver")
 
         op = input("\nOpción: ")
@@ -107,16 +113,43 @@ def firewall_menu():
             block_global(ip)
 
         elif op == "3":
+            devices = get_neighbors()
+
+            if not devices:
+                print("[!] No hay dispositivos")
+                continue
+
+            print("\nDispositivos:")
+            for i, d in enumerate(devices):
+                print(f"{i+1}. {d['ip']} ({d['mac']})")
+
+            try:
+                idx = int(input("\nSelecciona dispositivo: ")) - 1
+
+                if idx < 0 or idx >= len(devices):
+                    print("[!] Selección inválida")
+                    continue
+
+                src_ip = devices[idx]["ip"]
+
+                dst_ip = input("IP a bloquear: ")
+
+                block_ip_for_device(src_ip, dst_ip)
+
+            except:
+                print("[!] Error en entrada")
+
+        elif op == "4":
             app = input("App (youtube/instagram/facebook): ")
             block_app(app)
 
-        elif op == "4":
+        elif op == "5":
             list_rules()
 
-        elif op == "5":
+        elif op == "6":
             delete_rule()
 
-        elif op == "6":
+        elif op == "7":
             flush_rules()
 
         elif op == "0":
