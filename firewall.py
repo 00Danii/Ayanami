@@ -1,4 +1,5 @@
 import subprocess
+from scanner import get_neighbors
 
 def run(cmd):
     subprocess.run(cmd, shell=True)
@@ -77,9 +78,30 @@ def firewall_menu():
         op = input("\nOpción: ")
 
         if op == "1":
-            ip = input("IP del dispositivo: ")
-            block_device(ip)
+            devices = get_neighbors()
 
+            if not devices:
+                print("[!] No hay dispositivos detectados")
+                continue
+
+            print("\nDispositivos:")
+            for i, d in enumerate(devices):
+                print(f"{i+1}. {d['ip']} ({d['mac']})")
+
+            try:
+                idx = int(input("\nSelecciona el dispositivo: ")) - 1
+
+                if idx < 0 or idx >= len(devices):
+                    print("[!] Selección inválida")
+                    continue
+
+                ip = devices[idx]["ip"]
+
+                block_device(ip)
+
+            except:
+                print("[!] Entrada inválida")
+            
         elif op == "2":
             ip = input("IP destino: ")
             block_global(ip)
