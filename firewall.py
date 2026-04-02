@@ -27,23 +27,21 @@ def block_ip_for_device(src_ip, dst_ip):
 
     run(f"iptables -A FORWARD -s {src_ip} -d {dst_ip} -j DROP")
 
-# Bloqueo por app (básico pero efectivo)
-def block_app(app):
-    print(f"{ORANGE}[+] Bloqueando app: {app}{RESET}")
+# Bloqueo por nombre de app 
+def block_app_ips(ips):
+    if not ips:
+        return
+    for ip in ips:
+        print(f"{ORANGE}[+] Bloqueando tráfico hacia {ip}{RESET}")
+        run(f"iptables -A FORWARD -d {ip} -j DROP")
 
-    if app == "youtube":
-        run("iptables -A FORWARD -p udp --dport 443 -j DROP")  # QUIC
-        run("iptables -A FORWARD -d 173.194.0.0/16 -j DROP")  # Google
-        run("iptables -A FORWARD -d 142.250.0.0/15 -j DROP")
-
-    elif app == "instagram":
-        run("iptables -A FORWARD -d 31.13.0.0/16 -j DROP")  # Meta
-
-    elif app == "facebook":
-        run("iptables -A FORWARD -d 31.13.0.0/16 -j DROP")
-
-    else:
-        print(f"{RED}[!] App no soportada{RESET}")
+# Desbloqueo por nombre de app 
+def unblock_app_ips(ips):
+    if not ips:
+        return
+    for ip in ips:
+        print(f"{ORANGE}[+] Eliminando bloqueo hacia {ip}{RESET}")
+        run(f"iptables -D FORWARD -d {ip} -j DROP")
 
 
 # =========================
@@ -89,7 +87,7 @@ def firewall_menu():
         print(f"{PURPLE}[7]{WHITE} Limpiar todo{RESET}")
         print(f"{RED}[0] Cancelar{RESET}")
 
-        op = input(f"\n{CYAN}Opción: {RESET}")
+        op = input(f"\n{PINK}Opción: {RESET}")
 
         if op == "1":
             devices = get_neighbors()
@@ -165,8 +163,11 @@ def firewall_menu():
             block_ip_for_device(src_ip, dst_ip)
 
         elif op == "4":
-            app = input("App (youtube/instagram/facebook): ")
-            block_app(app)
+            try:
+                import firewall_apps
+                firewall_apps.main_menu()
+            except Exception as e:
+                print(f"{RED}[!] No se pudo abrir el submenu: {e}{RESET}")
 
         elif op == "5":
             list_rules()
