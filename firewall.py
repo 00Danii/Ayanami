@@ -1,4 +1,5 @@
 import subprocess
+from colors import BLUE, BOLD, CYAN, ORANGE, PINK, RED, RESET, WHITE
 from scanner import get_neighbors
 
 def run(cmd):
@@ -11,24 +12,24 @@ def run(cmd):
 
 # Bloquear TODO el tráfico de un dispositivo
 def block_device(ip):
-    print(f"[+] Bloqueando dispositivo {ip}")
+    print(f"{ORANGE}[+] Bloqueando dispositivo {ip}{RESET}")
     run(f"iptables -A FORWARD -s {ip} -j DROP")
 
 
 # Bloqueo global hacia una IP
 def block_global(ip):
-    print(f"[+] Bloqueo global hacia {ip}")
+    print(f"{ORANGE}[+] Bloqueo global hacia {ip}{RESET}")
     run(f"iptables -A FORWARD -d {ip} -j DROP")
 
 # Bloqueo una IP SOLO para dispositivo especifico
 def block_ip_for_device(src_ip, dst_ip):
-    print(f"[+] Bloqueando {dst_ip} para {src_ip}")
+    print(f"{ORANGE}[+] Bloqueando {dst_ip} para {src_ip}{RESET}")
 
     run(f"iptables -A FORWARD -s {src_ip} -d {dst_ip} -j DROP")
 
 # Bloqueo por app (básico pero efectivo)
 def block_app(app):
-    print(f"[+] Bloqueando app: {app}")
+    print(f"{ORANGE}[+] Bloqueando app: {app}{RESET}")
 
     if app == "youtube":
         run("iptables -A FORWARD -p udp --dport 443 -j DROP")  # QUIC
@@ -42,7 +43,7 @@ def block_app(app):
         run("iptables -A FORWARD -d 31.13.0.0/16 -j DROP")
 
     else:
-        print("[!] App no soportada")
+        print(f"{RED}[!] App no soportada{RESET}")
 
 
 # =========================
@@ -50,18 +51,18 @@ def block_app(app):
 # =========================
 
 def list_rules():
-    print("\n[+] Reglas activas:\n")
+    print(f"\n{ORANGE}[+] Reglas activas:{RESET}\n")
     run("iptables -L FORWARD -n --line-numbers")
 
 
 def delete_rule():
     list_rules()
-    num = input("\nNúmero de regla a eliminar: ")
+    num = input(f"\n{PINK}Número de regla a eliminar: {RESET}")
     run(f"iptables -D FORWARD {num}")
 
 
 def flush_rules():
-    print("[+] Eliminando todas las reglas...")
+    print(f"{ORANGE}[+] Eliminando todas las reglas...{RESET}")
     run("iptables -F FORWARD")
 
 
@@ -71,34 +72,37 @@ def flush_rules():
 
 def firewall_menu():
     while True:
-        print("\n=== FIREWALL ===")
-        print("1. Bloquear dispositivo (IP)")
-        print("2. Bloqueo global (IP destino)")
-        print("3. Bloquear IP destino a dispositivo")
-        print("4. Bloquear app")
-        print("5. Ver reglas")
-        print("6. Eliminar regla")
-        print("7. Limpiar todo")
-        print("0. Volver")
+        print(f"\n{BOLD}{CYAN}=== FIREWALL ==={RESET}")
+        print(f"{RED}--- BLOQUEOS ---{RESET}")
+        print(f"{BLUE}[1]{WHITE} Bloquear dispositivo (IP){RESET}")
+        print(f"{BLUE}[2]{WHITE} Bloqueo global (IP destino){RESET}")
+        print(f"{BLUE}[3]{WHITE} Bloquear IP destino a dispositivo{RESET}")
 
-        op = input("\nOpción: ")
+        print(f"{CYAN}--- APPs / REGLAS ---{RESET}")
+        print(f"{BLUE}[4]{WHITE} Bloquear app{RESET}")
+        print(f"{BLUE}[5]{WHITE} Ver reglas{RESET}")
+        print(f"{BLUE}[6]{WHITE} Eliminar regla{RESET}")
+        print(f"{BLUE}[7]{WHITE} Limpiar todo{RESET}")
+        print(f"{RED}[0] Cancelar{RESET}")
+
+        op = input(f"\n{CYAN}Opción: {RESET}")
 
         if op == "1":
             devices = get_neighbors()
 
             if not devices:
-                print("[!] No hay dispositivos detectados")
+                print(f"{RED}[!] No hay dispositivos detectados{RESET}")
                 continue
 
-            print("\nDispositivos:")
+            print(f"\n{PINK}Dispositivos:{RESET}")
             for i, d in enumerate(devices):
                 print(f"{i+1}. {d['ip']} ({d['mac']})")
 
             try:
-                idx = int(input("\nSelecciona el dispositivo: ")) - 1
+                idx = int(input(f"\n{PINK}Selecciona el dispositivo: {RESET}")) - 1
 
                 if idx < 0 or idx >= len(devices):
-                    print("[!] Selección inválida")
+                    print(f"{RED}[!] Selección inválida{RESET}")
                     continue
 
                 ip = devices[idx]["ip"]
@@ -106,7 +110,7 @@ def firewall_menu():
                 block_device(ip)
 
             except:
-                print("[!] Entrada inválida")
+                print(f"{RED}[!] Entrada inválida{RESET}")
             
         elif op == "2":
             ip = input("IP destino: ")
@@ -116,18 +120,18 @@ def firewall_menu():
             devices = get_neighbors()
 
             if not devices:
-                print("[!] No hay dispositivos")
+                print(f"{RED}[!] No hay dispositivos{RESET}")
                 continue
 
-            print("\nDispositivos:")
+            print(f"\n{PINK}Dispositivos:{RESET}")
             for i, d in enumerate(devices):
                 print(f"{i+1}. {d['ip']} ({d['mac']})")
 
             try:
-                idx = int(input("\nSelecciona dispositivo: ")) - 1
+                idx = int(input(f"\n{PINK}Selecciona dispositivo: {RESET}")) - 1
 
                 if idx < 0 or idx >= len(devices):
-                    print("[!] Selección inválida")
+                    print(f"{RED}[!] Selección inválida{RESET}")
                     continue
 
                 src_ip = devices[idx]["ip"]
@@ -137,7 +141,7 @@ def firewall_menu():
                 block_ip_for_device(src_ip, dst_ip)
 
             except:
-                print("[!] Error en entrada")
+                print(f"{RED}[!] Error en entrada{RESET}")
 
         elif op == "4":
             app = input("App (youtube/instagram/facebook): ")
@@ -156,4 +160,4 @@ def firewall_menu():
             break
 
         else:
-            print("Opción inválida")
+            print(f"{RED}[!] Opción inválida{RESET}")

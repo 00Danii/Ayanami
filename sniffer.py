@@ -1,4 +1,5 @@
 from scapy.all import sniff, IP, TCP, UDP, DNSQR
+from colors import BOLD, CYAN, BLUE, ORANGE, PINK, RED, RESET, WHITE
 from network import get_interfaces_detailed
 from scanner import get_neighbors
 import threading
@@ -38,20 +39,30 @@ def packet_full(pkt):
         print(f"DNS: {pkt[DNSQR].qname.decode()}")
 
 
-# Selección de interfaz (PRO)
+# Selección de interfaz 
 def select_interface():
     interfaces = get_interfaces_detailed()
 
-    print("\nInterfaces:")
+    print(f"\n{PINK}Interfaces disponibles:{RESET}")
     for i, d in enumerate(interfaces):
-        print(f"{i+1}. {d['iface']} ({d['type']} - {d['state']} - {d['connection']})")
+        print(f"{i+1}.{d['iface']} ({d['type']} - {d['state']} - {d['connection']})")
+    print(f"{RED}[0] Cancelar {RESET}")
 
     try:
-        idx = int(input("\nSelecciona interfaz: ")) - 1
-        return interfaces[idx]["iface"]
+        choice = int(input(f"\n{PINK}Selecciona la interfaz: {RESET}"))
     except:
-        print("[!] Selección inválida")
-        return None
+        print(f"{RED}[!] Entrada inválida{RESET}")
+        return
+
+    if choice == 0:
+        print(f"{ORANGE}[!] Operación cancelada{RESET}")
+        return
+
+    if choice < 1 or choice > len(interfaces):
+        print(f"{RED}[!] Selección inválida{RESET}")
+        return
+
+    return interfaces[choice - 1]["iface"]
 
 
 # Sniffer general
@@ -60,7 +71,7 @@ def sniff_all():
     if not iface:
         return
 
-    print("\n[+] Sniffing toda la red...\n")
+    print(f"\n{ORANGE}[+] Sniffing toda la red...\n{RESET}")
 
     # threading.Thread(target=key_listener, daemon=True).start()
 
@@ -80,21 +91,31 @@ def sniff_by_device():
     devices = get_neighbors()
 
     if not devices:
-        print("[!] No hay dispositivos")
+        print(f"{RED}[!] No hay dispositivos{RESET}")
         return
 
-    print("\nDispositivos:")
+    print(f"\n{PINK}Dispositivos:{RESET}")
     for i, d in enumerate(devices):
         print(f"{i+1}. {d['ip']} ({d['mac']})")
+    print(f"{RED}[0] Cancelar{RESET}")
 
     try:
-        idx = int(input("\nSelecciona: ")) - 1
-        target = devices[idx]["ip"]
+        choice = int(input(f"\n{PINK}Selecciona dispositivo: {RESET}"))
     except:
-        print("[!] Selección inválida")
+        print(f"{RED}[!] Selección inválida{RESET}")
         return
 
-    print(f"\n[+] Sniffing {target}...\n")
+    if choice == 0:
+        print(f"{ORANGE}[!] Operación cancelada{RESET}")
+        return
+
+    if choice < 1 or choice > len(devices):
+        print(f"{RED}[!] Selección inválida{RESET}")
+        return
+
+    target = devices[choice - 1]["ip"]
+
+    print(f"\n{ORANGE}[+] Sniffing {target}...\n{RESET}")
 
     # threading.Thread(target=key_listener, daemon=True).start() 
 
@@ -112,7 +133,7 @@ def sniff_raw():
     if not iface:
         return
 
-    print("\n[+] Modo RAW (muy detallado)\n")
+    print(f"\n{ORANGE}[+] Modo RAW (muy detallado)\n{RESET}")
 
     # threading.Thread(target=key_listener, daemon=True).start()
 
@@ -126,13 +147,13 @@ def sniff_raw():
 # MENÚ DEL SNIFFER
 def sniffer_menu():
     while True:
-        print("\n=== SNIFFER ===")
-        print("1. Ver todo el tráfico")
-        print("2. Ver tráfico por dispositivo")
-        print("3. Modo RAW (ultra detallado)")
-        print("4. Volver")
+        print(f"\n{BOLD}{ORANGE}=== SNIFFER ==={RESET}")
+        print("[1] Ver todo el tráfico")
+        print("[2] Ver tráfico por dispositivo")
+        print("[3] Modo RAW (detallado)")
+        print(f"{RED}[0] Cancelar{RESET}")
 
-        choice = input("\nOpción: ")
+        choice = input(f"\n{PINK}Opción: {RESET}")
 
         if choice == "1":
             sniff_all()
@@ -143,8 +164,8 @@ def sniffer_menu():
         elif choice == "3":
             sniff_raw()
 
-        elif choice == "4":
+        elif choice == "0":
             break
 
         else:
-            print("Opción inválida")
+            print(f"{RED}[!] Opción inválida{RESET}")
