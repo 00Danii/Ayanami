@@ -43,6 +43,24 @@ def unblock_app_ips(ips):
         run(f"iptables -D FORWARD -d {ip} -j DROP")
 
 
+# Bloquear una lista de IPs SOLO para un dispositivo fuente específico
+def block_app_ips_for_device(ips, src_ip):
+    if not ips:
+        return
+    for ip in ips:
+        print(f"{ORANGE}[+] Bloqueando {ip} para {src_ip}{RESET}")
+        run(f"iptables -A FORWARD -s {src_ip} -d {ip} -j DROP")
+
+
+# Desbloquear una lista de IPs SOLO para un dispositivo fuente específico
+def unblock_app_ips_for_device(ips, src_ip):
+    if not ips:
+        return
+    for ip in ips:
+        print(f"{ORANGE}[+] Eliminando bloqueo {ip} para {src_ip}{RESET}")
+        run(f"iptables -D FORWARD -s {src_ip} -d {ip} -j DROP")
+
+
 # =========================
 # GESTIÓN DE REGLAS
 # =========================
