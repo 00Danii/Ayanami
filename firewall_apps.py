@@ -11,7 +11,19 @@ def load_data():
         return {}
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         try:
-            return json.load(f)
+            data = json.load(f)
+            # Normalizar estructura histórica: asegurar claves por app
+            for k, v in list(data.items()):
+                if not isinstance(v, dict):
+                    data[k] = {"ips": [], "blocked": False, "blocked_devices": []}
+                    continue
+                if "ips" not in v:
+                    v["ips"] = []
+                if "blocked" not in v:
+                    v["blocked"] = False
+                if "blocked_devices" not in v:
+                    v["blocked_devices"] = []
+            return data
         except Exception:
             return {}
 
@@ -59,11 +71,56 @@ def register_app(data):
     if ips_input.strip() == "0":
         return
     ips = [ip.strip() for ip in ips_input.split(",") if ip.strip()]
-    data[name] = {"ips": ips, "blocked": False}
+    data[name] = {"ips": ips, "blocked": False, "blocked_devices": []}
     save_data(data)
     print(f"{ORANGE}App '{name}' registrada.{RESET}")
 
+
+def modify_app(data):
+    print(f"\n{PINK}Modificar app{RESET}")
+    app = prompt_app_selection(data, "modificar")
+    if not app:
+        return
+    info = data[app]
+    print(f"\nNombre actual: {app}")
+    new_name = input(f"{PINK}Nuevo nombre (enter para mantener): {RESET}").strip()
+    if new_name and new_name != app:
+        if new_name in data:
+            print(f"{RED}[!] Ya existe una app con ese nombre.{RESET}")
+            return
+        data[new_name] = data.pop(app)
+        app = new_name
+        info = data[app]
+    print(f"\nIPs actuales: {', '.join(info.get('ips', [])) or 'sin IPs'}")
+    ips_input = input(f"{PINK}IPs separadas por coma (enter para mantener): {RESET}")
+    if ips_input.strip():
+        ips = [ip.strip() for ip in ips_input.split(",") if ip.strip()]
+        try:
+            import firewall
+            old_ips = info.get("ips", [])
+            # eliminar reglas viejas si existían
+            if info.get("blocked") and old_ips:
+                firewall.unblock_app_ips(old_ips)
+            for dev in info.get("blocked_devices", []):
+                if old_ips:
+                    firewall.unblock_app_ips_for_device(old_ips, dev)
+            info["ips"] = ips
+            # aplicar reglas nuevas si corresponde
+            if info.get("blocked") and ips:
+                firewall.block_app_ips(ips)
+            for dev in info.get("blocked_devices", []):
+                if ips:
+                    firewall.block_app_ips_for_device(ips, dev)
+        except Exception as e:
+            print(f"{RED}[!] Error al sincronizar reglas: {e}{RESET}")
+        save_data(data)
+        print(f"{ORANGE}[+] App '{app}' actualizada.{RESET}")
+    else:
+        save_data(data)
+        print(f"{ORANGE}[+] App '{app}' actualizada (nombre).{RESET}")
+
 def delete_app_or_ip(data):
+    print(f"\n{PINK}Borrar app o IP de una app{RESET}")
     app = prompt_app_selection(data, "borrar")
     if not app:
         return
@@ -76,6 +133,17 @@ def delete_app_or_ip(data):
     if choice.strip() == "1":
         confirm = input(f"\n{PINK}Confirma borrar la app '{app}'? (s/N): {RESET}")
         if confirm.lower() == "s":
+            # antes de borrar, quitar reglas si existen
+            try:
+                import firewall
+                ips = data[app].get("ips", [])
+                if ips and data[app].get("blocked"):
+                    firewall.unblock_app_ips(ips)
+                for dev in data[app].get("blocked_devices", []):
+                    if ips:
+                        firewall.unblock_app_ips_for_device(ips, dev)
+            except Exception as e:
+                print(f"{RED}[!] Error al eliminar reglas (se necesita permiso root): {e}{RESET}")
             del data[app]
             save_data(data)
             print(f"{ORANGE}[+] App borrada.{RESET}")
@@ -102,6 +170,15 @@ def delete_app_or_ip(data):
                 else:
                     # dejar lista vacía
                     data[app]["ips"] = []
+                # sincronizar reglas asociadas a la IP eliminada
+                try:
+                    import firewall
+                    if data[app].get("blocked"):
+                        firewall.unblock_app_ips([removed])
+                    for dev in data[app].get("blocked_devices", []):
+                        firewall.unblock_app_ips_for_device([removed], dev)
+                except Exception as e:
+                    print(f"{RED}[!] Error al sincronizar reglas: {e}{RESET}")
                 save_data(data)
                 print(f"{ORANGE}[+] IP {removed} borrada de '{app}'.{RESET}")
                 return
@@ -111,6 +188,7 @@ def delete_app_or_ip(data):
 
 def set_block_state(data, block=True):
     action = "bloquear" if block else "desbloquear"
+    print(f"\n{PINK}{action.capitalize()} app (global){RESET}")
     app = prompt_app_selection(data, action)
     if not app:
         return
@@ -134,15 +212,91 @@ def set_block_state(data, block=True):
     estado = "BLOQUEADA" if block else "DESBLOQUEADA"
     print(f"{ORANGE}[+] App '{app}' {estado}.{RESET}")
 
+
+def block_app_on_device(data):
+    print(f"\n{PINK}Bloquear app en dispositivo específico{RESET}")
+    app = prompt_app_selection(data, "bloquear en dispositivo")
+    if not app:
+        return
+    ips = data[app].get("ips", [])
+    if not ips:
+        print(f"{RED}[!] La app no tiene IPs registradas.{RESET}")
+        return
+    try:
+        from scanner import get_neighbors
+        devices = get_neighbors()
+        if not devices:
+            print(f"{RED}[!] No hay dispositivos detectados{RESET}")
+            return
+        for i, d in enumerate(devices):
+            print(f"{BLUE}[{i+1}] {WHITE}{d['ip']} ({d['mac']}){RESET}")
+        print(f"{RED}[0] Cancelar{RESET}")
+        sel = input(f"\n{PINK}Selecciona dispositivo: {RESET}")
+        if sel.strip() == "0":
+            return
+        idx = int(sel) - 1
+        if idx < 0 or idx >= len(devices):
+            print(f"{RED}[!] Selección inválida{RESET}")
+            return
+        src_ip = devices[idx]["ip"]
+    except Exception:
+        print(f"{RED}[!] Selección inválida{RESET}")
+        return
+    try:
+        import firewall
+        firewall.block_app_ips_for_device(ips, src_ip)
+    except Exception as e:
+        print(f"{RED}[!] Error al aplicar reglas (se necesita permiso root): {e}{RESET}")
+    data[app].setdefault("blocked_devices", [])
+    if src_ip not in data[app]["blocked_devices"]:
+        data[app]["blocked_devices"].append(src_ip)
+    save_data(data)
+    print(f"{ORANGE}[+] App '{app}' bloqueada para {src_ip}.{RESET}")
+
+
+def unblock_app_on_device(data):
+    print(f"\n{PINK}Desbloquear app en dispositivo específico{RESET}")
+    app = prompt_app_selection(data, "desbloquear en dispositivo")
+    if not app:
+        return
+    devices = data[app].get("blocked_devices", [])
+    if not devices:
+        print(f"{RED}[!] No hay bloqueos por dispositivo para esta app.{RESET}")
+        return
+    for i, d in enumerate(devices, start=1):
+        print(f"{BLUE}[{i}] {WHITE}{d}{RESET}")
+    print(f"{RED}[0] Cancelar{RESET}")
+    sel = input(f"\n{PINK}Selecciona dispositivo para desbloquear: {RESET}")
+    if sel.strip() == "0":
+        return
+    try:
+        idx = int(sel) - 1
+        if idx < 0 or idx >= len(devices):
+            print(f"{RED}[!] Selección inválida{RESET}")
+            return
+        src_ip = devices.pop(idx)
+        import firewall
+        ips = data[app].get("ips", [])
+        if ips:
+            firewall.unblock_app_ips_for_device(ips, src_ip)
+        data[app]["blocked_devices"] = devices
+        save_data(data)
+        print(f"{ORANGE}[+] Desbloqueado en {src_ip}.{RESET}")
+    except Exception as e:
+        print(f"{RED}[!] Error: {e}{RESET}")
+
 def main_menu():
     while True:
         data = load_data()
         print(f"\n{BOLD}{PINK}=== Firewall Apps ==={RESET}")
         print("[1] Ver apps")
         print("[2] Registrar app nueva")
-        print("[3] Borrar app o IP de una app")
-        print("[4] Bloquear app")
-        print("[5] Desbloquear app")
+        print("[3] Modificar app")
+        print("[4] Borrar app o IP de una app")
+        print("[5] Bloquear app (global)")
+        print("[6] Desbloquear app (global)")
+        print("[7] Bloquear app en dispositivo")
+        print("[8] Desbloquear app en dispositivo")
         print(f"{RED}[0] Cancelar{RESET}")
 
         choice = input(f"\n{PINK}Opción: {RESET}")
@@ -157,13 +311,22 @@ def main_menu():
             register_app(data)
             continue
         if choice.strip() == "3":
-            delete_app_or_ip(data)
+            modify_app(data)
             continue
         if choice.strip() == "4":
-            set_block_state(data, True)
+            delete_app_or_ip(data)
             continue
         if choice.strip() == "5":
+            set_block_state(data, True)
+            continue
+        if choice.strip() == "6":
             set_block_state(data, False)
+            continue
+        if choice.strip() == "7":
+            block_app_on_device(data)
+            continue
+        if choice.strip() == "8":
+            unblock_app_on_device(data)
             continue
         print("Opción inválida.")
 
