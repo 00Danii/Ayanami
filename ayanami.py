@@ -6,13 +6,11 @@ from monitor_bw import monitor_bandwidth
 from sniffer import sniffer_menu
 from firewall import firewall_menu
 
-
-
 def menu():
     while True:
-        print(f"\n{BOLD}{LIME}╔══════════════════════════════════════╗{RESET}")
-        print(f"{BOLD}{PINK}║      AYANAMI (REI HACKER RAINBOW)     ║")
-        print(f"{BOLD}{LIME}╚══════════════════════════════════════╝{RESET}")
+        print(f"{PINK}▄████▄ ██  ██ ▄████▄ ███  ██ ▄████▄ ██▄  ▄██ ██ {RESET}")
+        print(f"{PINK}██▄▄██  ▀██▀  ██▄▄██ ██ ▀▄██ ██▄▄██ ██ ▀▀ ██ ██ {RESET}")
+        print(f"{PINK}██  ██   ██   ██  ██ ██   ██ ██  ██ ██    ██ ██ {RESET}")
 
         print(f"{PINK}--- RED / INTERFACES ---{RESET}")
         print(f"{PINK}[1] {WHITE} Ver Interfaces de Red (nmcli){RESET}")
