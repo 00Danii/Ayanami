@@ -24,7 +24,6 @@ def block_global(ip):
 # Bloqueo una IP SOLO para dispositivo especifico
 def block_ip_for_device(src_ip, dst_ip):
     print(f"{ORANGE}[+] Bloqueando {dst_ip} para {src_ip}{RESET}")
-
     run(f"iptables -A FORWARD -s {src_ip} -d {dst_ip} -j DROP")
 
 # Bloqueo por nombre de app 
