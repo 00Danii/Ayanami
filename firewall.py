@@ -1,5 +1,5 @@
 import subprocess
-from colors import BLUE, BOLD, CYAN, ORANGE, PINK, RED, RESET, WHITE
+from colors import BLUE, BOLD, CYAN, ORANGE, PINK, PURPLE, RED, RESET, WHITE
 from scanner import get_neighbors
 
 def run(cmd):
@@ -57,7 +57,11 @@ def list_rules():
 
 def delete_rule():
     list_rules()
+    print(f"{RED}[0] Cancelar{RESET}")
     num = input(f"\n{PINK}Número de regla a eliminar: {RESET}")
+    if num.strip() == "0":
+        print(f"{ORANGE}[!] Operación cancelada{RESET}")
+        return
     run(f"iptables -D FORWARD {num}")
 
 
@@ -72,17 +76,17 @@ def flush_rules():
 
 def firewall_menu():
     while True:
-        print(f"\n{BOLD}{CYAN}=== FIREWALL ==={RESET}")
-        print(f"{RED}--- BLOQUEOS ---{RESET}")
-        print(f"{BLUE}[1]{WHITE} Bloquear dispositivo (IP){RESET}")
-        print(f"{BLUE}[2]{WHITE} Bloqueo global (IP destino){RESET}")
-        print(f"{BLUE}[3]{WHITE} Bloquear IP destino a dispositivo{RESET}")
+        print(f"\n{BOLD}{PINK}=== FIREWALL ==={RESET}")
+        print(f"{ORANGE}--- BLOQUEOS ---{RESET}")
+        print(f"{ORANGE}[1]{WHITE} Bloquear dispositivo (IP){RESET}")
+        print(f"{ORANGE}[2]{WHITE} Bloqueo global (IP destino){RESET}")
+        print(f"{ORANGE}[3]{WHITE} Bloquear IP destino a dispositivo{RESET}")
 
-        print(f"{CYAN}--- APPs / REGLAS ---{RESET}")
-        print(f"{BLUE}[4]{WHITE} Bloquear app{RESET}")
-        print(f"{BLUE}[5]{WHITE} Ver reglas{RESET}")
-        print(f"{BLUE}[6]{WHITE} Eliminar regla{RESET}")
-        print(f"{BLUE}[7]{WHITE} Limpiar todo{RESET}")
+        print(f"{PURPLE}--- APPs / REGLAS ---{RESET}")
+        print(f"{PURPLE}[4]{WHITE} Bloquear app{RESET}")
+        print(f"{PURPLE}[5]{WHITE} Ver reglas{RESET}")
+        print(f"{PURPLE}[6]{WHITE} Eliminar regla{RESET}")
+        print(f"{PURPLE}[7]{WHITE} Limpiar todo{RESET}")
         print(f"{RED}[0] Cancelar{RESET}")
 
         op = input(f"\n{CYAN}Opción: {RESET}")
@@ -97,24 +101,32 @@ def firewall_menu():
             print(f"\n{PINK}Dispositivos:{RESET}")
             for i, d in enumerate(devices):
                 print(f"{i+1}. {d['ip']} ({d['mac']})")
+            print(f"{RED}[0] Cancelar{RESET}")
 
             try:
-                idx = int(input(f"\n{PINK}Selecciona el dispositivo: {RESET}")) - 1
-
-                if idx < 0 or idx >= len(devices):
-                    print(f"{RED}[!] Selección inválida{RESET}")
-                    continue
-
-                ip = devices[idx]["ip"]
-
-                block_device(ip)
-
+                choice = int(input(f"\n{PINK}Selecciona el dispositivo (0 cancelar): {RESET}"))
             except:
                 print(f"{RED}[!] Entrada inválida{RESET}")
+                continue
+
+            if choice == 0:
+                print(f"{ORANGE}[!] Operación cancelada{RESET}")
+                continue
+
+            idx = choice - 1
+            if idx < 0 or idx >= len(devices):
+                print(f"{RED}[!] Selección inválida{RESET}")
+                continue
+
+            ip = devices[idx]["ip"]
+            block_device(ip)
             
         elif op == "2":
-            ip = input("IP destino: ")
-            block_global(ip)
+            dst_ip = input(f"{PINK}IP a bloquear (0 cancelar): {RESET}")
+            if dst_ip.strip() == "0":
+                print(f"{ORANGE}[!] Operación cancelada{RESET}")
+                continue
+            block_global(dst_ip)
 
         elif op == "3":
             devices = get_neighbors()
@@ -126,22 +138,31 @@ def firewall_menu():
             print(f"\n{PINK}Dispositivos:{RESET}")
             for i, d in enumerate(devices):
                 print(f"{i+1}. {d['ip']} ({d['mac']})")
+            print(f"{RED}[0] Cancelar{RESET}")
 
             try:
-                idx = int(input(f"\n{PINK}Selecciona dispositivo: {RESET}")) - 1
-
-                if idx < 0 or idx >= len(devices):
-                    print(f"{RED}[!] Selección inválida{RESET}")
-                    continue
-
-                src_ip = devices[idx]["ip"]
-
-                dst_ip = input("IP a bloquear: ")
-
-                block_ip_for_device(src_ip, dst_ip)
-
+                choice = int(input(f"\n{PINK}Selecciona dispositivo (0 cancelar): {RESET}"))
             except:
-                print(f"{RED}[!] Error en entrada{RESET}")
+                print(f"{RED}[!] Entrada inválida{RESET}")
+                continue
+
+            if choice == 0:
+                print(f"{ORANGE}[!] Operación cancelada{RESET}")
+                continue
+
+            idx = choice - 1
+            if idx < 0 or idx >= len(devices):
+                print(f"{RED}[!] Selección inválida{RESET}")
+                continue
+
+            src_ip = devices[idx]["ip"]
+
+            dst_ip = input(f"{PINK}IP a bloquear (0 cancelar): {RESET}")
+            if dst_ip.strip() == "0":
+                print(f"{ORANGE}[!] Operación cancelada{RESET}")
+                continue
+
+            block_ip_for_device(src_ip, dst_ip)
 
         elif op == "4":
             app = input("App (youtube/instagram/facebook): ")
