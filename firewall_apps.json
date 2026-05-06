@@ -37,7 +37,9 @@
       "157.240.25.60"
     ],
     "blocked": false,
-    "blocked_devices": []
+    "blocked_devices": [
+      "10.42.0.232"
+    ]
   },
   "Instagram": {
     "ips": [
