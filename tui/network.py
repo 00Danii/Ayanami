@@ -1,12 +1,7 @@
 import subprocess
 
-from colors import ORANGE, PINK, RED, RESET
-
 def run(cmd):
     return subprocess.check_output(cmd, shell=True).decode()
-
-def show_devices():
-    print(run("nmcli device status"))
 
 def get_interfaces():
     output = run("nmcli device status")
@@ -18,29 +13,6 @@ def get_interfaces():
             interfaces.append(iface)
 
     return interfaces
-
-def disconnect_interface():
-    interfaces = get_interfaces()
-
-    print(f"{PINK}Interfaces disponibles: {RESET}")
-    for i, iface in enumerate(interfaces):
-        print(f"[{i+1}] {iface}")
-    print(f"{RED}[0] Cancelar {RESET}")
-    choice = int(input(f"{PINK}Selecciona interfaz: {RESET}"))
-
-    # Opción cancelar
-    if choice == 0:
-        print(f"{ORANGE}[!] Operación cancelada {RESET}")
-        return
-    
-    if choice < 1 or choice > len(interfaces):
-        print(f"{RED}[!] Selección inválida{RESET}")
-        return
-
-    iface = interfaces[choice - 1]
-
-    subprocess.run(f"nmcli device disconnect {iface}", shell=True)
-    print(f"{ORANGE}[+] {iface} desconectada {RESET}")
 
 
 def get_interfaces_detailed():
@@ -63,3 +35,31 @@ def get_interfaces_detailed():
             })
 
     return interfaces
+
+
+def show_devices():
+    print(run("nmcli device status"))
+
+
+def disconnect_interface():
+    interfaces = get_interfaces()
+
+    from colors import ORANGE, PINK, RED, RESET
+    print(f"{PINK}Interfaces disponibles: {RESET}")
+    for i, iface in enumerate(interfaces):
+        print(f"[{i+1}] {iface}")
+    print(f"{RED}[0] Cancelar {RESET}")
+    choice = int(input(f"{PINK}Selecciona interfaz: {RESET}"))
+
+    if choice == 0:
+        print(f"{ORANGE}[!] Operación cancelada {RESET}")
+        return
+    
+    if choice < 1 or choice > len(interfaces):
+        print(f"{RED}[!] Selección inválida{RESET}")
+        return
+
+    iface = interfaces[choice - 1]
+
+    subprocess.run(f"nmcli device disconnect {iface}", shell=True)
+    print(f"{ORANGE}[+] {iface} desconectada {RESET}")

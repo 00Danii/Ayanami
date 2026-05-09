@@ -1,46 +1,53 @@
 from scapy.all import sniff, IP, TCP, UDP, DNSQR
-from colors import BOLD, CYAN, BLUE, ORANGE, PINK, RED, RESET, WHITE
 from network import get_interfaces_detailed
 from scanner import get_neighbors
-import threading
+import subprocess
 
-# paused = False
 
-# Listener de teclado
-# def key_listener():
-#     global paused
-#     while True:
-#         key = input()
-#         if key.lower() == "p":
-#             paused = not paused
-#             print("\n[+] Pausa" if paused else "\n[+] Reanudado")
+# =========================
+# CORE FUNCTIONS (para TUI)
+# =========================
 
-# Mostrar paquetes balanceado
 def packet_full(pkt):
-    #global paused
-
-    # if paused:
-    #     return
-
-    print("\n==============================")
-    print(pkt.summary())
+    result = []
+    result.append("==============================")
+    result.append(pkt.summary())
 
     if pkt.haslayer(IP):
-        print(f"SRC: {pkt[IP].src}")
-        print(f"DST: {pkt[IP].dst}")
+        result.append(f"SRC: {pkt[IP].src}")
+        result.append(f"DST: {pkt[IP].dst}")
 
     if pkt.haslayer(TCP):
-        print(f"TCP {pkt[TCP].sport} → {pkt[TCP].dport}")
+        result.append(f"TCP {pkt[TCP].sport} → {pkt[TCP].dport}")
 
     if pkt.haslayer(UDP):
-        print(f"UDP {pkt[UDP].sport} → {pkt[UDP].dport}")
+        result.append(f"UDP {pkt[UDP].sport} → {pkt[UDP].dport}")
 
     if pkt.haslayer(DNSQR):
-        print(f"DNS: {pkt[DNSQR].qname.decode()}")
+        result.append(f"DNS: {pkt[DNSQR].qname.decode()}")
+
+    return "\n".join(result)
 
 
-# Selección de interfaz 
+def get_interfaces():
+    return get_interfaces_detailed()
+
+
+def start_sniff(iface, target=None, mode="all", callback=None):
+    if mode == "raw":
+        return sniff(iface=iface, prn=lambda pkt: pkt.show(), store=0)
+    elif mode == "device" and target:
+        return sniff(iface=iface, filter=f"host {target}", prn=callback or packet_full, store=0)
+    else:
+        return sniff(iface=iface, prn=callback or packet_full, store=0)
+
+
+# =========================
+# CLI MENU FUNCTIONS
+# =========================
+
 def select_interface():
+    from colors import ORANGE, PINK, RED, RESET
     interfaces = get_interfaces_detailed()
 
     print(f"\n{PINK}Interfaces disponibles:{RESET}")
@@ -65,25 +72,18 @@ def select_interface():
     return interfaces[choice - 1]["iface"]
 
 
-# Sniffer general
 def sniff_all():
+    from colors import ORANGE
     iface = select_interface()
     if not iface:
         return
 
     print(f"\n{ORANGE}[+] Sniffing toda la red...\n{RESET}")
-
-    # threading.Thread(target=key_listener, daemon=True).start()
-
-    sniff(
-        iface=iface,
-        prn=packet_full,
-        store=0
-    )
+    sniff(iface=iface, prn=lambda pkt: print(packet_full(pkt)), store=0)
 
 
-# Sniffer por dispositivo
 def sniff_by_device():
+    from colors import ORANGE, PINK, RED, RESET
     iface = select_interface()
     if not iface:
         return
@@ -116,36 +116,21 @@ def sniff_by_device():
     target = devices[choice - 1]["ip"]
 
     print(f"\n{ORANGE}[+] Sniffing {target}...\n{RESET}")
-
-    # threading.Thread(target=key_listener, daemon=True).start() 
-
-    sniff(
-        iface=iface,
-        filter=f"host {target}",
-        prn=packet_full,
-        store=0
-    )
+    sniff(iface=iface, filter=f"host {target}", prn=lambda pkt: print(packet_full(pkt)), store=0)
 
 
-# MODO RAW (tipo Wireshark CLI)
 def sniff_raw():
+    from colors import ORANGE
     iface = select_interface()
     if not iface:
         return
 
     print(f"\n{ORANGE}[+] Modo RAW (muy detallado)\n{RESET}")
-
-    # threading.Thread(target=key_listener, daemon=True).start()
-
-    sniff(
-        iface=iface,
-        prn=lambda pkt: pkt.show(),
-        store=0
-    )
+    sniff(iface=iface, prn=lambda pkt: pkt.show(), store=0)
 
 
-# MENÚ DEL SNIFFER
 def sniffer_menu():
+    from colors import BOLD, ORANGE, PINK, RED, RESET
     while True:
         print(f"\n{BOLD}{ORANGE}=== SNIFFER ==={RESET}")
         print("[1] Ver todo el tráfico")
@@ -157,15 +142,11 @@ def sniffer_menu():
 
         if choice == "1":
             sniff_all()
-
         elif choice == "2":
             sniff_by_device()
-
         elif choice == "3":
             sniff_raw()
-
         elif choice == "0":
             break
-
         else:
             print(f"{RED}[!] Opción inválida{RESET}")

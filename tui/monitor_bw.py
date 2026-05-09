@@ -1,10 +1,24 @@
 import subprocess
-from colors import ORANGE, PINK, RED, RESET, WHITE
 from network import get_interfaces_detailed
 from scanner import get_neighbors
 
 
-def monitor_bandwidth():
+def get_interfaces():
+    return get_interfaces_detailed()
+
+
+def get_devices():
+    return get_neighbors()
+
+
+def run_iftop(iface, target=None):
+    if target:
+        return subprocess.Popen(f"iftop -i {iface} -f 'host {target}'", shell=True)
+    return subprocess.Popen(f"iftop -i {iface}", shell=True)
+
+
+def monitor_bandwidth_cli():
+    from colors import ORANGE, PINK, RED, RESET, WHITE
     interfaces = get_interfaces_detailed()
 
     print(f"\n{PINK}Interfaces disponibles:{RESET}")
@@ -30,7 +44,6 @@ def monitor_bandwidth():
 
     print(f"\n{PINK}Dispositivos en la red:{RESET}")
     print(f"1. Monitorear toda la red")
-    # obtener dispositivos
     devices = get_neighbors()
 
     for i, d in enumerate(devices):

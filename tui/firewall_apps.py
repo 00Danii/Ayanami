@@ -6,13 +6,13 @@ from colors import BLUE, BOLD, ORANGE, PINK, RED, RESET, WHITE
 
 DATA_FILE = os.path.join(os.path.dirname(__file__), "firewall_apps.json")
 
+
 def load_data():
     if not os.path.exists(DATA_FILE):
         return {}
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         try:
             data = json.load(f)
-            # Normalizar estructura histórica: asegurar claves por app
             for k, v in list(data.items()):
                 if not isinstance(v, dict):
                     data[k] = {"ips": [], "blocked": False, "blocked_devices": []}
@@ -27,11 +27,30 @@ def load_data():
         except Exception:
             return {}
 
+
 def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
+
+def get_apps_list(data):
+    return [
+        {
+            "name": app,
+            "ips": info.get("ips", []),
+            "blocked": info.get("blocked", False),
+            "blocked_devices": info.get("blocked_devices", [])
+        }
+        for app, info in data.items()
+    ]
+
+
+# =========================
+# CLI FUNCTIONS (with print/input)
+# =========================
+
 def display_apps(data):
+    from colors import RED, RESET
     if not data:
         print(f"{RED}No hay apps registradas.{RESET}")
         return
@@ -40,7 +59,9 @@ def display_apps(data):
         ips = ", ".join(info.get("ips", [])) or "sin IPs"
         print(f"[{idx}] {app} {status} — IPs: {ips}")
 
+
 def prompt_app_selection(data, purpose="seleccionar"):
+    from colors import BLUE, RED, WHITE, PINK, RESET
     if not data:
         print(f"{RED}No hay apps registradas.{RESET}")
         return None
@@ -60,7 +81,9 @@ def prompt_app_selection(data, purpose="seleccionar"):
     print(f"{RED}[!] Selección inválida.{RESET}")
     return None
 
+
 def register_app(data):
+    from colors import RED, ORANGE, PINK, RESET
     name = input(f"\n{PINK}Nombre de la app (0 cancelar): {RESET}").strip()
     if name == "0" or not name:
         return
@@ -77,6 +100,7 @@ def register_app(data):
 
 
 def modify_app(data):
+    from colors import RED, ORANGE, PINK, RESET
     print(f"\n{PINK}Modificar app{RESET}")
     app = prompt_app_selection(data, "modificar")
     if not app:
@@ -98,14 +122,12 @@ def modify_app(data):
         try:
             import firewall
             old_ips = info.get("ips", [])
-            # eliminar reglas viejas si existían
             if info.get("blocked") and old_ips:
                 firewall.unblock_app_ips(old_ips)
             for dev in info.get("blocked_devices", []):
                 if old_ips:
                     firewall.unblock_app_ips_for_device(old_ips, dev)
             info["ips"] = ips
-            # aplicar reglas nuevas si corresponde
             if info.get("blocked") and ips:
                 firewall.block_app_ips(ips)
             for dev in info.get("blocked_devices", []):
@@ -119,7 +141,9 @@ def modify_app(data):
         save_data(data)
         print(f"{ORANGE}[+] App '{app}' actualizada (nombre).{RESET}")
 
+
 def delete_app_or_ip(data):
+    from colors import BLUE, RED, WHITE, PINK, RESET
     print(f"\n{PINK}Borrar app o IP de una app{RESET}")
     app = prompt_app_selection(data, "borrar")
     if not app:
@@ -133,7 +157,6 @@ def delete_app_or_ip(data):
     if choice.strip() == "1":
         confirm = input(f"\n{PINK}Confirma borrar la app '{app}'? (s/N): {RESET}")
         if confirm.lower() == "s":
-            # antes de borrar, quitar reglas si existen
             try:
                 import firewall
                 ips = data[app].get("ips", [])
@@ -168,9 +191,7 @@ def delete_app_or_ip(data):
                 if ips:
                     data[app]["ips"] = ips
                 else:
-                    # dejar lista vacía
                     data[app]["ips"] = []
-                # sincronizar reglas asociadas a la IP eliminada
                 try:
                     import firewall
                     if data[app].get("blocked"):
@@ -186,22 +207,21 @@ def delete_app_or_ip(data):
             pass
         print(f"{RED}[!] Selección inválida.{RESET}")
 
+
 def set_block_state(data, block=True):
+    from colors import RED, ORANGE, PINK, RESET
     action = "bloquear" if block else "desbloquear"
     print(f"\n{PINK}{action.capitalize()} app (global){RESET}")
     app = prompt_app_selection(data, action)
     if not app:
         return
-    # Aplicar reglas iptables usando funciones en firewall.py
     ips = data[app].get("ips", [])
     try:
         import firewall
         if block:
-            # bloquear por IPs registradas
             if ips:
                 firewall.block_app_ips(ips)
         else:
-            # desbloquear por IPs registradas
             if ips:
                 firewall.unblock_app_ips(ips)
     except Exception as e:
@@ -214,6 +234,7 @@ def set_block_state(data, block=True):
 
 
 def block_app_on_device(data):
+    from colors import BLUE, RED, WHITE, PINK, RESET
     print(f"\n{PINK}Bloquear app en dispositivo específico{RESET}")
     app = prompt_app_selection(data, "bloquear en dispositivo")
     if not app:
@@ -255,6 +276,7 @@ def block_app_on_device(data):
 
 
 def unblock_app_on_device(data):
+    from colors import BLUE, RED, WHITE, PINK, RESET
     print(f"\n{PINK}Desbloquear app en dispositivo específico{RESET}")
     app = prompt_app_selection(data, "desbloquear en dispositivo")
     if not app:
@@ -285,7 +307,9 @@ def unblock_app_on_device(data):
     except Exception as e:
         print(f"{RED}[!] Error: {e}{RESET}")
 
+
 def main_menu():
+    from colors import BOLD, PINK, RED, RESET
     while True:
         data = load_data()
         print(f"\n{BOLD}{PINK}=== Firewall Apps ==={RESET}")
@@ -329,6 +353,7 @@ def main_menu():
             unblock_app_on_device(data)
             continue
         print("Opción inválida.")
+
 
 if __name__ == "__main__":
     try:
