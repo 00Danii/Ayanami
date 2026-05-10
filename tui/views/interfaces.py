@@ -80,7 +80,9 @@ class InterfacesView(Vertical):
     def disconnect_interface(self, iface: str):
         subprocess.run(
             f"nmcli device disconnect {iface}",
-            shell=True
+            shell=True,
+            capture_output=True,
+            text=True
         )
         self.notify(f"{iface} desconectada")
         self.refresh_data()
