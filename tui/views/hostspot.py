@@ -11,7 +11,7 @@ from textual.widgets import (
     Static
 )
 
-import subprocess
+import subprocess, qrcode, io, re
 
 
 class HotspotView(Vertical):
@@ -67,11 +67,6 @@ class HotspotView(Vertical):
 
         # PANEL DE LOGS
         with Vertical(classes="log-card"):
-            yield Static(
-                "STATUS",
-                classes="log-title"
-            )
-
             yield RichLog(
                 id="hotspot-log",
                 markup=True,
@@ -148,23 +143,9 @@ class HotspotView(Vertical):
                 text=True
             )
 
-            self.write_log(
-                f"[green]Hotspot creado[/]"
-            )
-
-            self.write_log(
-                f"[cyan]SSID:[/] {ssid}"
-            )
+            self.show_hotspot_password()
             
-            self.write_log(
-              f"[cyan]PASS:[/] {password}"
-            )
-
-            self.write_log(
-                f"[cyan]Interface:[/] {iface}"
-            )
-            
-            self.notify(f"HostSpot {ssid} creado")
+            self.notify(f"Hostspot {ssid} creado")
 
         except subprocess.CalledProcessError:
             self.write_log(
@@ -172,17 +153,83 @@ class HotspotView(Vertical):
             )
 
     def show_hotspot_password(self):
+        log = self.query_one(
+            "#hotspot-log",
+            RichLog
+        )
+        log.clear()
+
         try:
             result = subprocess.check_output(
                 "nmcli dev wifi show-password",
-                shell=True
-            ).decode()
+                shell=True,
+                text=True
+            )
+            ssid = None
+            password = None
+            for line in result.splitlines():
+                line = line.strip()
+                # SSID
+                if re.search(r"ssid", line, re.IGNORECASE):
+                    parts = line.split(":")
+                    if len(parts) > 1:
+                        ssid = parts[-1].strip()
+                # PASSWORD
+                elif (
+                    re.search(r"password", line, re.IGNORECASE)
+                    or re.search(r"contraseña", line, re.IGNORECASE)
+                ):
+                    parts = line.split(":")
+                    if len(parts) > 1:
+                        password = parts[-1].strip()
+
+            if not ssid or not password:
+                self.write_log(
+                    "[red]No se encontró hotspot activo[/]"
+                )
+                return
+
+            # MOSTRAR INFO EN LOG
 
             self.write_log(
-                f"[green]{result}[/]"
+                f"[green]SSID:[/] {ssid}"
             )
 
-        except:
             self.write_log(
-                "[red]No se pudo obtener password[/]"
+                f"[yellow]PASSWORD:[/] {password}"
+            )
+
+            # QR CODE
+
+            wifi_data = (
+                f"WIFI:T:WPA;"
+                f"S:{ssid};"
+                f"P:{password};;"
+            )
+
+            qr = qrcode.QRCode(
+                border=1
+            )
+
+            qr.add_data(wifi_data)
+
+            buffer = io.StringIO()
+
+            qr.print_ascii(
+                out=buffer,
+                tty=False,
+                invert=True
+            )
+
+            qr_text = buffer.getvalue()
+            self.write_log("")
+            
+            for line in qr_text.splitlines():
+                self.write_log(
+                    f"[white]{line}[/]"
+                )
+
+        except Exception as e:
+            self.write_log(
+                "[red]No se encontró hostspot activo[/]"
             )
