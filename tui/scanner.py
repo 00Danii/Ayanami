@@ -1,6 +1,5 @@
 import subprocess
 
-
 def get_neighbors():
     result = subprocess.check_output("ip neigh", shell=True).decode()
     devices = []
@@ -19,12 +18,3 @@ def get_neighbors():
             })
 
     return devices
-
-
-def show_neighbors():
-    from colors import ORANGE, RESET
-    devices = get_neighbors()
-
-    print(f"\n{ORANGE}[+] Dispositivos en la red:{RESET}")
-    for i, d in enumerate(devices):
-        print(f"{i+1}. {d['ip']} ({d['mac']}) - {d['iface']}")
