@@ -89,6 +89,8 @@ class ScannerView(Vertical):
             "IP",
             "HOSTNAME",
             "MAC",
+            "VENDOR",
+            "STATE",
             "INTERFACE"
         )
 
@@ -103,15 +105,32 @@ class ScannerView(Vertical):
         )
 
         table.clear()
-        neighbors = scanner.get_neighbors()
-        for device in neighbors:
+
+        devices = scanner.get_neighbors_simple()
+
+        iface = getattr(
+            self.app,
+            "selected_interface",
+            None
+        )
+
+        if iface:
+            devices = scanner.enrich_devices(
+                devices,
+                iface
+            )
+        for device in devices:
+
             hostname = self.resolve_hostname(
                 device["ip"]
             )
+
             table.add_row(
                 device["ip"],
                 hostname,
                 device["mac"],
+                device["vendor"],
+                device["state"],
                 device["iface"]
             )
 
@@ -121,7 +140,7 @@ class ScannerView(Vertical):
             "#scanner-count",
             Static
         ).update(
-            f"Dispositivos: {len(neighbors)}"
+            f"Dispositivos: {len(devices)}"
         )
 
         self.query_one(
@@ -131,17 +150,11 @@ class ScannerView(Vertical):
             f"Último Escaneo: {datetime.now().strftime('%H:%M:%S')}"
         )
 
-        iface = getattr(
-            self.app,
-            "selected_interface",
-            "--"
-        )
-
         self.query_one(
             "#scanner-iface",
             Static
         ).update(
-            f"Interfaz: {iface}"
+            f"Interfaz: {iface or '--'}"
         )
 
     # RESOLVER HOSTNAME
@@ -178,13 +191,49 @@ class ScannerView(Vertical):
             event.row_key
         )
 
-        ip, hostname, mac, iface = row
+        ip, hostname, mac, vendor, state, iface = row
+
+        self.query_one(
+            "#device-info",
+            Static
+        ).update(
+            "[yellow]Analizando host...[/]"
+        )
+
+        data = scanner.fingerprint_host(ip)
+
+        if "error" in data:
+
+            self.query_one(
+                "#device-info",
+                Static
+            ).update(
+                f"[red]{data['error']}[/]"
+            )
+
+            return
+
+        ports_text = ""
+
+        for port in data["ports"]:
+
+            ports_text += (
+                f"\n"
+                f"[cyan]{port['port']}[/] "
+                f"{port['service']} "
+                f"({port['state']})"
+            )
 
         info = (
             f"[cyan]IP:[/] {ip}\n"
             f"[green]HOSTNAME:[/] {hostname}\n"
             f"[yellow]MAC:[/] {mac}\n"
-            f"[magenta]INTERFACE:[/] {iface}"
+            f"[magenta]VENDOR:[/] {vendor}\n"
+            f"[blue]STATE:[/] {state}\n"
+            f"[white]INTERFACE:[/] {iface}\n\n"
+            f"[bold green]OS:[/] {data['os']}\n\n"
+            f"[bold yellow]PUERTOS:[/]"
+            f"{ports_text}"
         )
         self.query_one(
             "#device-info",
