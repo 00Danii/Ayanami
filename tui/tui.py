@@ -15,7 +15,6 @@ import os
 
 # Importar módulos existentes (SIN MODIFICARLOS)
 import scanner
-import gateway
 import monitor_bw
 import sniffer
 import firewall
