@@ -209,3 +209,68 @@ InterfaceRow Label {
 /**********************************
  * ===== FIN INTERFACE VIEW ===== *
  **********************************/
+
+
+/*******************************
+ * ====== HOSTSPOT VIEW ====== *
+ *******************************/
+
+.hotspot-card {
+    background: #24283b;
+    border: round #3b4261;
+    padding: 1;
+    margin-bottom: 1;
+}
+
+.input-row {
+    height: 3;
+    align: center middle;
+    margin-bottom: 1;
+}
+
+.input-label {
+    width: 12;
+    color: cyan;
+    text-style: bold;
+}
+
+.hotspot-input {
+    width: 1fr;
+}
+
+.hotspot-buttons {
+    height: auto;
+    margin-top: 1;
+    align-horizontal: center;
+}
+
+.hotspot-btn {
+    margin: 0 2;
+
+    min-width: 18;
+}
+
+/* ====== LOG ====== */
+
+.log-card {
+    height: 1fr;
+    background: #1a1b26;
+    border: round #3b4261;
+    padding: 1;
+}
+
+.log-title {
+    color: #7aa2f7;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+#hotspot-log {
+    height: 1fr;
+    background: transparent;
+    border: none;
+}
+
+/*******************************
+ * ====== FIN HOSTSPOT VIEW ====== *
+ *******************************/

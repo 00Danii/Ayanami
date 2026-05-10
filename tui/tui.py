@@ -119,16 +119,6 @@ class SnifferView(Vertical):
         except Exception as e:
             self.app.notify(f"Error al cargar dispositivos: {e}", severity="error")
 
-class HotspotView(Vertical):
-    def compose(self) -> ComposeResult:
-        yield Label("Crear Hotspot", classes="section-title")
-        yield Label("SSID:")
-        yield Input(placeholder="Nombre de la red", id="hotspot-ssid")
-        yield Label("Password:")
-        yield Input(placeholder="Mínimo 8 caracteres", id="hotspot-password", password=True)
-        yield Button("Crear Hotspot", variant="success", id="btn-create-hotspot")
-        yield Button("Ver Contraseña", variant="default", id="btn-show-password")
-        yield RichLog(id="hotspot-log")
 
 class MonitorView(Vertical):
     def compose(self) -> ComposeResult:
@@ -364,6 +354,7 @@ class FirewallView(Vertical):
 from widgets.sidebar import Sidebar
 
 from views.interfaces import InterfacesView
+from views.hostspot import HotspotView
 class AyanamiApp(App):
 
     CSS_PATH = "styles/app.css"
@@ -405,12 +396,6 @@ class AyanamiApp(App):
         elif event.button.id == "stop-sniffer":
             self.stop_sniffing()
 
-        # Hotspot
-        elif event.button.id == "btn-create-hotspot":
-            self.action_create_hotspot()
-        elif event.button.id == "btn-show-password":
-            self.action_show_hotspot_password()
-
         # Firewall - Quick blocks
         elif event.button.id == "btn-fw-block-global":
             self.action_fw_block_global()
@@ -447,32 +432,6 @@ class AyanamiApp(App):
 
     
 
-    def action_create_hotspot(self) -> None:
-        ssid = self.query_one("#hotspot-ssid", Input).value
-        pwd = self.query_one("#hotspot-password", Input).value
-        log = self.query_one("#hotspot-log", RichLog)
-
-        if not ssid or len(pwd) < 8:
-            log.write("[red][!] SSID requerido y Password min 8 caracteres[/]")
-            return
-
-        iface = self.selected_interface
-        if not iface:
-            log.write("[red][!] Selecciona una interfaz global en la barra lateral[/]")
-            return
-
-        log.write(f"[orange][+] Creando hotspot {ssid} en {iface}...[/]")
-        cmd = f"nmcli dev wifi hotspot ifname {iface} ssid {ssid} password {pwd}"
-        try:
-            subprocess.run(cmd, shell=True, check=True)
-            log.write("[green][+] Hotspot creado correctamente[/]")
-        except subprocess.CalledProcessError:
-            log.write(f"[red][!] Error al crear hotspot. Verifica que {iface} sea una interfaz WiFi[/]")
-
-    def action_show_hotspot_password(self) -> None:
-        log = self.query_one("#hotspot-log", RichLog)
-        res = subprocess.check_output("nmcli dev wifi show-password", shell=True).decode()
-        log.write(f"[blue][+] Detalles:\n{res}[/]")
 
     # --- FIREWALL ACTIONS ---
 
