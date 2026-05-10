@@ -216,6 +216,7 @@ InterfaceRow Label {
  *******************************/
 
 .hotspot-card {
+    height: 15;
     background: #24283b;
     border: round #3b4261;
     padding: 1;
