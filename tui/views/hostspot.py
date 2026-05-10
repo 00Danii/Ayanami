@@ -144,7 +144,8 @@ class HotspotView(Vertical):
             subprocess.run(
                 cmd,
                 shell=True,
-                check=True
+                capture_output=True,
+                text=True
             )
 
             self.write_log(
