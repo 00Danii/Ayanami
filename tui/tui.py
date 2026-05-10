@@ -14,7 +14,6 @@ import json
 import os
 
 # Importar módulos existentes (SIN MODIFICARLOS)
-import network
 import scanner
 import gateway
 import monitor_bw
@@ -22,90 +21,6 @@ import sniffer
 import firewall
 import firewall_apps
 
-class Sidebar(Vertical):
-    def compose(self) -> ComposeResult:
-        yield Label("AYANAMI", id="app-title")
-        yield Label("Interfaz Global:", classes="sidebar-label")
-        yield Select([], id="global-iface-select", compact=True)
-        yield ListView(
-            ListItem(Label("Interfaces"), id="nav-interfaces"),
-            ListItem(Label("Hotspot"), id="nav-hotspot"),
-            ListItem(Label("Scanner"), id="nav-scanner"),
-            ListItem(Label("Monitor"), id="nav-monitor"),
-            ListItem(Label("Sniffer"), id="nav-sniffer"),
-            ListItem(Label("Firewall"), id="nav-firewall"),
-            id="sidebar-list"
-        )
-
-    def on_mount(self) -> None:
-        self.refresh_interfaces()
-
-    def refresh_interfaces(self) -> None:
-        ifaces = network.get_interfaces_detailed()
-        iface_select = self.query_one("#global-iface-select", Select)
-        if ifaces:
-            options = [(f"{d['iface']} ({d['state']})", d['iface']) for d in ifaces]
-            iface_select.set_options(options)
-            # Set first available interface as default if not set
-            if not getattr(self.app, 'selected_interface', None):
-                first_iface = ifaces[0]['iface']
-                self.app.selected_interface = first_iface
-                iface_select.value = first_iface
-        else:
-            iface_select.set_options([("No hay interfaces", "")])
-
-    def on_select_changed(self, event: Select.Changed) -> None:
-        if event.select.id == "global-iface-select":
-            if event.value:
-                self.app.selected_interface = event.value
-                self.app.notify(f"Interfaz global: {event.value}")
-            else:
-                self.app.selected_interface = None
-                self.app.notify("Interfaz deseleccionada", severity="warning")
-
-class InterfacesView(Vertical):
-    def compose(self) -> ComposeResult:
-        yield Label("Gestión de Interfaces", classes="section-title")
-        yield Label("Haz clic en una interfaz para seleccionarla como interfaz global", classes="help-text")
-        yield DataTable(id="interfaces-table")
-        yield Horizontal(
-            Button("Actualizar", variant="primary", id="refresh-interfaces"),
-            Button("Seleccionar como Global", variant="success", id="set-global-iface"),
-            Button("Desconectar Seleccionada", variant="error", id="disconnect-interface"),
-            classes="button-bar"
-        )
-
-    def on_mount(self) -> None:
-        table = self.query_one("#interfaces-table", DataTable)
-        table.add_columns("Interface", "Type", "State", "Connection")
-        self.refresh_data()
-
-    def refresh_data(self) -> None:
-        table = self.query_one("#interfaces-table", DataTable)
-        table.clear()
-        # Usar función existente
-        interfaces = network.get_interfaces_detailed()
-        for iface in interfaces:
-            table.add_row(
-                iface["iface"],
-                iface["type"],
-                iface["state"],
-                iface["connection"]
-            )
-
-    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        """Set selected interface as global when row is selected"""
-        table = self.query_one("#interfaces-table", DataTable)
-        row_key = event.row_key
-        iface = table.get_row(row_key)[0]
-        self.app.selected_interface = iface
-        self.app.notify(f"Interfaz global: {iface}")
-        # Update sidebar selector
-        try:
-            sidebar = self.app.query_one(Sidebar)
-            sidebar.query_one("#global-iface-select", Select).value = iface
-        except:
-            pass
 
 class ScannerView(Vertical):
     def compose(self) -> ComposeResult:
@@ -445,119 +360,16 @@ class FirewallView(Vertical):
         except Exception as e:
             self.app.notify(f"Error al cargar apps: {e}", severity="error")
 
+
+from widgets.sidebar import Sidebar
+
+from views.interfaces import InterfacesView
 class AyanamiApp(App):
+
+    CSS_PATH = "styles/app.css"
+    
     selected_interface = None
-
-    def on_mount(self) -> None:
-        # Initialize selected interface from available interfaces
-        ifaces = network.get_interfaces()
-        if ifaces:
-            self.selected_interface = ifaces[0]
-            self.notify(f"Interfaz global: {self.selected_interface}")
-        else:
-            self.selected_interface = ""
-            self.notify("No se encontraron interfaces", severity="warning")
-
-    def set_interface(self, iface: str) -> None:
-        """Set the global interface and notify all views"""
-        self.selected_interface = iface
-        self.notify(f"Interfaz global: {iface}")
-
-    CSS = """
-    Screen {
-        background: #1a1b26;
-    }
-
-    #app-title {
-        text-align: center;
-        width: 100%;
-        padding: 1;
-        background: #ff007c;
-        color: white;
-        text-style: bold;
-    }
-
-    .sidebar-label {
-        padding: 1;
-        color: #565f89;
-        text-align: center;
-    }
-
-    Sidebar {
-        width: 25;
-        background: #16161e;
-        border-right: solid #3b4261;
-    }
-
-    #sidebar-list {
-        background: transparent;
-    }
-
-    #global-iface-select {
-        margin: 1;
-    }
-
-    .section-title {
-        text-style: bold;
-        padding: 1;
-        background: #24283b;
-        width: 100%;
-        margin-bottom: 1;
-    }
-
-    DataTable {
-        height: 1fr;
-        border: solid #3b4261;
-    }
-
-    .button-bar {
-        height: auto;
-        padding: 1;
-        align: center middle;
-    }
-
-    RichLog {
-        background: #1a1b26;
-        border: solid #3b4261;
-        height: 1fr;
-        margin-top: 1;
-    }
-
-    Input {
-        width: 100%;
-        margin-bottom: 1;
-    }
-
-    .firewall-actions {
-        height: auto;
-        padding: 1;
-        margin-bottom: 1;
-    }
-
-    .help-text {
-        color: #565f89;
-        text-style: italic;
-        margin-top: 1;
-    }
-
-    Button {
-        margin-bottom: 1;
-    }
-
-    Select {
-        margin-bottom: 1;
-        width: 100%;
-    }
-
-    Label {
-        margin-bottom: 1;
-    }
-
-    #device-selector {
-        height: auto;
-    }
-    """
-
+    
     BINDINGS = [
         Binding("q", "quit", "Salir"),
         Binding("r", "refresh", "Actualizar Vista"),
@@ -581,17 +393,10 @@ class AyanamiApp(App):
             self.query_one("#main-content", ContentSwitcher).current = event.item.id
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        # Interfaces
-        if event.button.id == "refresh-interfaces":
-            self.query_one(InterfacesView).refresh_data()
-            self.query_one(Sidebar).refresh_interfaces()
-        elif event.button.id == "disconnect-interface":
-            self.action_disconnect_interface()
-        elif event.button.id == "set-global-iface":
-            self.action_set_global_iface()
+        
 
         # Scanner
-        elif event.button.id == "refresh-scanner":
+        if event.button.id == "refresh-scanner":
             self.query_one(ScannerView).refresh_data()
 
         # Sniffer
@@ -640,35 +445,7 @@ class AyanamiApp(App):
 
     # --- ACTIONS ---
 
-    def action_disconnect_interface(self) -> None:
-        table = self.query_one("#interfaces-table", DataTable)
-        try:
-            row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
-            iface = table.get_row(row_key)[0]
-            # Usar comando de network.py pero directo para evitar input()
-            subprocess.run(f"nmcli device disconnect {iface}", shell=True)
-            self.notify(f"Interfaz {iface} desconectada")
-            self.query_one(InterfacesView).refresh_data()
-            self.query_one(Sidebar).refresh_interfaces()
-        except:
-            self.notify("Selecciona una interfaz en la tabla primero", severity="error")
-
-    def action_set_global_iface(self) -> None:
-        """Set selected interface in table as global interface"""
-        table = self.query_one("#interfaces-table", DataTable)
-        try:
-            row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
-            iface = table.get_row(row_key)[0]
-            self.selected_interface = iface
-            self.notify(f"Interfaz global: {iface}")
-            # Update sidebar selector
-            try:
-                sidebar = self.query_one(Sidebar)
-                sidebar.query_one("#global-iface-select", Select).value = iface
-            except:
-                pass
-        except:
-            self.notify("Selecciona una interfaz en la tabla primero", severity="error")
+    
 
     def action_create_hotspot(self) -> None:
         ssid = self.query_one("#hotspot-ssid", Input).value
