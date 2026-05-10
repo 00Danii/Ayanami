@@ -20,29 +20,6 @@ import sniffer
 import firewall
 import firewall_apps
 
-
-class ScannerView(Vertical):
-    def compose(self) -> ComposeResult:
-        yield Label("Dispositivos en la Red", classes="section-title")
-        yield DataTable(id="scanner-table")
-        yield Horizontal(
-            Button("Escanear", variant="primary", id="refresh-scanner"),
-            classes="button-bar"
-        )
-
-    def on_mount(self) -> None:
-        table = self.query_one("#scanner-table", DataTable)
-        table.add_columns("IP", "MAC", "Interface")
-        self.refresh_data()
-
-    def refresh_data(self) -> None:
-        table = self.query_one("#scanner-table", DataTable)
-        table.clear()
-        # Usar función existente
-        neighbors = scanner.get_neighbors()
-        for n in neighbors:
-            table.add_row(n["ip"], n["mac"], n["iface"])
-
 class SnifferView(Vertical):
     def compose(self) -> ComposeResult:
         yield Label("Sniffer de Paquetes", classes="section-title")
@@ -354,6 +331,7 @@ from widgets.sidebar import Sidebar
 
 from views.interfaces import InterfacesView
 from views.hostspot import HotspotView
+from views.scanner import ScannerView
 class AyanamiApp(App):
 
     CSS_PATH = "styles/app.css"
@@ -385,12 +363,8 @@ class AyanamiApp(App):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         
 
-        # Scanner
-        if event.button.id == "refresh-scanner":
-            self.query_one(ScannerView).refresh_data()
-
         # Sniffer
-        elif event.button.id == "start-sniffer":
+        if event.button.id == "start-sniffer":
             self.start_sniffing()
         elif event.button.id == "stop-sniffer":
             self.stop_sniffing()
