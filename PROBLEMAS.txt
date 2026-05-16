@@ -1,0 +1,130 @@
+Diagnóstico rápido para hotspot roto en Linux (NetworkManager + dnsmasq)
+Síntoma principal
+
+Al crear hotspot aparece:
+
+La configuración IP no se pudo reservar
+
+o:
+
+ip-config-unavailable
+
+Y el hotspot:
+
+aparece unos segundos
+luego desaparece
+y la laptop vuelve a conectarse al Wi-Fi anterior
+1. Revisar logs de NetworkManager
+journalctl -xeu NetworkManager --no-pager -n 80
+
+Buscar errores como:
+
+dnsmasq exited with error
+
+o:
+
+Bad address in --address
+2. Identificar archivo roto
+
+El log normalmente indica el archivo exacto:
+
+/etc/NetworkManager/dnsmasq-shared.d/archivo.conf
+3. Ver contenido del archivo
+cat /etc/NetworkManager/dnsmasq-shared.d/archivo.conf
+
+Buscar líneas:
+
+incompletas
+vacías
+mal formadas
+4. Eliminar archivo problemático
+sudo rm /etc/NetworkManager/dnsmasq-shared.d/archivo.conf
+5. Reiniciar NetworkManager
+sudo systemctl restart NetworkManager
+6. Crear hotspot limpio
+nmcli device wifi hotspot ssid AYANAMI password 12345678
+7. Limpiar hotspots acumulados
+
+Ver hotspots:
+
+nmcli connection show | grep Hotspot
+
+Eliminar todos:
+
+for c in $(nmcli -t -f NAME connection show | grep '^Hotspot'); do
+    nmcli connection delete "$c"
+done
+Qué probablemente pasó en tu proyecto
+
+Tu programa seguramente:
+
+genera reglas DNS dinámicamente
+escribe archivos .conf
+algún dominio quedó:
+vacío
+mal parseado
+con salto de línea raro
+con caracteres inválidos
+o se truncó al escribir
+
+Entonces dnsmasq ya no puede arrancar.
+
+Cómo evitarlo en tu código
+Nunca escribas directo al archivo final
+
+Haz esto:
+
+crear archivo temporal
+validar
+mover al destino
+
+Ejemplo:
+
+tmp = "/tmp/ayanami.conf"
+
+with open(tmp, "w") as f:
+    f.write(config)
+
+subprocess.run(["dnsmasq", "--test", "-C", tmp])
+
+shutil.move(tmp, FINAL_PATH)
+Valida antes de aplicar
+
+MUY importante:
+
+dnsmasq --test
+
+o:
+
+dnsmasq --test -C archivo.conf
+
+Si falla:
+
+NO reemplaces el archivo real
+muestra error en interfaz
+Sintaxis válida para bloquear dominios
+
+Correcto:
+
+address=/facebook.com/0.0.0.0
+address=/tiktok.com/0.0.0.0
+
+Incorrecto:
+
+address=/facebook.com/
+address=facebook.com
+Otra mejora importante para Ayanami
+
+Antes de activar reglas:
+
+generar archivo temporal
+correr:
+dnsmasq --test -C archivo.conf
+solo si devuelve:
+syntax check OK
+
+copiarlo a:
+
+/etc/NetworkManager/dnsmasq-shared.d/
+
+Eso evita que vuelvas a romper el hotspot completo.
