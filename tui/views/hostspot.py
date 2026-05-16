@@ -165,71 +165,137 @@ class HotspotView(Vertical):
                 shell=True,
                 text=True
             )
-            ssid = None
-            password = None
+
+            networks = []
+            current = {}
+            # ==========================================
+            # PARSEAR REDES
+            # ==========================================
+
             for line in result.splitlines():
                 line = line.strip()
-                # SSID
-                if re.search(r"ssid", line, re.IGNORECASE):
-                    parts = line.split(":")
+                if not line:
+                    continue
+                # ---------- SSID ----------
+                if re.search(r"^ssid", line, re.IGNORECASE):
+                    # guardar anterior
+                    if current:
+                        networks.append(current)
+                    current = {}
+                    parts = line.split(":", 1)
+
                     if len(parts) > 1:
-                        ssid = parts[-1].strip()
-                # PASSWORD
+                        current["ssid"] = parts[1].strip()
+
+                # ---------- PASSWORD ----------
                 elif (
                     re.search(r"password", line, re.IGNORECASE)
                     or re.search(r"contraseña", line, re.IGNORECASE)
                 ):
-                    parts = line.split(":")
-                    if len(parts) > 1:
-                        password = parts[-1].strip()
 
-            if not ssid or not password:
+                    parts = line.split(":", 1)
+                    if len(parts) > 1:
+                        current["password"] = (
+                            parts[1].strip()
+                        )
+
+                # ---------- SECURITY ----------
+                elif re.search(
+                    r"seguridad",
+                    line,
+                    re.IGNORECASE
+                ):
+
+                    parts = line.split(":", 1)
+                    if len(parts) > 1:
+                        current["security"] = (
+                            parts[1].strip()
+                        )
+
+            # guardar último bloque
+            if current:
+                networks.append(current)
+                
+            # ==========================================
+            # VALIDAR
+            # ==========================================
+
+            if not networks:
                 self.write_log(
-                    "[red]No se encontró hotspot activo[/]"
+                    "[red]No se encontraron redes activas[/]"
                 )
+
                 return
 
-            # MOSTRAR INFO EN LOG
+            # ==========================================
+            # MOSTRAR REDES
+            # ==========================================
 
-            self.write_log(
-                f"[green]SSID:[/] {ssid}"
-            )
+            for network in networks:
+                ssid = network.get(
+                    "ssid",
+                    "Unknown"
+                )
 
-            self.write_log(
-                f"[yellow]PASSWORD:[/] {password}"
-            )
+                password = network.get(
+                    "password",
+                    "Unknown"
+                )
 
-            # QR CODE
+                # ---------- INFO ----------
+                self.write_log("")
 
-            wifi_data = (
-                f"WIFI:T:WPA;"
-                f"S:{ssid};"
-                f"P:{password};;"
-            )
-
-            qr = qrcode.QRCode(
-                border=1
-            )
-
-            qr.add_data(wifi_data)
-
-            buffer = io.StringIO()
-
-            qr.print_ascii(
-                out=buffer,
-                tty=False,
-                invert=True
-            )
-
-            qr_text = buffer.getvalue()
-            self.write_log("")
-            
-            for line in qr_text.splitlines():
                 self.write_log(
-                    f"[white]{line}[/]"
+                    f"[cyan]SSID:[/] {ssid}"
+                )
+
+                self.write_log(
+                    f"[green]PASSWORD:[/] {password}"
+                )
+
+                # ======================================
+                # QR
+                # ======================================
+
+                wifi_data = (
+                    f"WIFI:T:WPA;"
+                    f"S:{ssid};"
+                    f"P:{password};;"
+                )
+
+                qr = qrcode.QRCode(
+                    border=1
+                )
+
+                qr.add_data(wifi_data)
+
+                buffer = io.StringIO()
+
+                qr.print_ascii(
+                    out=buffer,
+                    tty=False,
+                    invert=True
+                )
+
+                qr_text = buffer.getvalue()
+
+                self.write_log("")
+
+                for qr_line in qr_text.splitlines():
+
+                    self.write_log(
+                        f"[white]{qr_line}[/]"
+                    )
+
+                # separador visual
+                self.write_log(
+                    "[bright_black]" +
+                    "─" * 50 +
+                    "[/]"
                 )
 
         except Exception as e:
+
             self.write_log(
-                "[red]No se encontró hostspot activo[/]"
+                f"[red]{e}[/]"
             )
