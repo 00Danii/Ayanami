@@ -60,29 +60,32 @@ class ScannerView(Vertical):
             classes="scanner-stats-bar"
         )
 
-        # TABLA DE DISPOSITIVOS 
-        yield DataTable(
-            id="scanner-table"
-        )
-
-        # PANEL DE INFORMACION DEL DISPOSITIVO
-        with Vertical(
-            id="device-panel"
+        with Horizontal(
+            id="scanner-content"
         ):
-            yield Label(
-                "Información del dispositivo",
-                classes="device-title"
+
+            yield DataTable(
+                id="scanner-table"
             )
 
-            with VerticalScroll(
-                id="device-scroll"
+            with Vertical(
+                id="device-panel"
             ):
-            
-                yield Static(
-                    "Selecciona un dispositivo",
-                    id="device-info"
+
+                yield Label(
+                    "Información del dispositivo",
+                    classes="device-title"
                 )
 
+                with VerticalScroll(
+                    id="device-scroll"
+                ):
+
+                    yield Static(
+                        "Selecciona un dispositivo",
+                        id="device-info",
+                        markup=True
+                    )
 
     def on_mount(self):
         table = self.query_one(

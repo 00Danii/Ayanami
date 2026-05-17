@@ -337,21 +337,26 @@ TABLE
 DEVICE PANEL
 ========================================================= */
 
-#device-panel {
+#scanner-content {
     height: 1fr;
+}
 
+#scanner-table {
+    width: 3fr;
+    height: 100%;
+}
+
+#device-panel {
+    height: 100%;
+    width: 1fr;
     padding: 1;
-
     background: #1f2335;
-
     border: round #3b4261;
 }
 
 .device-title {
     text-style: bold;
-
     color: cyan;
-
     margin-bottom: 1;
 }
 
