@@ -103,7 +103,61 @@ APPS = {
             "youtube.com/shorts"
         ],
         "block_quic": True
-}
+    },
+    
+    "adguard": {
+        "domains": [
+            "adguard.com",
+            "dns.adguard.com",
+            "adguard-dns.com",
+            "dns-unfiltered.adguard.com",
+            "dns-unfiltered.adguard-dns.com",
+            "dns-family.adguard.com",
+            "dns-family.adguard-dns.com",
+            "dns-crypto.adguard.com",
+        ],
+        "block_quic": True
+    },
+    
+    "nextdns": {
+        "domains": [
+            "nextdns.io",
+            "dns.nextdns.io",
+            "dns.nextdns.com",
+            "dns.nextdns.net",
+        ],
+        "block_quic": True,
+    },
+    
+    "freedns": {
+        "domains": [
+            "freedns.afraid.org",
+            "freedns.control.com",
+            "freedns.com",
+            "freedns.net",
+        ],
+        "block_quic": True,
+    },
+    
+    "mulvanddns": {
+        "domains": [
+            "mulvanddns.com",
+            "dns.mulvanddns.com",
+            "adblock.dns.mullvanddns.net",
+            "adblock.dns.mulvanddns.com",
+        ],
+        "block_quic": True,
+    },
+    
+    "familyfilterdns": {
+        "domains": [
+            "familyfilterdns.com",
+            "dns.familyfilterdns.com",
+            "adblock.dns.familyfilterdns.com",
+            "family-filter-dns.cleanbrowsing.org",
+        ],
+        "block_quic": True,
+    }
 }
 
 # =========================================
@@ -464,6 +518,22 @@ def menu():
             
         elif op == "7":
             block_app("youtube")
+            
+        elif op == "100":
+            block_app("adguard")
+            
+        elif op == "101":
+            block_app("nextdns")
+            
+        elif op == "102":
+            block_app("freedns")
+            
+        elif op == "103":
+            block_app("mulvanddns")
+            
+        elif op == "104":
+            block_app("familyfilterdns")
+            
 
         # =====================
         # DESBLOQUEAR
