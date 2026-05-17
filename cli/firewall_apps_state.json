@@ -1,0 +1,8 @@
+{
+  "global_blocked": [],
+  "device_blocked": {
+    "tiktok": [
+      "10.42.0.132"
+    ]
+  }
+}
