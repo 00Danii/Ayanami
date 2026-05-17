@@ -389,7 +389,7 @@ MonitorView {
 ========================================================= */
 
 .monitor-topbar {
-    height: 5;
+    height: 3;
     align: center middle;
     margin-bottom: 1;
 }
