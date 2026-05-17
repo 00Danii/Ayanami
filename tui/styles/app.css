@@ -373,3 +373,167 @@ DEVICE PANEL
 /********************
  * FIN SCANNER VIEW *
  ********************/
+
+
+/****************
+ * MONITOR VIEW *
+ ****************/
+
+MonitorView {
+    layout: vertical;
+    padding: 1;
+}
+
+/* =========================================================
+   TOPBAR
+========================================================= */
+
+.monitor-topbar {
+    height: 3;
+    align: center middle;
+    margin-bottom: 1;
+}
+
+.monitor-title {
+    content-align: left middle;
+    width: 1fr;
+    text-style: bold;
+    color: #565f89;
+    padding-left: 1;
+}
+
+#monitor-host-select {
+    width: 38;
+    margin-right: 1;
+}
+
+#start-monitor {
+    margin-right: 1;
+    min-width: 14;
+}
+
+#stop-monitor {
+    min-width: 14;
+}
+
+/* =========================================================
+   STATS BAR
+========================================================= */
+
+.monitor-stats-bar {
+    height: 3;
+    margin-bottom: 1;
+}
+
+.monitor-stat {
+    width: 1fr;
+    background: #1f2335;
+    border: round #3b4261;
+    color: white;
+    content-align: center middle;
+    text-style: bold;
+}
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+#monitor-table {
+    width: 100%;
+    height: 1fr;
+    border: round #3b4261;
+    background: #1a1b26;
+    color: white;
+}
+
+#monitor-table>.datatable--header {
+    background: #111827;
+    color: #7aa2f7;
+    text-style: bold;
+}
+
+/* SCROLLBAR */
+
+#monitor-table ScrollBar {
+    background: #1a1b26;
+}
+
+#monitor-table ScrollBar:hover {
+    background: #24283b;
+}
+
+/* =========================================================
+   BOTTOM PANEL
+========================================================= */
+
+#monitor-bottom-panel {
+    height: 14;
+    margin-top: 1;
+    background: #1f2335;
+    border: round #3b4261;
+    padding: 1;
+}
+
+.monitor-panel-title {
+    height: 2;
+    content-align: center middle;
+    text-style: bold;
+    color: #7aa2f7;
+    border-bottom: solid #374151;
+}
+
+/* =========================================================
+   INFO PANEL
+========================================================= */
+
+#monitor-info {
+    padding: 1;
+    color: white;
+    height: auto;
+}
+
+/* =========================================================
+   SELECT
+========================================================= */
+
+#monitor-host-select {
+    background: #1f2335;
+    border: round #3b4261;
+    color: white;
+}
+
+#monitor-host-select:focus {
+    border: round #7aa2f7;
+}
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+#start-monitor {
+    text-style: bold;
+}
+
+#stop-monitor {
+    text-style: bold;
+}
+
+/* =========================================================
+   RATE COLORS
+========================================================= */
+
+.rate-low {
+    color: green;
+}
+
+.rate-medium {
+    color: yellow;
+}
+
+.rate-high {
+    color: red;
+}
+
+/********************
+ * FIN MONITOR VIEW *
+ ********************/
