@@ -2,7 +2,8 @@ from textual.app import ComposeResult
 
 from textual.containers import (
     Vertical,
-    Horizontal
+    Horizontal,
+    VerticalScroll
 )
 
 from textual.widgets import (
@@ -72,10 +73,15 @@ class ScannerView(Vertical):
                 "Información del dispositivo",
                 classes="device-title"
             )
-            yield Static(
-                "Selecciona un dispositivo",
-                id="device-info"
-            )
+
+            with VerticalScroll(
+                id="device-scroll"
+            ):
+            
+                yield Static(
+                    "Selecciona un dispositivo",
+                    id="device-info"
+                )
 
 
     def on_mount(self):
@@ -215,26 +221,43 @@ class ScannerView(Vertical):
 
         ports_text = ""
 
-        for port in data["ports"]:
+        if data["ports"]:
 
-            ports_text += (
-                f"\n"
-                f"[cyan]{port['port']}[/] "
-                f"{port['service']} "
-                f"({port['state']})"
+            for port in data["ports"]:
+
+                ports_text += (
+                    f"\n"
+                    f"[bold cyan]{port['port']}"
+                    f"{port['protocol']} "
+                    f"[green]{port['service']}[/] "
+                    f"{port['product']} "
+                    f"{port['version']} "
+                    f"{port['extrainfo']} "
+                    f"[yellow]({port['state']})[/]"
+                )
+
+        else:
+
+            ports_text = (
+                "\n[red]No se detectaron "
+                "puertos abiertos[/]"
             )
 
-        info = (
-            f"[cyan]IP:[/] {ip}\n"
-            f"[green]HOSTNAME:[/] {hostname}\n"
-            f"[yellow]MAC:[/] {mac}\n"
-            f"[magenta]VENDOR:[/] {vendor}\n"
-            f"[blue]STATE:[/] {state}\n"
-            f"[white]INTERFACE:[/] {iface}\n\n"
-            f"[bold green]OS:[/] {data['os']}\n\n"
-            f"[bold yellow]PUERTOS:[/]"
-            f"{ports_text}"
-        )
+        info = f"""
+        [b cyan]INFORMACIÓN GENERAL[/]
+        [green]IP:[/] {ip}
+        [green]HOSTNAME:[/] {data['hostname'] or hostname}
+        [green]MAC:[/] {mac}
+        [green]FABRICANTE:[/] {data['vendor'] or vendor}
+        [green]ESTADO:[/] {data['state']}
+        [green]INTERFAZ:[/] {iface}
+
+        [b yellow]FINGERPRINT[/]
+        [cyan]Sistema Operativo:[/] {data['os']}
+
+        [b magenta]SERVICIOS DETECTADOS[/]
+        {ports_text}
+        """
         self.query_one(
             "#device-info",
             Static

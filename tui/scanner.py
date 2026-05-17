@@ -103,7 +103,7 @@ def fingerprint_host(ip):
     try:
         scanner.scan(
             hosts=ip,
-            arguments="-O -sV --top-ports 20"
+            arguments="-Pn -T4 -F --version-light"
         )
 
         host = scanner[ip]
@@ -112,6 +112,7 @@ def fingerprint_host(ip):
             "hostname": host.hostname(),
             "state": host.state(),
             "os": "Unknown",
+            "vendor": "Unknown",
             "ports": []
         }
 
@@ -128,7 +129,11 @@ def fingerprint_host(ip):
                 service = host[proto][port]
                 data["ports"].append({
                     "port": port,
-                    "service": service["name"],
+                    "protocol": proto,
+                    "service": service.get("name", "unknown"),
+                    "product": service.get("product", ""),
+                    "version": service.get("version", ""),
+                    "extrainfo": service.get("extrainfo", ""),
                     "state": service["state"]
                 })
 

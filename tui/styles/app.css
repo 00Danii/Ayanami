@@ -338,7 +338,7 @@ DEVICE PANEL
 ========================================================= */
 
 #device-panel {
-    height: 8;
+    height: 1fr;
 
     padding: 1;
 
@@ -355,8 +355,14 @@ DEVICE PANEL
     margin-bottom: 1;
 }
 
+#device-scroll {
+    height: 1fr;
+    overflow-y: auto;
+}
+
 #device-info {
     color: white;
+    width: 100%;
 }
 
 /********************
