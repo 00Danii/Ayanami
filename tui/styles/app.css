@@ -407,6 +407,12 @@ MonitorView {
     margin-right: 1;
 }
 
+/* INPUT INTERNO */
+
+#monitor-host-select > SelectCurrent {
+    border: none;
+}
+
 #refresh-hosts {
     width: 5;
     min-width: 5;
