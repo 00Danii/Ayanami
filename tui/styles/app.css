@@ -389,7 +389,7 @@ MonitorView {
 ========================================================= */
 
 .monitor-topbar {
-    height: 3;
+    height: 5;
     align: center middle;
     margin-bottom: 1;
 }
@@ -405,6 +405,13 @@ MonitorView {
 #monitor-host-select {
     width: 38;
     margin-right: 1;
+}
+
+#refresh-hosts {
+    width: 5;
+    min-width: 5;
+    margin-right: 1;
+    text-style: bold;
 }
 
 #start-monitor {

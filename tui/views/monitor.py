@@ -66,6 +66,12 @@ class MonitorView(Vertical):
                 value="ALL",
                 id="monitor-host-select"
             ),
+            
+            Button(
+                "↻",
+                id="refresh-hosts",
+                variant="primary"
+            ),
 
             Button(
                 "INICIAR",
@@ -197,6 +203,8 @@ class MonitorView(Vertical):
 
         devices = scanner.get_neighbors_simple()
 
+        seen = set()
+
         options = [
             ("Toda la red", "ALL")
         ]
@@ -204,6 +212,11 @@ class MonitorView(Vertical):
         for device in devices:
 
             ip = device["ip"]
+
+            if ip in seen:
+                continue
+
+            seen.add(ip)
 
             hostname = self.resolve_hostname(ip)
 
@@ -238,6 +251,30 @@ class MonitorView(Vertical):
         elif event.button.id == "stop-monitor":
 
             self.stop_monitor()
+            
+        elif event.button.id == "refresh-hosts":
+            self.refresh_hosts()
+            
+    
+    # REFRESH HOSTS
+    def refresh_hosts(self):
+        current = self.selected_host
+        
+        self.populate_hosts()
+        
+        select = self.query_one(
+            "#monitor-host-select",
+            Select
+        )
+
+        try:
+            select.value = current
+        except Exception:
+            select.value = "ALL"
+
+        self.notify(
+            "Dispositivos actualizados"
+        )
 
     # ==========================================================
     # START
