@@ -430,7 +430,7 @@ MonitorView {
 }
 
 /* =========================================================
-   STATS BAR
+STATS BAR
 ========================================================= */
 
 .monitor-stats-bar {
@@ -448,7 +448,7 @@ MonitorView {
 }
 
 /* =========================================================
-   TABLE
+TABLE
 ========================================================= */
 
 #monitor-table {
@@ -476,7 +476,7 @@ MonitorView {
 }
 
 /* =========================================================
-   BOTTOM PANEL
+BOTTOM PANEL
 ========================================================= */
 
 #monitor-bottom-panel {
@@ -484,29 +484,43 @@ MonitorView {
     margin-top: 1;
     background: #1f2335;
     border: round #3b4261;
-    padding: 1;
+    padding: 0;
+}
+
+/* =========================================================
+INFO PANEL
+========================================================= */
+
+#monitor-content {
+    height: 1fr;
+}
+
+#monitor-table {
+    width: 3fr;
+    height: 100%;
+}
+
+#monitor-side-panel {
+    width: 45;
+    min-width: 35;
+    border: round #3b4261;
+    background: #1a1b26;
+    padding: 1 2;
+    height: 100%;
 }
 
 .monitor-panel-title {
-    height: 2;
-    content-align: center middle;
     text-style: bold;
     color: #7aa2f7;
-    border-bottom: solid #374151;
+    margin-bottom: 1;
 }
-
-/* =========================================================
-   INFO PANEL
-========================================================= */
 
 #monitor-info {
-    padding: 1;
-    color: white;
-    height: auto;
+    color: #c0caf5;
 }
 
 /* =========================================================
-   SELECT
+SELECT
 ========================================================= */
 
 #monitor-host-select {
@@ -520,7 +534,7 @@ MonitorView {
 }
 
 /* =========================================================
-   BUTTONS
+BUTTONS
 ========================================================= */
 
 #start-monitor {
@@ -532,7 +546,7 @@ MonitorView {
 }
 
 /* =========================================================
-   RATE COLORS
+RATE COLORS
 ========================================================= */
 
 .rate-low {

@@ -119,30 +119,34 @@ class MonitorView(Vertical):
             classes="monitor-stats-bar"
         )
 
-        # TABLA
-
-        yield DataTable(
-            id="monitor-table"
-        )
-
-        # PANEL INFERIOR
-
-        with Vertical(
-            id="monitor-bottom-panel"
+        with Horizontal(
+            id="monitor-content"
         ):
 
-            yield Label(
-                "Detalle del flujo",
-                classes="monitor-panel-title"
+            # TABLA
+
+            yield DataTable(
+                id="monitor-table"
             )
 
-            with VerticalScroll():
+            # PANEL DERECHO
 
-                yield Static(
-                    "Selecciona un flujo",
-                    id="monitor-info",
-                    markup=True
-                )
+            with Vertical(
+                id="monitor-side-panel"
+            ):
+
+                # yield Static(
+                #     "FLOW INSPECTOR",
+                #     classes="monitor-panel-title"
+                # )
+
+                with VerticalScroll():
+
+                    yield Static(
+                        "Selecciona un flujo",
+                        id="monitor-info",
+                        markup=True
+                    )
 
     # ==========================================================
     # MOUNT
@@ -383,10 +387,11 @@ class MonitorView(Vertical):
                     return
 
                 src_ip = pkt[IP].src
-
                 dst_ip = pkt[IP].dst
 
+                # ==================================================
                 # FILTRO POR HOST
+                # ==================================================
 
                 if self.selected_host != "ALL":
 
@@ -396,10 +401,13 @@ class MonitorView(Vertical):
                     ):
                         return
 
+                # ==================================================
+                # PROTOCOLOS
+                # ==================================================
+
                 proto = "IP"
 
                 sport = 0
-
                 dport = 0
 
                 if pkt.haslayer(TCP):
@@ -407,7 +415,6 @@ class MonitorView(Vertical):
                     proto = "TCP"
 
                     sport = pkt[TCP].sport
-
                     dport = pkt[TCP].dport
 
                 elif pkt.haslayer(UDP):
@@ -415,11 +422,13 @@ class MonitorView(Vertical):
                     proto = "UDP"
 
                     sport = pkt[UDP].sport
-
                     dport = pkt[UDP].dport
 
-                src = f"{src_ip}:{sport}"
+                # ==================================================
+                # FLOW
+                # ==================================================
 
+                src = f"{src_ip}:{sport}"
                 dst = f"{dst_ip}:{dport}"
 
                 service = SERVICE_MAP.get(
@@ -435,6 +444,51 @@ class MonitorView(Vertical):
                     proto
                 )
 
+                # ==================================================
+                # HOSTNAME
+                # ==================================================
+
+                hostname = self.resolve_hostname(
+                    dst_ip
+                )
+
+                # ==================================================
+                # DIRECCIÓN DEL FLUJO
+                # ==================================================
+
+                direction = "OUTBOUND"
+
+                if self.selected_host != "ALL":
+
+                    if src_ip == self.selected_host:
+
+                        direction = "UPLOAD"
+
+                    elif dst_ip == self.selected_host:
+
+                        direction = "DOWNLOAD"
+
+                # ==================================================
+                # LOCAL / INTERNET
+                # ==================================================
+
+                is_local = (
+
+                    dst_ip.startswith("192.168.")
+                    or dst_ip.startswith("10.")
+                    or dst_ip.startswith("172.")
+                )
+
+                network_type = (
+                    "LAN"
+                    if is_local
+                    else "INTERNET"
+                )
+
+                # ==================================================
+                # FLOW STORAGE
+                # ==================================================
+
                 with self.flow_lock:
 
                     self.total_packets += 1
@@ -443,28 +497,65 @@ class MonitorView(Vertical):
 
                         self.flows[flow_key] = {
 
+                            # BÁSICO
+
                             "service": service,
-
                             "bytes": 0,
-
                             "packets": 0,
-
                             "rate": 0,
 
-                            "last_bytes": 0,
+                            # RATE TRACKING
 
-                            "last_update": time.time()
+                            "last_bytes": 0,
+                            "last_update": time.time(),
+
+                            # METADATA
+
+                            "hostname": hostname,
+                            "src_ip": src_ip,
+                            "dst_ip": dst_ip,
+                            "sport": sport,
+                            "dport": dport,
+                            "proto": proto,
+
+                            # FLOW INFO
+
+                            "direction": direction,
+                            "network_type": network_type,
+
+                            # TIMESTAMPS
+
+                            "first_seen": datetime.now().strftime(
+                                "%H:%M:%S"
+                            ),
+
+                            # EXTRA
+
+                            "ttl": pkt[IP].ttl,
+                            "length": size
                         }
 
                     flow = self.flows[flow_key]
+
+                    # ==================================================
+                    # UPDATE FLOW
+                    # ==================================================
 
                     flow["bytes"] += size
 
                     flow["packets"] += 1
 
+                    flow["last_packet"] = datetime.now().strftime(
+                        "%H:%M:%S"
+                    )
+
             except Exception:
 
                 pass
+
+        # ==========================================================
+        # SNIFFER
+        # ==========================================================
 
         try:
 
@@ -588,15 +679,18 @@ class MonitorView(Vertical):
 
             # MINI BARRA VISUAL
 
+            MAX_BARS = 10
+
             bars = min(
                 int(rate_kb / 10),
-                20
+                MAX_BARS
             )
 
+            filled = "█" * bars
+            empty = "░" * (MAX_BARS - bars)
+
             graph = (
-                "[green]"
-                + ("█" * bars)
-                + "[/]"
+                f"[green]{filled}[/][#3b4261]{empty}[/]"
             )
 
             table.add_row(
@@ -736,47 +830,136 @@ class MonitorView(Vertical):
         )
 
         src = row[0]
-
         dst = row[1]
-
-        service = row[2]
-
         proto = row[3]
 
-        rate = row[4]
+        # ==========================================================
+        # BUSCAR FLOW REAL
+        # ==========================================================
 
-        packets = row[6]
+        flow_data = None
 
-        total = row[7]
+        with self.flow_lock:
+
+            for key, flow in self.flows.items():
+
+                flow_src, flow_dst, flow_proto = key
+
+                if (
+                    flow_src == src
+                    and flow_dst == dst
+                    and flow_proto == proto
+                ):
+
+                    flow_data = flow
+                    break
+
+        if not flow_data:
+            return
+
+        # ==========================================================
+        # EXTRAER DATOS
+        # ==========================================================
+
+        hostname = flow_data.get(
+            "hostname",
+            "Unknown"
+        )
+
+        service = flow_data.get(
+            "service",
+            "UNKNOWN"
+        )
+
+        direction = flow_data.get(
+            "direction",
+            "UNKNOWN"
+        )
+
+        network_type = flow_data.get(
+            "network_type",
+            "UNKNOWN"
+        )
+
+        sport = flow_data.get(
+            "sport",
+            "?"
+        )
+
+        dport = flow_data.get(
+            "dport",
+            "?"
+        )
+
+        packets = flow_data.get(
+            "packets",
+            0
+        )
+
+        total_mb = (
+            flow_data.get("bytes", 0)
+            / 1024
+            / 1024
+        )
+
+        rate_kb = (
+            flow_data.get("rate", 0)
+            / 1024
+        )
+
+        ttl = flow_data.get(
+            "ttl",
+            "?"
+        )
+
+        first_seen = flow_data.get(
+            "first_seen",
+            "--"
+        )
+
+        last_packet = flow_data.get(
+            "last_packet",
+            "--"
+        )
+
+        # ==========================================================
+        # PANEL INFO
+        # ==========================================================
 
         info = f"""
-[b cyan]FLUJO SELECCIONADO[/]
+╔═══════════════════════════════════╗
+║          FLOW INSPECTOR           ║
+╚═══════════════════════════════════╝
 
-[green]SOURCE:[/] {src}
+[bold #7aa2f7]REMOTE HOST[/]
+[white]{hostname}[/]
 
-[green]DESTINATION:[/] {dst}
+[bold #7aa2f7]CONNECTION[/]
 
-[yellow]SERVICE:[/] {service}
+[#9ece6a]SRC      :[/] {src}
+[#9ece6a]DST      :[/] {dst}
 
-[magenta]PROTOCOLO:[/] {proto}
+[#e0af68]SERVICE  :[/] {service}
+[#bb9af7]PROTO    :[/] {proto}
 
-[cyan]VELOCIDAD:[/] {rate}
+[#7dcfff]SPORT    :[/] {sport}
+[#7dcfff]DPORT    :[/] {dport}
 
-[white]PACKETS:[/] {packets}
+[#c0caf5]FLOW     :[/] {direction}
+[#f7768e]NETWORK  :[/] {network_type}
 
-[red]TRANSFERIDO:[/] {total}
+[#9ece6a]TTL      :[/] {ttl}
 
-[b green]ANÁLISIS[/]
+[bold #7aa2f7]TRAFFIC[/]
 
-[yellow]Tipo estimado:[/]
-- Navegación
-- Streaming
-- Transferencia
-- DNS
-- HTTPS
+[#7dcfff]RATE     :[/] {rate_kb:.2f} KB/s
+[#c0caf5]PACKETS  :[/] {packets}
+[#f7768e]TOTAL    :[/] {total_mb:.2f} MB
 
-[yellow]Timestamp:[/]
-{datetime.now().strftime('%H:%M:%S')}
+[bold #7aa2f7]TIMELINE[/]
+
+[#e0af68]FIRST    :[/] {first_seen}
+[#e0af68]LAST     :[/] {last_packet}
 """
 
         self.query_one(
