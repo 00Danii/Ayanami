@@ -236,15 +236,15 @@ class MonitorView(Vertical):
     # EVENTS
     # ==========================================================
 
-    def on_select_changed(self, event):
+    # def on_select_changed(self, event):
 
-        if event.select.id == "monitor-host-select":
+    #     if event.select.id == "monitor-host-select":
 
-            self.selected_host = event.value
+    #         self.selected_host = event.value
 
-            self.notify(
-                f"Filtro: {self.selected_host}"
-            )
+    #         self.notify(
+    #             f"Filtro: {self.selected_host}"
+    #         )
 
     def on_button_pressed(self, event):
 
