@@ -428,8 +428,8 @@ class MonitorView(Vertical):
                 # FLOW
                 # ==================================================
 
-                src = f"{src_ip}:{sport}"
-                dst = f"{dst_ip}:{dport}"
+                src = f"{src_ip}"
+                dst = f"{dst_ip}"
 
                 service = SERVICE_MAP.get(
                     dport,
