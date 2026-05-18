@@ -80,7 +80,7 @@ class MonitorView(Vertical):
             ),
 
             Button(
-                "DETENER",
+                "PAUSAR",
                 variant="error",
                 id="stop-monitor"
             ),
@@ -281,6 +281,23 @@ class MonitorView(Vertical):
     # ==========================================================
 
     def start_monitor(self):
+        
+        self.query_one(
+            "#stop-monitor",
+            Button
+        ).label = "PAUSAR"
+        
+        self.query_one(
+            "#start-monitor",
+            Button
+        ).disabled = True
+        
+        if self.monitor_worker:
+            self.notify(
+                "El monitor ya está activo",
+                severity="warning"
+            )
+            return
 
         iface = getattr(
             self.app,
@@ -330,6 +347,11 @@ class MonitorView(Vertical):
     # ==========================================================
 
     def stop_monitor(self):
+        
+        self.query_one(
+            "#start-monitor",
+            Button
+        ).disabled = False
 
         if self.update_timer:
 
@@ -343,13 +365,8 @@ class MonitorView(Vertical):
 
             self.monitor_worker = None
 
-        self.query_one(
-            "#monitor-table",
-            DataTable
-        ).clear()
-
         self.notify(
-            "Monitor detenido"
+            "Monitor pausado"
         )
 
     # ==========================================================
