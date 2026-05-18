@@ -231,6 +231,10 @@ class MonitorView(Vertical):
             )
 
         select.set_options(options)
+        
+        # Por defecto el filtro en ALL al cargar los hosts, para evitar que quede en un host que ya no está presente (por ejemplo si se desconectó)
+        select.value = "ALL"
+        self.selected_host = "ALL"
 
     # ==========================================================
     # EVENTS
