@@ -564,3 +564,130 @@ RATE COLORS
 /********************
  * FIN MONITOR VIEW *
  ********************/
+
+
+/****************
+ * SNIFFER VIEW *
+ ****************/
+
+SnifferView {
+
+    layout: vertical;
+    padding: 1;
+}
+
+.sniffer-header {
+
+    height: 3;
+
+    align: center middle;
+
+    background: #1a1b26;
+
+    border: solid #414868;
+
+    padding: 0 1;
+}
+
+.sniffer-title {
+
+    color: #7aa2f7;
+
+    text-style: bold;
+
+    width: 1fr;
+}
+
+#sniffer-status {
+
+    width: 16;
+
+    content-align: center middle;
+
+    text-style: bold;
+}
+
+.sniffer-toolbar {
+
+    height: 3;
+
+    margin-top: 1;
+
+    align: left middle;
+}
+
+#sniffer-mode {
+
+    width: 24;
+}
+
+#sniffer-device {
+
+    width: 34;
+}
+
+#refresh-devices {
+
+    width: 5;
+}
+
+#start-sniffer,
+#pause-sniffer,
+#stop-sniffer {
+
+    width: 12;
+}
+
+.sniffer-stats {
+
+    height: 3;
+
+    margin-top: 1;
+}
+
+.sniffer-stat {
+
+    background: #24283b;
+
+    border: round #414868;
+
+    margin-right: 1;
+
+    padding: 0 1;
+
+    content-align: center middle;
+}
+
+#sniffer-main {
+
+    height: 1fr;
+
+    margin-top: 1;
+}
+
+#sniffer-log {
+
+    width: 65%;
+
+    border: round #414868;
+
+    background: #1a1b26;
+}
+
+#sniffer-inspector-container {
+
+    width: 35%;
+
+    border: round #414868;
+
+    background: #1a1b26;
+}
+
+#packet-inspector {
+
+    padding: 1;
+}
+
+/********************
+ * FIN SNIFFER VIEW *
+ ********************/
