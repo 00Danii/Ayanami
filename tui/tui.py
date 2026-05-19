@@ -19,81 +19,6 @@ import sniffer
 import firewall
 import firewall_apps
 
-class SnifferView(Vertical):
-    def compose(self) -> ComposeResult:
-        yield Label("Sniffer de Paquetes", classes="section-title")
-        yield Label("Usa la interfaz global seleccionada en la barra lateral", classes="help-text")
-
-        with Horizontal(classes="button-bar"):
-            yield Label("Modo:")
-            yield Button("Todo el tráfico", id="mode-all", classes="mode-btn")
-            yield Button("Por dispositivo", id="mode-device", classes="mode-btn")
-            yield Button("Modo RAW", id="mode-raw", classes="mode-btn")
-
-        with Horizontal(id="device-selector", classes="button-bar"):
-            yield Label("Dispositivo:")
-            yield Select([], id="sniffer-device", compact=True)
-
-        with Horizontal(classes="button-bar"):
-            yield Button("Start", variant="success", id="start-sniffer")
-            yield Button("Stop", variant="error", id="stop-sniffer")
-            yield Button("Actualizar Dispositivos", variant="default", id="refresh-devices")
-
-        yield RichLog(id="sniffer-log", highlight=True, markup=True)
-
-    def on_mount(self) -> None:
-        # Ocultar selector de dispositivo inicialmente
-        self.query_one("#device-selector").display = False
-        # Initialize mode
-        self.current_mode = "all"
-        # Set default mode button style
-        self.query_one("#mode-all").variant = "primary"
-        self.refresh_devices()
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        # Handle mode buttons
-        if event.button.id == "mode-all":
-            self.current_mode = "all"
-            self._update_mode_buttons("mode-all")
-            event.stop()
-        elif event.button.id == "mode-device":
-            self.current_mode = "device"
-            self._update_mode_buttons("mode-device")
-            self.refresh_devices()
-            event.stop()
-        elif event.button.id == "mode-raw":
-            self.current_mode = "raw"
-            self._update_mode_buttons("mode-raw")
-            event.stop()
-        elif event.button.id == "refresh-devices":
-            self.refresh_devices()
-            event.stop()
-
-    def _update_mode_buttons(self, active_id: str):
-        """Update mode button styles"""
-        for btn_id in ["mode-all", "mode-device", "mode-raw"]:
-            btn = self.query_one(f"#{btn_id}", Button)
-            if btn_id == active_id:
-                btn.variant = "primary"
-                # Show/hide device selector
-                self.query_one("#device-selector").display = (btn_id == "mode-device")
-            else:
-                btn.variant = "default"
-
-    def refresh_devices(self) -> None:
-        try:
-            devices = scanner.get_neighbors()
-            device_select = self.query_one("#sniffer-device", Select)
-            if devices:
-                options = [(f"{d['ip']} ({d['mac']})", d['ip']) for d in devices]
-                device_select.set_options(options)
-                if options:
-                    device_select.value = options[0][1]
-            else:
-                device_select.set_options([("No hay dispositivos", "")])
-        except Exception as e:
-            self.app.notify(f"Error al cargar dispositivos: {e}", severity="error")
-
 
 
 
@@ -164,9 +89,14 @@ from views.interfaces import InterfacesView
 from views.hostspot import HotspotView
 from views.scanner import ScannerView
 from views.monitor import MonitorView
+from views.sniffer import SnifferView
 class AyanamiApp(App):
 
     CSS_PATH = "styles/app.css"
+    
+    ENABLE_COMMAND_PALETTE = False
+
+    capture_print = True
     
     selected_interface = None
     
@@ -193,16 +123,9 @@ class AyanamiApp(App):
             self.query_one("#main-content", ContentSwitcher).current = event.item.id
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        
-
-        # Sniffer
-        if event.button.id == "start-sniffer":
-            self.start_sniffing()
-        elif event.button.id == "stop-sniffer":
-            self.stop_sniffing()
 
         # Firewall - Quick blocks
-        elif event.button.id == "btn-fw-block-global":
+        if event.button.id == "btn-fw-block-global":
             self.action_fw_block_global()
         elif event.button.id == "btn-fw-block-device":
             self.action_fw_block_device()
