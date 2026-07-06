@@ -60,12 +60,12 @@ class SnifferView(Vertical):
         yield Horizontal(
 
             Label(
-                "DEEP PACKET INSPECTOR",
+                "Inspector de Paquetes",
                 classes="sniffer-title"
             ),
 
             Static(
-                "[red]STOPPED[/]",
+                "[red]DETENIDO[/]",
                 id="sniffer-status"
             ),
 
@@ -104,19 +104,19 @@ class SnifferView(Vertical):
             ),
 
             Button(
-                "START",
+                "INICIAR",
                 variant="success",
                 id="start-sniffer"
             ),
 
             Button(
-                "PAUSE",
+                "PAUSAR",
                 variant="warning",
                 id="pause-sniffer"
             ),
 
             Button(
-                "STOP",
+                "DETENER",
                 variant="error",
                 id="stop-sniffer"
             ),
@@ -392,7 +392,7 @@ Esperando paquetes...
             "#sniffer-status",
             Static
         ).update(
-            "[green]RUNNING[/]"
+            "[green]INICIADO[/]"
         )
 
         self.notify(
@@ -417,18 +417,18 @@ Esperando paquetes...
 
         if self.paused:
 
-            btn.label = "RESUME"
+            btn.label = "CONTINUAR"
 
             self.query_one(
                 "#sniffer-status",
                 Static
             ).update(
-                "[yellow]PAUSED[/]"
+                "[yellow]PAUSADO[/]"
             )
 
         else:
 
-            btn.label = "PAUSE"
+            btn.label = "PAUSAR"
 
             self.query_one(
                 "#sniffer-status",
@@ -466,16 +466,16 @@ Esperando paquetes...
             "#sniffer-status",
             Static
         ).update(
-            "[red]STOPPED[/]"
+            "[red]DETENIDO[/]"
         )
 
         self.query_one(
             "#pause-sniffer",
             Button
-        ).label = "PAUSE"
+        ).label = "PAUSAR"
 
         self.notify(
-            "Sniffer detenido"
+            "Inspector detenido"
         )
 
     # ==========================================================
