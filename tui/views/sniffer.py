@@ -81,8 +81,7 @@ class SnifferView(Vertical):
             Select(
                 [
                     ("Todo el tráfico", "all"),
-                    ("Por dispositivo", "device"),
-                    ("Modo RAW", "raw")
+                    ("Por dispositivo", "device")
                 ],
                 value="all",
                 id="sniffer-mode"
