@@ -616,26 +616,57 @@ SnifferView {
     align: left middle;
 }
 
-#sniffer-mode {
+/* =========================================
+   DEVICE CONTROLS
+========================================= */
 
-    width: 24;
+#device-controls {
+
+    height: 3;
+
+    align: left middle;
 }
 
+/* =========================================
+   SELECTS
+========================================= */
+
+#sniffer-mode,
 #sniffer-device {
 
-    width: 34;
+    width: 30;
+
+    height: 3;
+
+    min-height: 3;
 }
+
+/* =========================================
+   REFRESH BUTTON
+========================================= */
 
 #refresh-devices {
 
     width: 5;
+
+    height: 3;
+
+    min-height: 3;
 }
+
+/* =========================================
+   ACTION BUTTONS
+========================================= */
 
 #start-sniffer,
 #pause-sniffer,
 #stop-sniffer {
 
     width: 12;
+
+    height: 3;
+
+    min-height: 3;
 }
 
 .sniffer-stats {

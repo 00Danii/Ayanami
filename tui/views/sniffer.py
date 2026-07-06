@@ -79,28 +79,29 @@ class SnifferView(Vertical):
         yield Horizontal(
 
             Select(
-
                 [
-
                     ("Todo el tráfico", "all"),
                     ("Por dispositivo", "device"),
                     ("Modo RAW", "raw")
-
                 ],
-
                 value="all",
-
                 id="sniffer-mode"
             ),
 
-            Select(
-                [],
-                id="sniffer-device"
-            ),
+            Horizontal(
 
-            Button(
-                "↻",
-                id="refresh-devices"
+                Select(
+                    [],
+                    id="sniffer-device"
+                ),
+
+                Button(
+                    "↻",
+                    id="refresh-devices"
+                ),
+
+                id="device-controls",
+                classes="device-controls"
             ),
 
             Button(
@@ -227,7 +228,39 @@ Esperando paquetes...
         self.refresh_devices()
 
         self.update_stats()
+        
+        self.update_mode_ui()
+        
+    
+    # ==========================================================
+    # MODE CHANGE
+    # ==========================================================
+    
+    def update_mode_ui(self):
 
+        mode = self.query_one(
+            "#sniffer-mode",
+            Select
+        ).value
+
+        device_controls = self.query_one(
+            "#device-controls",
+            Horizontal
+        )
+
+        if mode == "device":
+
+            device_controls.display = True
+
+        else:
+
+            device_controls.display = False
+
+    def on_select_changed(self, event):
+
+        if event.select.id == "sniffer-mode":
+
+            self.update_mode_ui()
     # ==========================================================
     # BUTTONS
     # ==========================================================
