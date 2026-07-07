@@ -176,6 +176,12 @@ class SnifferView(Vertical):
         self.ui_timer = None
 
         self.refresh_devices()
+        self.query_one(
+            "#pause-sniffer", Button
+        ).disabled = True
+        self.query_one(
+            "#stop-sniffer", Button
+        ).disabled = True
         self.tick()
 
     # ==========================================================
@@ -244,6 +250,14 @@ class SnifferView(Vertical):
             "#start-sniffer", Button
         ).disabled = True
 
+        self.query_one(
+            "#pause-sniffer", Button
+        ).disabled = False
+
+        self.query_one(
+            "#stop-sniffer", Button
+        ).disabled = False
+
         if self.sniffer:
             self.notify("Ya activo", severity="warning")
             return
@@ -292,11 +306,13 @@ class SnifferView(Vertical):
 
         if self.paused:
             btn.label = "CONTINUAR"
+            btn.variant = "success"
             status = "[yellow]PAUSADO[/]"
             if self.ui_timer:
                 self.ui_timer.pause()
         else:
             btn.label = "PAUSAR"
+            btn.variant = "warning"
             status = "[green]CAPTURANDO[/]"
             if self.ui_timer:
                 self.ui_timer.resume()
@@ -315,6 +331,17 @@ class SnifferView(Vertical):
             "#start-sniffer", Button
         ).disabled = False
 
+        self.query_one(
+            "#pause-sniffer", Button
+        ).disabled = True
+
+        self.query_one(
+            "#stop-sniffer", Button
+        ).disabled = True
+
+        self.query_one("#pause-sniffer", Button).label = "PAUSAR"
+        self.query_one("#pause-sniffer", Button).variant = "warning"
+
         if self.ui_timer:
             self.ui_timer.stop()
             self.ui_timer = None
@@ -330,7 +357,6 @@ class SnifferView(Vertical):
         self.query_one("#sniffer-status", Static).update(
             "[red]DETENIDO[/]"
         )
-        self.query_one("#pause-sniffer", Button).label = "PAUSAR"
         self.query_one("#sniffer-last-packet", Static).update(
             "[dim]Esperando captura...[/]"
         )
