@@ -409,7 +409,7 @@ MonitorView {
 
 /* INPUT INTERNO */
 
-#monitor-host-select > SelectCurrent {
+#monitor-host-select>SelectCurrent {
     border: none;
 }
 
@@ -656,7 +656,7 @@ SnifferView {
     border: round #7aa2f7;
 }
 
-#sniffer-host-select > SelectCurrent {
+#sniffer-host-select>SelectCurrent {
     border: none;
 }
 
@@ -737,7 +737,8 @@ SnifferView {
 
 #sniffer-packet-detail {
 
-    height: 10;
+    height: 1fr;
+    min-height: 8;
 
     border: round #414868;
 
@@ -746,6 +747,8 @@ SnifferView {
     padding: 1 2;
 
     color: #a9b1d6;
+
+    margin-top: 1;
 }
 
 /********************

@@ -13,6 +13,7 @@ from textual.widgets import (
 )
 from scapy.all import (
     AsyncSniffer,
+    Ether,
     IP,
     TCP,
     UDP,
@@ -417,37 +418,47 @@ class SnifferView(Vertical):
                 f"[bold #7aa2f7]ULTIMO PAQUETE[/]    "
                 f"[#565f89]{ts}[/]",
                 "",
-                f"  [#9ece6a]{src}[/] \u2192 [#f7768e]{dst}[/]",
-                f"  Proto: [#e0af68]{proto}[/]  "
-                f"Service: [#bb9af7]{service}[/]  "
-                f"Len: [#7dcfff]{length}[/]",
             ]
+
+            if pkt.haslayer(Ether):
+                lines.append(
+                    f"[#3b4261]ETHER[/]  {pkt[Ether].src} → {pkt[Ether].dst}"
+                )
+
+            lines.append(
+                f"[#3b4261]IP[/]     [#9ece6a]{src}[/] → "
+                f"[#f7768e]{dst}[/]"
+            )
+            lines.append(
+                f"          Proto: [#e0af68]{proto}[/]  "
+                f"TTL: [#7dcfff]{pkt[IP].ttl}[/]  "
+                f"Len: [#7dcfff]{length}B[/]"
+            )
 
             if pkt.haslayer(TCP):
                 lines.append(
-                    f"  TCP: {pkt[TCP].sport} \u2192 {pkt[TCP].dport}  "
+                    f"[#3b4261]TCP[/]    {pkt[TCP].sport} → {pkt[TCP].dport}  "
                     f"Flags: {pkt[TCP].flags}  "
-                    f"Seq: {pkt[TCP].seq}"
+                    f"Win: {pkt[TCP].window}"
                 )
 
             if pkt.haslayer(UDP):
                 lines.append(
-                    f"  UDP: {pkt[UDP].sport} \u2192 {pkt[UDP].dport}"
+                    f"[#3b4261]UDP[/]    {pkt[UDP].sport} → {pkt[UDP].dport}"
                 )
 
             if pkt.haslayer(DNSQR):
                 qname = pkt[DNSQR].qname.decode()
                 lines.append(
-                    f"  DNS Query: {qname[:80]}"
+                    f"[#3b4261]DNS[/]    Query: [#a9b1d6]{qname[:100]}[/]"
                 )
                 self.dns_count += 1
 
             if pkt.haslayer(DNSRR):
-                for i, rr in enumerate(pkt[DNSRR][:3]):
+                for rr in pkt[DNSRR][:3]:
                     try:
                         lines.append(
-                            f"  DNS Answer: "
-                            f"{rr.rdata.decode()[:60]}"
+                            f"          Answer: {rr.rdata.decode()[:60]}"
                         )
                     except Exception:
                         pass
