@@ -64,47 +64,49 @@ class SnifferView(Vertical):
 
         yield Horizontal(
 
-            Select(
-                [
-                    ("Todo el tráfico", "all"),
-                    ("Por dispositivo", "device")
-                ],
-                value="all",
-                id="sniffer-mode"
-            ),
-
             Horizontal(
 
                 Select(
-                    [],
-                    id="sniffer-device"
+                    [("Toda la red", "ALL")],
+                    value="ALL",
+                    id="sniffer-host-select"
                 ),
 
                 Button(
                     "\u21bb",
-                    id="refresh-devices"
+                    id="refresh-devices",
+                    variant="primary"
                 ),
 
-                id="device-controls",
-                classes="device-controls"
+                classes="sniffer-left"
             ),
 
-            Button(
-                "INICIAR",
-                variant="success",
-                id="start-sniffer"
+            Static(
+                "",
+                classes="sniffer-spacer"
             ),
 
-            Button(
-                "PAUSAR",
-                variant="warning",
-                id="pause-sniffer"
-            ),
+            Horizontal(
 
-            Button(
-                "DETENER",
-                variant="error",
-                id="stop-sniffer"
+                Button(
+                    "INICIAR",
+                    variant="success",
+                    id="start-sniffer"
+                ),
+
+                Button(
+                    "PAUSAR",
+                    variant="warning",
+                    id="pause-sniffer"
+                ),
+
+                Button(
+                    "DETENER",
+                    variant="error",
+                    id="stop-sniffer"
+                ),
+
+                classes="sniffer-right"
             ),
 
             classes="sniffer-toolbar"
@@ -174,29 +176,7 @@ class SnifferView(Vertical):
         self.ui_timer = None
 
         self.refresh_devices()
-        self.update_mode_ui()
         self.tick()
-
-    # ==========================================================
-    # MODE
-    # ==========================================================
-
-    def update_mode_ui(self):
-
-        mode = self.query_one(
-            "#sniffer-mode", Select
-        ).value
-
-        ctrl = self.query_one(
-            "#device-controls", Horizontal
-        )
-
-        ctrl.display = (mode == "device")
-
-    def on_select_changed(self, event):
-
-        if event.select.id == "sniffer-mode":
-            self.update_mode_ui()
 
     # ==========================================================
     # BUTTONS
@@ -222,15 +202,34 @@ class SnifferView(Vertical):
     def refresh_devices(self):
 
         try:
-            devices = scanner.get_neighbors()
-            opts = [(f"{d['ip']} ({d['mac']})", d["ip"]) for d in devices]
+            select = self.query_one(
+                "#sniffer-host-select", Select
+            )
 
-            if not opts:
-                opts = [("No devices", "NONE")]
+            devices = scanner.get_neighbors_simple()
 
-            sel = self.query_one("#sniffer-device", Select)
-            sel.set_options(opts)
-            sel.value = opts[0][1]
+            seen = set()
+
+            options = [
+                ("Toda la red", "ALL")
+            ]
+
+            for device in devices:
+
+                ip = device["ip"]
+
+                if ip in seen:
+                    continue
+
+                seen.add(ip)
+
+                mac = device.get("mac", "??")
+                label = f"{ip} ({mac})"
+
+                options.append((label, ip))
+
+            select.set_options(options)
+            select.value = "ALL"
 
         except Exception as e:
             self.notify(str(e), severity="error")
@@ -250,11 +249,10 @@ class SnifferView(Vertical):
             self.notify("Selecciona una interfaz", severity="error")
             return
 
-        mode = self.query_one("#sniffer-mode", Select).value
-        device = self.query_one("#sniffer-device", Select).value
+        device = self.query_one("#sniffer-host-select", Select).value
         bpf_filter = None
 
-        if mode == "device" and device != "NONE":
+        if device != "ALL":
             bpf_filter = f"host {device}"
 
         self.paused = False

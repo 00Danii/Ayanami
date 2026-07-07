@@ -611,62 +611,95 @@ SnifferView {
 
     height: 3;
 
-    margin-top: 1;
+    margin-bottom: 1;
 
-    align: left middle;
+    align: center middle;
 }
 
-/* =========================================
-   DEVICE CONTROLS
-========================================= */
-
-#device-controls {
+.sniffer-left {
 
     height: 3;
 
     align: left middle;
 }
 
-/* =========================================
-   SELECTS
-========================================= */
+.sniffer-spacer {
 
-#sniffer-mode,
-#sniffer-device {
+    width: 1fr;
+}
 
-    width: 30;
+.sniffer-right {
 
     height: 3;
 
+    align: right middle;
+
+    margin-right: 1;
+}
+
+/* =========================================
+   SELECT HOST (como monitor)
+========================================= */
+
+#sniffer-host-select {
+
+    width: 38;
+    height: 3;
     min-height: 3;
+    margin-right: 1;
+    background: #1f2335;
+    border: round #3b4261;
+    color: white;
+}
+
+#sniffer-host-select:focus {
+    border: round #7aa2f7;
+}
+
+#sniffer-host-select > SelectCurrent {
+    border: none;
 }
 
 /* =========================================
-   REFRESH BUTTON
+   REFRESH BUTTON (como monitor)
 ========================================= */
 
 #refresh-devices {
 
     width: 5;
 
+    min-width: 5;
+
     height: 3;
 
     min-height: 3;
+
+    margin-right: 1;
+
+    text-style: bold;
 }
 
 /* =========================================
-   ACTION BUTTONS
+   ACTION BUTTONS (como monitor)
 ========================================= */
 
-#start-sniffer,
-#pause-sniffer,
+#start-sniffer {
+
+    margin-right: 1;
+
+    min-width: 14;
+}
+
+#pause-sniffer {
+
+    margin-right: 1;
+
+    min-width: 14;
+}
+
 #stop-sniffer {
 
-    width: 12;
-
-    height: 3;
-
-    min-height: 3;
+    min-width: 14;
 }
 
 .sniffer-stats {
