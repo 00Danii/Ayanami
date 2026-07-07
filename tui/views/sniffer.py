@@ -240,6 +240,10 @@ class SnifferView(Vertical):
 
     def start_sniffer(self):
 
+        self.query_one(
+            "#start-sniffer", Button
+        ).disabled = True
+
         if self.sniffer:
             self.notify("Ya activo", severity="warning")
             return
@@ -249,11 +253,7 @@ class SnifferView(Vertical):
             self.notify("Selecciona una interfaz", severity="error")
             return
 
-        device = self.query_one("#sniffer-host-select", Select).value
         bpf_filter = None
-
-        if device != "ALL":
-            bpf_filter = f"host {device}"
 
         self.paused = False
         self.packet_count = 0
@@ -310,6 +310,10 @@ class SnifferView(Vertical):
     def stop_sniffer(self):
 
         self.paused = False
+
+        self.query_one(
+            "#start-sniffer", Button
+        ).disabled = False
 
         if self.ui_timer:
             self.ui_timer.stop()
