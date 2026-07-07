@@ -689,34 +689,30 @@ SnifferView {
     content-align: center middle;
 }
 
-#sniffer-main {
+#sniffer-last-packet {
 
-    height: 1fr;
-
-    margin-top: 1;
-}
-
-#sniffer-log {
-
-    width: 65%;
+    height: 3;
 
     border: round #414868;
 
     background: #1a1b26;
+
+    padding: 0 1;
+
+    color: #a9b1d6;
 }
 
-#sniffer-inspector-container {
+#sniffer-packet-detail {
 
-    width: 35%;
+    height: 10;
 
     border: round #414868;
 
     background: #1a1b26;
-}
 
-#packet-inspector {
+    padding: 1 2;
 
-    padding: 1;
+    color: #a9b1d6;
 }
 
 /********************
