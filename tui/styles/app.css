@@ -73,9 +73,9 @@ Input {
 }
 
 .help-text {
+    width: 1fr;
+    text-style: bold;
     color: #565f89;
-    text-style: italic;
-    margin-top: 1;
 }
 
 Button {
@@ -396,11 +396,9 @@ MonitorView {
 }
 
 .monitor-title {
-    content-align: left middle;
     width: 1fr;
     text-style: bold;
     color: #565f89;
-    padding-left: 1;
 }
 
 #monitor-host-select {
@@ -591,12 +589,9 @@ SnifferView {
 }
 
 .sniffer-title {
-
-    color: #565f89;
-
-    text-style: bold;
-
     width: 1fr;
+    text-style: bold;
+    color: #565f89;
 }
 
 #sniffer-status {
