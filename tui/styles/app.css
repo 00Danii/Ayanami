@@ -204,6 +204,7 @@ InterfaceRow Label {
 .title {
     width: 1fr;
     text-style: bold;
+    color: #565f89;
 }
 
 /**********************************

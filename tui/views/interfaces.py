@@ -13,7 +13,7 @@ class InterfacesView(Vertical):
     def compose(self):
         yield Horizontal(
             Label(
-                "Interfaces",
+                "Interfaces de red disponibles",
                 classes="title"
             ),
             Button(
