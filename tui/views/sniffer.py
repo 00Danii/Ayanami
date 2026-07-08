@@ -121,42 +121,42 @@ class SnifferView(Vertical):
         yield Horizontal(
 
             Static(
-                "Paquetes: 0",
-                id="sniffer-packets",
-                classes="sniffer-stat"
+                "[dim]Esperando captura...[/]",
+                id="sniffer-last-packet",
+                classes="sniffer-last-packet"
             ),
 
-            Static(
-                "TCP: 0",
-                id="sniffer-tcp",
-                classes="sniffer-stat"
+            Horizontal(
+
+                Static(
+                    "Paquetes: 0",
+                    id="sniffer-packets",
+                ),
+
+                Static(
+                    "TCP: 0",
+                    id="sniffer-tcp",
+                ),
+
+                Static(
+                    "UDP: 0",
+                    id="sniffer-udp",
+                ),
+
+                Static(
+                    "DNS: 0",
+                    id="sniffer-dns",
+                ),
+
+                Static(
+                    "Interfaz: --",
+                    id="sniffer-iface",
+                ),
+
+                id="sniffer-stats-right",
             ),
 
-            Static(
-                "UDP: 0",
-                id="sniffer-udp",
-                classes="sniffer-stat"
-            ),
-
-            Static(
-                "DNS: 0",
-                id="sniffer-dns",
-                classes="sniffer-stat"
-            ),
-
-            Static(
-                "Interfaz: --",
-                id="sniffer-iface",
-                classes="sniffer-stat"
-            ),
-
-            classes="sniffer-stats"
-        )
-
-        yield Static(
-            "[dim]Esperando captura...[/]",
-            id="sniffer-last-packet",
-            classes="sniffer-last-packet"
+            classes="sniffer-info-bar"
         )
 
         yield Static(

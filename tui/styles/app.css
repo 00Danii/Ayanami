@@ -702,29 +702,20 @@ SnifferView {
     min-width: 14;
 }
 
-.sniffer-stats {
+.sniffer-info-bar {
 
     height: 3;
 
     margin-top: 1;
-}
 
-.sniffer-stat {
-
-    background: #24283b;
-
-    border: round #414868;
-
-    margin-right: 1;
-
-    padding: 0 1;
-
-    content-align: center middle;
+    align: center middle;
 }
 
 #sniffer-last-packet {
 
     height: 3;
+
+    width: 1fr;
 
     border: round #414868;
 
@@ -733,6 +724,26 @@ SnifferView {
     padding: 0 1;
 
     color: #a9b1d6;
+}
+
+#sniffer-stats-right {
+
+    height: 3;
+
+    width: auto;
+}
+
+#sniffer-stats-right > Static {
+
+    background: #24283b;
+
+    border: round #414868;
+
+    margin-left: 1;
+
+    padding: 0 1;
+
+    content-align: center middle;
 }
 
 #sniffer-packet-detail {
