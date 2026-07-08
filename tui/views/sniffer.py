@@ -17,12 +17,13 @@ from textual.widgets import (
 )
 from scapy.all import (
     AsyncSniffer,
+    DNS,
+    DNSQR,
+    DNSRR,
     Ether,
     IP,
     TCP,
     UDP,
-    DNSQR,
-    DNSRR,
 )
 import scanner
 
@@ -450,11 +451,10 @@ class SnifferView(Vertical):
             ipt.add_column(width=8, no_wrap=True)
             ipt.add_column(ratio=1, no_wrap=True)
             ipt.add_row("[bold #7aa2f7]IP[/]", "", end_section=True)
-            ipt.add_row("[#565f89]src[/]", f"[#9ece6a]{src}[/]")
-            ipt.add_row("[#565f89]dst[/]", f"[#f7768e]{dst}[/]")
-            ipt.add_row("[#565f89]proto[/]", f"[#e0af68]{proto}[/]")
-            ipt.add_row("[#565f89]TTL[/]", f"[#7dcfff]{pkt[IP].ttl}[/]")
-            ipt.add_row("[#565f89]len[/]", f"[#7dcfff]{length}B[/]")
+            ipt.add_row("[#565f89]De[/]", f"[#9ece6a]{src}[/]")
+            ipt.add_row("[#565f89]Para[/]", f"[#f7768e]{dst}[/]")
+            ipt.add_row("[#565f89]Protocolo[/]", f"[#e0af68]{proto}[/]")
+            ipt.add_row("[#565f89]Tamaño[/]", f"[#7dcfff]{length}B[/]")
             parts.append(ipt)
 
             if pkt.haslayer(TCP):
@@ -469,21 +469,27 @@ class SnifferView(Vertical):
                 tcp.add_row(
                     "[bold #9ece6a]TCP[/]", "", end_section=True
                 )
+                svc = SERVICE_MAP.get(pkt[TCP].sport) or SERVICE_MAP.get(pkt[TCP].dport) or ""
+                sport_label = f"{pkt[TCP].sport}"
+                dport_label = f"{pkt[TCP].dport}"
+                if svc:
+                    sport_label += f" [#3b4261]({svc})[/]"
+                    dport_label += f" [#3b4261]({svc})[/]"
                 tcp.add_row(
-                    "[#565f89]sport[/]",
-                    f"[#7dcfff]{pkt[TCP].sport}[/]",
+                    "[#565f89]Puerto[/]",
+                    f"[#7dcfff]{sport_label}[/] [#f7768e]\u2192[/] [#7dcfff]{dport_label}[/]",
                 )
                 tcp.add_row(
-                    "[#565f89]dport[/]",
-                    f"[#7dcfff]{pkt[TCP].dport}[/]",
-                )
-                tcp.add_row(
-                    "[#565f89]flags[/]",
+                    "[#565f89]Banderas[/]",
                     f"[#e0af68]{pkt[TCP].flags}[/]",
                 )
+                try:
+                    data_len = len(pkt[TCP].payload)
+                except Exception:
+                    data_len = 0
                 tcp.add_row(
-                    "[#565f89]window[/]",
-                    f"[#7dcfff]{pkt[TCP].window}[/]",
+                    "[#565f89]Datos[/]",
+                    f"[#7dcfff]{data_len}B[/]" if data_len else "[#565f89]0[/]",
                 )
                 parts.append(tcp)
 
@@ -499,13 +505,15 @@ class SnifferView(Vertical):
                 udp.add_row(
                     "[bold #e0af68]UDP[/]", "", end_section=True
                 )
+                svc = SERVICE_MAP.get(pkt[UDP].sport) or SERVICE_MAP.get(pkt[UDP].dport) or ""
+                sport_label = f"{pkt[UDP].sport}"
+                dport_label = f"{pkt[UDP].dport}"
+                if svc:
+                    sport_label += f" [#3b4261]({svc})[/]"
+                    dport_label += f" [#3b4261]({svc})[/]"
                 udp.add_row(
-                    "[#565f89]sport[/]",
-                    f"[#7dcfff]{pkt[UDP].sport}[/]",
-                )
-                udp.add_row(
-                    "[#565f89]dport[/]",
-                    f"[#7dcfff]{pkt[UDP].dport}[/]",
+                    "[#565f89]Puerto[/]",
+                    f"[#7dcfff]{sport_label}[/] [#f7768e]\u2192[/] [#7dcfff]{dport_label}[/]",
                 )
                 parts.append(udp)
 
@@ -521,10 +529,15 @@ class SnifferView(Vertical):
                 dnst.add_row(
                     "[bold #bb9af7]DNS[/]", "", end_section=True
                 )
+                if pkt.haslayer(DNS):
+                    qr = "[#9ece6a]Respuesta[/]" if pkt[DNS].qr else "[#e0af68]Consulta[/]"
+                    dnst.add_row(
+                        "[#565f89]Tipo[/]", qr
+                    )
                 if pkt.haslayer(DNSQR):
                     qname = pkt[DNSQR].qname.decode()
                     dnst.add_row(
-                        "[#565f89]query[/]",
+                        "[#565f89]Consulta[/]",
                         f"[#a9b1d6]{qname[:100]}[/]",
                     )
                     self.dns_count += 1
@@ -532,7 +545,7 @@ class SnifferView(Vertical):
                     for rr in pkt[DNSRR][:3]:
                         try:
                             dnst.add_row(
-                                "[#565f89]answer[/]",
+                                "[#565f89]Respuesta[/]",
                                 f"[#a9b1d6]{rr.rdata.decode()[:60]}[/]",
                             )
                         except Exception:
