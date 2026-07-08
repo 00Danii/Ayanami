@@ -1,5 +1,9 @@
 from datetime import datetime
 
+from rich import box
+from rich.console import Group
+from rich.table import Table
+
 from textual.app import ComposeResult
 from textual.containers import (
     Vertical,
@@ -173,7 +177,7 @@ class SnifferView(Vertical):
         self.paused = False
         self.sniffer = None
         self.last_pkt_info = ""
-        self.last_pkt_detail = ""
+        self.last_pkt_detail: Table | None = None
         self.ui_timer = None
 
         self.refresh_devices()
@@ -361,9 +365,8 @@ class SnifferView(Vertical):
         self.query_one("#sniffer-last-packet", Static).update(
             "[dim]Esperando captura...[/]"
         )
-        self.query_one("#sniffer-packet-detail", Static).update(
-            ""
-        )
+        self.query_one("#sniffer-packet-detail", Static).update("")
+        self.last_pkt_detail = None
 
         self.notify("Captura detenida")
 
@@ -414,56 +417,129 @@ class SnifferView(Vertical):
                 f"[{length}B]"
             )
 
-            lines = [
-                f"[bold #7aa2f7]ULTIMO PAQUETE[/]    "
-                f"[#565f89]{ts}[/]",
-                "",
-            ]
+            parts: list[Table] = []
 
             if pkt.haslayer(Ether):
-                lines.append(
-                    f"[#3b4261]ETHER[/]  {pkt[Ether].src} → {pkt[Ether].dst}"
+                et = Table(
+                    box=box.ROUNDED,
+                    show_header=False,
+                    padding=(0, 2),
+                    expand=True,
                 )
+                et.add_column(width=8, no_wrap=True)
+                et.add_column(ratio=1, no_wrap=True)
+                et.add_row(
+                    "[bold #565f89]ETHER[/]", "", end_section=True
+                )
+                et.add_row(
+                    "[#565f89]src[/]",
+                    f"[#565f89]{pkt[Ether].src}[/]",
+                )
+                et.add_row(
+                    "[#565f89]dst[/]",
+                    f"[#565f89]{pkt[Ether].dst}[/]",
+                )
+                parts.append(et)
 
-            lines.append(
-                f"[#3b4261]IP[/]     [#9ece6a]{src}[/] → "
-                f"[#f7768e]{dst}[/]"
+            ipt = Table(
+                box=box.ROUNDED,
+                show_header=False,
+                padding=(0, 2),
+                expand=True,
             )
-            lines.append(
-                f"          Proto: [#e0af68]{proto}[/]  "
-                f"TTL: [#7dcfff]{pkt[IP].ttl}[/]  "
-                f"Len: [#7dcfff]{length}B[/]"
-            )
+            ipt.add_column(width=8, no_wrap=True)
+            ipt.add_column(ratio=1, no_wrap=True)
+            ipt.add_row("[bold #7aa2f7]IP[/]", "", end_section=True)
+            ipt.add_row("[#565f89]src[/]", f"[#9ece6a]{src}[/]")
+            ipt.add_row("[#565f89]dst[/]", f"[#f7768e]{dst}[/]")
+            ipt.add_row("[#565f89]proto[/]", f"[#e0af68]{proto}[/]")
+            ipt.add_row("[#565f89]TTL[/]", f"[#7dcfff]{pkt[IP].ttl}[/]")
+            ipt.add_row("[#565f89]len[/]", f"[#7dcfff]{length}B[/]")
+            parts.append(ipt)
 
             if pkt.haslayer(TCP):
-                lines.append(
-                    f"[#3b4261]TCP[/]    {pkt[TCP].sport} → {pkt[TCP].dport}  "
-                    f"Flags: {pkt[TCP].flags}  "
-                    f"Win: {pkt[TCP].window}"
+                tcp = Table(
+                    box=box.ROUNDED,
+                    show_header=False,
+                    padding=(0, 2),
+                    expand=True,
                 )
+                tcp.add_column(width=8, no_wrap=True)
+                tcp.add_column(ratio=1, no_wrap=True)
+                tcp.add_row(
+                    "[bold #9ece6a]TCP[/]", "", end_section=True
+                )
+                tcp.add_row(
+                    "[#565f89]sport[/]",
+                    f"[#7dcfff]{pkt[TCP].sport}[/]",
+                )
+                tcp.add_row(
+                    "[#565f89]dport[/]",
+                    f"[#7dcfff]{pkt[TCP].dport}[/]",
+                )
+                tcp.add_row(
+                    "[#565f89]flags[/]",
+                    f"[#e0af68]{pkt[TCP].flags}[/]",
+                )
+                tcp.add_row(
+                    "[#565f89]window[/]",
+                    f"[#7dcfff]{pkt[TCP].window}[/]",
+                )
+                parts.append(tcp)
 
             if pkt.haslayer(UDP):
-                lines.append(
-                    f"[#3b4261]UDP[/]    {pkt[UDP].sport} → {pkt[UDP].dport}"
+                udp = Table(
+                    box=box.ROUNDED,
+                    show_header=False,
+                    padding=(0, 2),
+                    expand=True,
                 )
-
-            if pkt.haslayer(DNSQR):
-                qname = pkt[DNSQR].qname.decode()
-                lines.append(
-                    f"[#3b4261]DNS[/]    Query: [#a9b1d6]{qname[:100]}[/]"
+                udp.add_column(width=8, no_wrap=True)
+                udp.add_column(ratio=1, no_wrap=True)
+                udp.add_row(
+                    "[bold #e0af68]UDP[/]", "", end_section=True
                 )
-                self.dns_count += 1
+                udp.add_row(
+                    "[#565f89]sport[/]",
+                    f"[#7dcfff]{pkt[UDP].sport}[/]",
+                )
+                udp.add_row(
+                    "[#565f89]dport[/]",
+                    f"[#7dcfff]{pkt[UDP].dport}[/]",
+                )
+                parts.append(udp)
 
-            if pkt.haslayer(DNSRR):
-                for rr in pkt[DNSRR][:3]:
-                    try:
-                        lines.append(
-                            f"          Answer: {rr.rdata.decode()[:60]}"
-                        )
-                    except Exception:
-                        pass
+            if pkt.haslayer(DNSQR) or pkt.haslayer(DNSRR):
+                dnst = Table(
+                    box=box.ROUNDED,
+                    show_header=False,
+                    padding=(0, 2),
+                    expand=True,
+                )
+                dnst.add_column(width=8, no_wrap=True)
+                dnst.add_column(ratio=1, no_wrap=True)
+                dnst.add_row(
+                    "[bold #bb9af7]DNS[/]", "", end_section=True
+                )
+                if pkt.haslayer(DNSQR):
+                    qname = pkt[DNSQR].qname.decode()
+                    dnst.add_row(
+                        "[#565f89]query[/]",
+                        f"[#a9b1d6]{qname[:100]}[/]",
+                    )
+                    self.dns_count += 1
+                if pkt.haslayer(DNSRR):
+                    for rr in pkt[DNSRR][:3]:
+                        try:
+                            dnst.add_row(
+                                "[#565f89]answer[/]",
+                                f"[#a9b1d6]{rr.rdata.decode()[:60]}[/]",
+                            )
+                        except Exception:
+                            pass
+                parts.append(dnst)
 
-            self.last_pkt_detail = "\n".join(lines)
+            self.last_pkt_detail = Group(*parts) if parts else None
         except Exception:
             pass
 

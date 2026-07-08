@@ -738,13 +738,13 @@ SnifferView {
 #sniffer-packet-detail {
 
     height: 1fr;
-    min-height: 8;
+    min-height: 10;
 
     border: round #414868;
 
     background: #1a1b26;
 
-    padding: 1 2;
+    padding: 0 0;
 
     color: #a9b1d6;
 
