@@ -52,10 +52,8 @@ class AyanamiApp(App):
             self.query_one(ScannerView).refresh_data()
         elif current_view == "nav-sniffer":
             self.query_one(SnifferView).refresh_devices()
-        elif current_view == "nav-firewall":
-            fw = self.query_one(FirewallView)
-            fw.refresh_apps()
-            fw.fw_list()
+        #elif current_view == "nav-firewall":
+            
 
 if __name__ == "__main__":
     app = AyanamiApp()
