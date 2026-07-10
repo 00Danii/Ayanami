@@ -66,12 +66,6 @@ Input {
     margin-bottom: 1;
 }
 
-.firewall-actions {
-    height: auto;
-    padding: 1;
-    margin-bottom: 1;
-}
-
 .help-text {
     width: 1fr;
     text-style: bold;
@@ -761,3 +755,54 @@ SnifferView {
 /********************
  * FIN SNIFFER VIEW *
  ********************/
+
+
+/********************
+ * FIREWALL VIEW *
+ ********************/
+
+FirewallView {
+    layout: vertical;
+    padding: 1;
+}
+
+.fw-tab-bar {
+    height: 3;
+    margin-top: 0;
+    margin-bottom: 0;
+    align: left bottom;
+}
+
+.fw-tab {
+    width: auto;
+    min-width: 12;
+    height: 3;
+    margin: 0 0 0 0;
+    padding: 0 2;
+    border: none;
+    border-bottom: solid #3b4261;
+    background: transparent;
+    color: #565f89;
+    text-style: bold;
+}
+
+.fw-tab.active {
+    background: #24283b;
+    border: solid #3b4261;
+    border-bottom: solid #24283b;
+    color: #7aa2f7;
+}
+
+#fw-content {
+    height: 1fr;
+}
+
+#fw-panel-rules, #fw-panel-apps {
+    height: 1fr;
+    padding: 1;
+    border: solid #3b4261;
+}
+
+/*********************
+ * FIN FIREWALL VIEW *
+ *********************/
