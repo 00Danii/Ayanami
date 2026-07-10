@@ -1,23 +1,19 @@
 from textual.containers import Vertical, Horizontal
 from textual.widgets import Label, Button, ContentSwitcher
 
+from views.firewall.rules import RulesTab
+from views.firewall.apps import AppsTab
+
 
 class FirewallView(Vertical):
     def compose(self):
-        
         with Horizontal(classes="fw-tab-bar"):
             yield Button("Reglas", id="fw-tab-rules", classes="fw-tab active")
             yield Button("Apps", id="fw-tab-apps", classes="fw-tab")
 
         with ContentSwitcher(initial="fw-panel-rules", id="fw-content"):
-            yield Vertical(
-                Label("Gestión de reglas iptables", id="fw-rules-placeholder"),
-                id="fw-panel-rules"
-            )
-            yield Vertical(
-                Label("Gestión de aplicaciones", id="fw-apps-placeholder"),
-                id="fw-panel-apps"
-            )
+            yield RulesTab(id="fw-panel-rules")
+            yield AppsTab(id="fw-panel-apps")
 
     def on_button_pressed(self, event: Button.Pressed):
         mapping = {
