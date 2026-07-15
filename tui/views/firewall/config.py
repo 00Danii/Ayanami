@@ -130,4 +130,9 @@ class ConfigTab(Vertical):
         self.log("[#7dcfff]◆ Limpiando iptables NAT[/]")
         self.run("iptables -t nat -F")
         self.log("[#9ece6a]━━━ Firewall limpiado ━━━[/]")
+        self.reset_connections()
         self.app.notify("Firewall limpiado")
+
+    def reset_connections(self):
+        self.log("[#7dcfff]◆ Cerrando conexiones activas[/]")
+        self.run("conntrack -F")
