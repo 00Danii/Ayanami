@@ -12,8 +12,7 @@ DNSMASQ_CONF = "/etc/NetworkManager/dnsmasq-shared.d/ayanami-block.conf"
 
 class ConfigTab(Vertical):
     def compose(self):
-        yield Label("Configuración del Firewall", classes="fw-section-title")
-
+    
         with Vertical(classes="fw-card"):
             yield Label("Gateway / NAT", classes="fw-card-title")
             yield Label(
