@@ -115,9 +115,9 @@ class ConfigTab(Vertical):
         else:
             self.log("[#565f89]Sin reglas[/]")
         self.log("\n[#e0af68]━━━ FORWARD ━━━[/]")
-        self.run("iptables -L FORWARD -n --line-numbers 2>/dev/null || echo 'Sin reglas'")
+        self.run("iptables -L FORWARD -n --line-numbers")
         self.log("\n[#e0af68]━━━ NAT ━━━[/]")
-        self.run("iptables -t nat -L -n --line-numbers 2>/dev/null || echo 'Sin reglas'")
+        self.run("iptables -t nat -L -n --line-numbers")
 
     def flush_all(self):
         self.query_one("#cfg-log", RichLog).clear()
