@@ -65,8 +65,9 @@ class ConfigTab(Vertical):
         return result
 
     def setup_gateway(self):
-        iface = self.query_one("#cfg-nat-iface", Select).value
-        if not iface:
+        select = self.query_one("#cfg-nat-iface", Select)
+        iface = select.value
+        if iface is Select.NULL:
             self.app.notify("Selecciona la interfaz con internet", severity="error")
             return
 
