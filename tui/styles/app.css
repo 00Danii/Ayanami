@@ -810,7 +810,23 @@ FirewallView {
 .fw-section-title {
     text-style: bold;
     color: #7aa2f7;
+    width: 1fr;
+}
+
+.fw-config-header {
+    height: auto;
+    align: center middle;
     margin-bottom: 1;
+}
+
+.fw-config-btn {
+    width: auto;
+    min-width: 16;
+    margin: 0 0 0 1;
+}
+
+.fw-config-btn.error {
+    background: #db4b4b;
 }
 
 .fw-config-row {
@@ -836,6 +852,23 @@ FirewallView {
 .fw-card-desc {
     color: #565f89;
     margin-bottom: 1;
+}
+
+.fw-gw-row {
+    height: auto;
+    align: center middle;
+}
+
+#cfg-nat-iface {
+    width: 1fr;
+    margin-right: 1;
+    margin-bottom: 0;
+}
+
+#cfg-setup-nat {
+    width: auto;
+    min-width: 24;
+    margin-bottom: 0;
 }
 
 #cfg-log {

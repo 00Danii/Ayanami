@@ -12,7 +12,10 @@ DNSMASQ_CONF = "/etc/NetworkManager/dnsmasq-shared.d/ayanami-block.conf"
 
 class ConfigTab(Vertical):
     def compose(self):
-        yield Label("Configuración del Firewall", classes="fw-section-title")
+        with Horizontal(classes="fw-config-header"):
+            yield Label("Configuración del Firewall", classes="fw-section-title")
+            yield Button("Ver Estado", id="cfg-show-status", classes="fw-config-btn")
+            yield Button("Limpiar Firewall", id="cfg-flush", classes="fw-config-btn error")
 
         with Vertical(classes="fw-card"):
             yield Label("Gateway / NAT", classes="fw-card-title")
@@ -21,16 +24,13 @@ class ConfigTab(Vertical):
                 "tengan salida a internet",
                 classes="fw-card-desc"
             )
-            yield Select(
-                [],
-                prompt="Selecciona interfaz con internet",
-                id="cfg-nat-iface"
-            )
-            yield Button("Configurar Gateway", id="cfg-setup-nat", variant="primary")
-
-        with Horizontal(classes="fw-config-row"):
-            yield Button("Ver Estado", id="cfg-show-status", variant="default")
-            yield Button("Limpiar Firewall", id="cfg-flush", variant="error")
+            with Horizontal(classes="fw-gw-row"):
+                yield Select(
+                    [],
+                    prompt="Selecciona interfaz con internet",
+                    id="cfg-nat-iface"
+                )
+                yield Button("Configurar Gateway", id="cfg-setup-nat", variant="primary")
 
         yield RichLog(id="cfg-log", markup=True, highlight=True)
 
