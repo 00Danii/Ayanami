@@ -70,7 +70,7 @@ class ConfigTab(Vertical):
         if iface is Select.NULL:
             self.app.notify("Selecciona la interfaz con internet", severity="error")
             return
-
+        self.query_one("#cfg-log", RichLog).clear()
         self.log(f"\n[#e0af68]━━━ Configurando gateway en [bold]{iface}[/] ━━━[/]")
 
         self.log("[#7dcfff]◆ Activando IP Forward[/]")
@@ -104,6 +104,7 @@ class ConfigTab(Vertical):
         self.app.notify(f"Gateway configurado en {iface}")
 
     def show_status(self):
+        self.query_one("#cfg-log", RichLog).clear()
         self.log("\n[#e0af68]━━━ IP FORWARD ━━━[/]")
         self.run("sysctl net.ipv4.ip_forward")
         self.log("\n[#e0af68]━━━ REGLAS DNS ━━━[/]")
@@ -119,6 +120,7 @@ class ConfigTab(Vertical):
         self.run("iptables -t nat -L -n --line-numbers 2>/dev/null || echo 'Sin reglas'")
 
     def flush_all(self):
+        self.query_one("#cfg-log", RichLog).clear()
         self.log("\n[#f7768e]━━━ Limpiando firewall ━━━[/]")
         if os.path.exists(DNSMASQ_CONF):
             os.remove(DNSMASQ_CONF)
