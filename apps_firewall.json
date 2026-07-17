@@ -1,0 +1,14 @@
+{
+  "test": {
+    "domains": [
+      "test.com",
+      "test.com",
+      "asd.co",
+      "as.com",
+      "as.co",
+      "asd.ce",
+      "asd.com"
+    ],
+    "blocked": true
+  }
+}
