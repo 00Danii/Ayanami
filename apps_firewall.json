@@ -1,14 +1,43 @@
 {
-  "test": {
+  "Clash Royale": {
     "domains": [
-      "test.com",
-      "test.com",
-      "asd.co",
-      "as.com",
-      "as.co",
-      "asd.ce",
-      "asd.com"
+      "supercell.com",
+      "clashroyale.com",
+      "game.clashroyaleapp.com"
     ],
-    "blocked": true
+    "blocked": false
+  },
+  "TikTok": {
+    "domains": [
+      "tiktok.com",
+      "www.tiktok.com",
+      "vm.tiktok.com",
+      "api.tiktokv.com",
+      "tiktokcdn.com",
+      "tiktokv.com",
+      "byteoversea.com",
+      "ibytedtos.com",
+      "ibytedtos.com"
+    ],
+    "blocked": false
+  },
+  "Roblox": {
+    "domains": [
+      "roblox.com",
+      "www.roblox.com",
+      "rbxcdn.com",
+      "rbx.com",
+      "robloxlabs.com"
+    ],
+    "blocked": false
+  },
+  "Free Fire": {
+    "domains": [
+      "garena.com",
+      "freefiremobile.com",
+      "ff.garena.com",
+      "arena.live"
+    ],
+    "blocked": false
   }
 }
