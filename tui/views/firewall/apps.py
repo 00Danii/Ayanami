@@ -48,17 +48,33 @@ class AppsTab(Vertical):
         btn_id = event.button.id
         if btn_id == "apps-register":
             self.register_app()
-        elif btn_id and btn_id.startswith("app-modify-"):
-            app_name = btn_id.removeprefix("app-modify-")
-            self.modify_app(app_name)
-        elif btn_id and btn_id.startswith("app-delete-"):
-            app_name = btn_id.removeprefix("app-delete-")
-            self.delete_app(app_name)
+        elif btn_id and (btn_id.startswith("app-modify-") or btn_id.startswith("app-delete-")):
+            node = event.button
+            while node is not None:
+                if isinstance(node, AppRow):
+                    app_name = node.app_name
+                    break
+                node = node.parent
+            else:
+                return
+
+            if btn_id.startswith("app-modify-"):
+                self.modify_app(app_name)
+            else:
+                self.delete_app(app_name)
 
     def on_switch_changed(self, event: Switch.Changed):
         switch_id = event.switch.id
         if switch_id and switch_id.startswith("app-switch-"):
-            app_name = switch_id.removeprefix("app-switch-")
+            node = event.switch
+            while node is not None:
+                if isinstance(node, AppRow):
+                    app_name = node.app_name
+                    break
+                node = node.parent
+            else:
+                return
+
             data = self.load_apps()
             if app_name not in data:
                 return

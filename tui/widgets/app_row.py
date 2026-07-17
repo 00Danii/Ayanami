@@ -1,5 +1,11 @@
+import re
+
 from textual.containers import Horizontal
 from textual.widgets import Label, Button, Switch
+
+
+def safe_id(name: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9_-]", "_", name)
 
 
 class AppRow(Horizontal):
@@ -7,6 +13,11 @@ class AppRow(Horizontal):
         super().__init__()
         self.app_name = app_name
         self.app_data = app_data
+        sid = safe_id(app_name)
+
+        self._switch_id = f"app-switch-{sid}"
+        self._modify_id = f"app-modify-{sid}"
+        self._delete_id = f"app-delete-{sid}"
 
     def compose(self):
         yield Label(self.app_name, classes="app-row-name")
@@ -17,8 +28,8 @@ class AppRow(Horizontal):
         with Horizontal(classes="app-row-actions"):
             yield Switch(
                 value=self.app_data.get("blocked", False),
-                id=f"app-switch-{self.app_name}",
+                id=self._switch_id,
                 classes="app-row-switch"
             )
-            yield Button("Modificar", id=f"app-modify-{self.app_name}", classes="app-row-btn")
-            yield Button("Eliminar", variant="error", id=f"app-delete-{self.app_name}", classes="app-row-btn")
+            yield Button("Modificar", id=self._modify_id, classes="app-row-btn")
+            yield Button("Eliminar", variant="error", id=self._delete_id, classes="app-row-btn")
