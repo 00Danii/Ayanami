@@ -5,9 +5,7 @@ import os
 import subprocess
 
 import network
-
-
-DNSMASQ_CONF = "/etc/NetworkManager/dnsmasq-shared.d/ayanami-block.conf"
+from firewall_ops import get_dns_block_file, reset_connections
 
 
 class ConfigTab(Vertical):
@@ -104,12 +102,13 @@ class ConfigTab(Vertical):
         self.app.notify(f"Gateway configurado en {iface}")
 
     def show_status(self):
+        dns_conf = get_dns_block_file()
         self.query_one("#cfg-log", RichLog).clear()
         self.log("\n[#e0af68]━━━ IP FORWARD ━━━[/]")
         self.run("sysctl net.ipv4.ip_forward")
         self.log("\n[#e0af68]━━━ REGLAS DNS ━━━[/]")
-        if os.path.exists(DNSMASQ_CONF):
-            with open(DNSMASQ_CONF) as f:
+        if os.path.exists(dns_conf):
+            with open(dns_conf) as f:
                 content = f.read().strip()
                 self.log(f"[#a9b1d6]{content or 'Sin reglas'}[/]")
         else:
@@ -120,19 +119,17 @@ class ConfigTab(Vertical):
         self.run("iptables -t nat -L -n --line-numbers")
 
     def flush_all(self):
+        dns_conf = get_dns_block_file()
         self.query_one("#cfg-log", RichLog).clear()
         self.log("\n[#f7768e]━━━ Limpiando firewall ━━━[/]")
-        if os.path.exists(DNSMASQ_CONF):
-            os.remove(DNSMASQ_CONF)
+        if os.path.exists(dns_conf):
+            os.remove(dns_conf)
             self.log("[#9ece6a]✓ Reglas DNS eliminadas[/]")
         self.log("[#7dcfff]◆ Limpiando iptables FORWARD[/]")
         self.run("iptables -F FORWARD")
         self.log("[#7dcfff]◆ Limpiando iptables NAT[/]")
         self.run("iptables -t nat -F")
         self.log("[#9ece6a]━━━ Firewall limpiado ━━━[/]")
-        self.reset_connections()
-        self.app.notify("Firewall limpiado")
-
-    def reset_connections(self):
         self.log("[#7dcfff]◆ Cerrando conexiones activas[/]")
         self.run("conntrack -F")
+        self.app.notify("Firewall limpiado")

@@ -8,6 +8,7 @@ from textual.widgets import Label, Button, Switch, Input, Select
 from views.firewall.app_modal import AppModal
 from widgets.app_row import AppRow
 from widgets.confirm_screen import ConfirmScreen
+from firewall_ops import block_app, unblock_app
 
 
 APPS_FILE = str(Path(__file__).resolve().parent.parent.parent.parent / "apps_firewall.json")
@@ -76,11 +77,25 @@ class AppsTab(Vertical):
                 return
 
             data = self.load_apps()
-            if app_name not in data:
+            app_data = data.get(app_name)
+            if not app_data:
                 return
-            data[app_name]["blocked"] = event.value
+
+            blocked = event.value
+            app_data["blocked"] = blocked
             self.save_apps(data)
-            status = "bloqueada" if event.value else "desbloqueada"
+
+            domains = app_data.get("domains", [])
+            try:
+                if blocked:
+                    block_app(app_name, domains)
+                else:
+                    unblock_app(app_name, domains)
+            except Exception as e:
+                self.notify(f"Error al {'bloquear' if blocked else 'desbloquear'}: {e}", severity="error")
+                return
+
+            status = "bloqueada" if blocked else "desbloqueada"
             self.notify(f"App '{app_name}' {status}")
 
     def load_apps(self) -> dict:
@@ -138,14 +153,32 @@ class AppsTab(Vertical):
             if not result:
                 return
             data = self.load_apps()
+            old_blocked = data[app_name].get("blocked", False)
+            old_domains = data[app_name].get("domains", [])
+            new_blocked = result["blocked"]
+            new_domains = result["domains"]
+            new_name = result["name"]
+
             data.pop(app_name, None)
-            data[result["name"]] = {
-                "domains": result["domains"],
-                "blocked": result["blocked"],
+            data[new_name] = {
+                "domains": new_domains,
+                "blocked": new_blocked,
             }
             self.save_apps(data)
             self.refresh_apps()
-            self.notify(f"App '{result['name']}' modificada")
+
+            try:
+                if new_blocked:
+                    if old_blocked and set(old_domains) != set(new_domains):
+                        unblock_app(app_name, old_domains)
+                    block_app(new_name, new_domains)
+                elif old_blocked:
+                    unblock_app(app_name, old_domains)
+            except Exception as e:
+                self.notify(f"Error al aplicar cambios: {e}", severity="error")
+                return
+
+            self.notify(f"App '{new_name}' modificada")
 
         existing = set(self.load_apps().keys())
         self.app.push_screen(
@@ -155,7 +188,8 @@ class AppsTab(Vertical):
 
     def delete_app(self, app_name: str):
         data = self.load_apps()
-        if app_name not in data:
+        app_data = data.get(app_name)
+        if not app_data:
             self.notify(f"App '{app_name}' no encontrada", severity="error")
             return
 
@@ -163,9 +197,17 @@ class AppsTab(Vertical):
             if not confirmed:
                 return
             data = self.load_apps()
-            data.pop(app_name)
+            app_data = data.pop(app_name, None)
             self.save_apps(data)
             self.refresh_apps()
+
+            if app_data and app_data.get("blocked"):
+                try:
+                    unblock_app(app_name, app_data.get("domains", []))
+                except Exception as e:
+                    self.notify(f"Error al desbloquear: {e}", severity="error")
+                    return
+
             self.notify(f"App '{app_name}' eliminada")
 
         self.app.push_screen(
@@ -184,6 +226,14 @@ class AppsTab(Vertical):
             }
             self.save_apps(data)
             self.refresh_apps()
+
+            if result["blocked"]:
+                try:
+                    block_app(result["name"], result["domains"])
+                except Exception as e:
+                    self.notify(f"Error al bloquear: {e}", severity="error")
+                    return
+
             self.notify(f"App '{result['name']}' registrada")
 
         existing = set(self.load_apps().keys())
