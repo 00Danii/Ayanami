@@ -13,9 +13,10 @@ class AppModal(Screen):
     }
     """
 
-    def __init__(self, app_data: dict | None = None):
+    def __init__(self, app_data: dict | None = None, existing_names: set | None = None):
         super().__init__()
         self.app_data = app_data or {}
+        self.existing_names = existing_names or set()
 
     def compose(self):
         title = "Modificar App" if self.app_data else "Registrar App"
@@ -53,6 +54,11 @@ class AppModal(Screen):
 
         if not name:
             self.notify("El nombre es obligatorio", severity="error")
+            return
+
+        original_name = self.app_data.get("name")
+        if name != original_name and name in self.existing_names:
+            self.notify(f"La app '{name}' ya existe", severity="error")
             return
 
         domains = [d.strip() for d in domains_text.splitlines() if d.strip()]

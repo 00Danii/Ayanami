@@ -122,4 +122,5 @@ class AppsTab(Vertical):
             self.refresh_apps()
             self.notify(f"App '{result['name']}' registrada")
 
-        self.app.push_screen(AppModal(), on_save)
+        existing = set(self.load_apps().keys())
+        self.app.push_screen(AppModal(existing_names=existing), on_save)
