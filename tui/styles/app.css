@@ -871,14 +871,28 @@ FirewallView {
    APPS TAB
 ============================================================ */
 
-.fw-apps-header {
+.fw-apps-toolbar {
     height: auto;
     align: center middle;
     margin-bottom: 1;
 }
 
-.fw-apps-header > .fw-section-title {
+#apps-search {
     width: 1fr;
+    margin: 0 1 0 0;
+}
+
+#apps-filter {
+    width: 24;
+    margin: 0 1 0 0;
+}
+
+#apps-sort {
+    width: 20;
+    margin: 0 1 0 0;
+}
+
+.fw-apps-toolbar > Button {
     margin-bottom: 0;
 }
 
