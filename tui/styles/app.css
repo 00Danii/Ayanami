@@ -892,9 +892,20 @@ FirewallView {
     margin: 0 1 0 0;
 }
 
-.fw-apps-toolbar > Button {
+#apps-acciones {
+    width: 24;
     margin-bottom: 0;
 }
+
+.fw-apps-toolbar > Button {
+    margin-bottom: 0;
+    margin-right: 1;
+}
+
+.fw-apps-toolbar > Button:last-child {
+    margin-right: 0;
+}
+
 
 #apps-container {
     height: 1fr;

@@ -39,6 +39,11 @@ class AppsTab(Vertical):
                 prompt="Ordenar"
             )
             yield Button("Registrar", id="apps-register", variant="primary")
+            yield Select(
+                [("Bloquear todo", "block-all"), ("Desbloquear todo", "unblock-all")],
+                id="apps-acciones",
+                prompt="Acciones rápidas",
+            )
 
         yield Vertical(id="apps-container")
 
@@ -60,7 +65,14 @@ class AppsTab(Vertical):
             self.refresh_apps()
 
     def on_select_changed(self, event: Select.Changed):
-        if event.select.id in ("apps-filter", "apps-sort"):
+        if event.select.id == "apps-acciones":
+            value = event.value
+            if value == "block-all":
+                self.block_all()
+            elif value == "unblock-all":
+                self.unblock_all()
+            event.select.clear()
+        elif event.select.id in ("apps-filter", "apps-sort"):
             self.refresh_apps()
 
     def on_button_pressed(self, event: Button.Pressed):
@@ -255,3 +267,62 @@ class AppsTab(Vertical):
 
         existing = set(self.load_apps().keys())
         self.app.push_screen(AppModal(existing_names=existing), on_save)
+
+    def block_all(self):
+        data = self.load_apps()
+        if not data:
+            self.notify("No hay apps registradas", severity="warning")
+            return
+
+        self.app.push_screen(
+            ConfirmScreen("¿Bloquear todas las apps?", confirm_text="Bloquear"),
+            self._do_block_all
+        )
+
+    def _do_block_all(self, confirmed):
+        if not confirmed:
+            return
+        data = self.load_apps()
+        all_domains = []
+        for name, info in data.items():
+            info["blocked"] = True
+            all_domains.extend(info.get("domains", []))
+        self.save_apps(data)
+        self.refresh_apps()
+
+        def _work():
+            write_block_domains(all_domains)
+            self.app.call_from_thread(self._schedule_apply)
+            self.app.call_from_thread(self.notify, "Todas las apps bloqueadas")
+
+        self.run_worker(_work, name="block-all", group="firewall", thread=True)
+
+    def unblock_all(self):
+        data = self.load_apps()
+        if not data:
+            self.notify("No hay apps registradas", severity="warning")
+            return
+
+        self.app.push_screen(
+            ConfirmScreen("¿Desbloquear todas las apps?", confirm_text="Desbloquear"),
+            self._do_unblock_all
+        )
+
+    def _do_unblock_all(self, confirmed):
+        if not confirmed:
+            return
+        data = self.load_apps()
+        for name, info in data.items():
+            info["blocked"] = False
+        self.save_apps(data)
+        self.refresh_apps()
+
+        def _work():
+            from firewall_ops import get_dns_block_file
+            dns_conf = get_dns_block_file()
+            if os.path.exists(dns_conf):
+                os.remove(dns_conf)
+            self.app.call_from_thread(self._schedule_apply)
+            self.app.call_from_thread(self.notify, "Todas las apps desbloqueadas")
+
+        self.run_worker(_work, name="unblock-all", group="firewall", thread=True)
