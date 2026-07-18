@@ -8,13 +8,21 @@ from textual.widgets import Label, Button, Switch, Input, Select
 from views.firewall.app_modal import AppModal
 from widgets.app_row import AppRow
 from widgets.confirm_screen import ConfirmScreen
-from firewall_ops import block_app, unblock_app
+from firewall_ops import (
+    write_block_domains,
+    remove_block_domains,
+    apply_changes,
+)
 
 
 APPS_FILE = str(Path(__file__).resolve().parent.parent.parent.parent / "apps_firewall.json")
 
 
 class AppsTab(Vertical):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._apply_seq = 0
+
     def compose(self):
         with Horizontal(classes="fw-apps-toolbar"):
             yield Input(placeholder="Buscar app...", id="apps-search")
@@ -33,6 +41,16 @@ class AppsTab(Vertical):
             yield Button("Registrar", id="apps-register", variant="primary")
 
         yield Vertical(id="apps-container")
+
+    def _schedule_apply(self):
+        self._apply_seq += 1
+        seq = self._apply_seq
+        self.set_timer(1.5, lambda: self._do_apply(seq))
+
+    def _do_apply(self, seq):
+        if seq != self._apply_seq:
+            return
+        self.run_worker(apply_changes, name="apply-changes", group="firewall", thread=True)
 
     def on_mount(self):
         self.refresh_apps()
@@ -86,17 +104,19 @@ class AppsTab(Vertical):
             self.save_apps(data)
 
             domains = app_data.get("domains", [])
-            try:
-                if blocked:
-                    block_app(app_name, domains)
-                else:
-                    unblock_app(app_name, domains)
-            except Exception as e:
-                self.notify(f"Error al {'bloquear' if blocked else 'desbloquear'}: {e}", severity="error")
-                return
 
-            status = "bloqueada" if blocked else "desbloqueada"
-            self.notify(f"App '{app_name}' {status}")
+            def _toggle():
+                if blocked:
+                    write_block_domains(domains)
+                else:
+                    remove_block_domains(domains)
+                self.app.call_from_thread(self._schedule_apply)
+                self.app.call_from_thread(
+                    self.notify,
+                    f"App '{app_name}' {'bloqueada' if blocked else 'desbloqueada'}"
+                )
+
+            self.run_worker(_toggle, name=f"block-{app_name}", group="firewall", thread=True)
 
     def load_apps(self) -> dict:
         if not os.path.exists(APPS_FILE):
@@ -167,18 +187,17 @@ class AppsTab(Vertical):
             self.save_apps(data)
             self.refresh_apps()
 
-            try:
+            def _apply():
                 if new_blocked:
                     if old_blocked and set(old_domains) != set(new_domains):
-                        unblock_app(app_name, old_domains)
-                    block_app(new_name, new_domains)
+                        remove_block_domains(old_domains)
+                    write_block_domains(new_domains)
                 elif old_blocked:
-                    unblock_app(app_name, old_domains)
-            except Exception as e:
-                self.notify(f"Error al aplicar cambios: {e}", severity="error")
-                return
+                    remove_block_domains(old_domains)
+                self.app.call_from_thread(self._schedule_apply)
+                self.app.call_from_thread(self.notify, f"App '{new_name}' modificada")
 
-            self.notify(f"App '{new_name}' modificada")
+            self.run_worker(_apply, name=f"modify-{app_name}", group="firewall", thread=True)
 
         existing = set(self.load_apps().keys())
         self.app.push_screen(
@@ -201,14 +220,13 @@ class AppsTab(Vertical):
             self.save_apps(data)
             self.refresh_apps()
 
-            if app_data and app_data.get("blocked"):
-                try:
-                    unblock_app(app_name, app_data.get("domains", []))
-                except Exception as e:
-                    self.notify(f"Error al desbloquear: {e}", severity="error")
-                    return
+            def _unblock():
+                if app_data and app_data.get("blocked"):
+                    remove_block_domains(app_data.get("domains", []))
+                self.app.call_from_thread(self._schedule_apply)
+                self.app.call_from_thread(self.notify, f"App '{app_name}' eliminada")
 
-            self.notify(f"App '{app_name}' eliminada")
+            self.run_worker(_unblock, name=f"delete-{app_name}", group="firewall", thread=True)
 
         self.app.push_screen(
             ConfirmScreen(f"Eliminar app '{app_name}'?"),
@@ -227,14 +245,13 @@ class AppsTab(Vertical):
             self.save_apps(data)
             self.refresh_apps()
 
-            if result["blocked"]:
-                try:
-                    block_app(result["name"], result["domains"])
-                except Exception as e:
-                    self.notify(f"Error al bloquear: {e}", severity="error")
-                    return
+            def _block():
+                if result["blocked"]:
+                    write_block_domains(result["domains"])
+                self.app.call_from_thread(self._schedule_apply)
+                self.app.call_from_thread(self.notify, f"App '{result['name']}' registrada")
 
-            self.notify(f"App '{result['name']}' registrada")
+            self.run_worker(_block, name=f"register-{result['name']}", group="firewall", thread=True)
 
         existing = set(self.load_apps().keys())
         self.app.push_screen(AppModal(existing_names=existing), on_save)

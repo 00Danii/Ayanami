@@ -5,7 +5,7 @@ import os
 import subprocess
 
 import network
-from firewall_ops import get_dns_block_file, reset_connections
+from firewall_ops import get_dns_block_file
 
 
 class ConfigTab(Vertical):
