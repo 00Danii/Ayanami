@@ -915,7 +915,7 @@ FirewallView {
 
 AppRow {
     height: 5;
-    padding: 0 1;
+    padding: 0;
     margin-bottom: 1;
     background: #24283b;
     border: round #3b4261;
@@ -925,19 +925,98 @@ AppRow {
 
 AppRow:hover {
     background: #2f3549;
+    border: round #7aa2f7;
 }
+
+/* ===== ACCENT BAR ===== */
+
+.app-accent {
+    width: 3;
+    height: 100%;
+    min-height: 5;
+    margin: 0 1 0 0;
+}
+
+.app-accent-blocked {
+    background: #f7768e;
+}
+
+.app-accent-unblocked {
+    background: #41a6b5;
+}
+
+/* ===== BODY ===== */
+
+.app-row-body {
+    width: 1fr;
+    height: auto;
+    padding: 0;
+}
+
+.app-row-header {
+    height: auto;
+    align: center middle;
+    margin-bottom: 0;
+}
+
+/* ===== NAME ===== */
 
 .app-row-name {
-    width: 20%;
-    color: cyan;
+    width: 1fr;
     text-style: bold;
+    color: #c0caf5;
+    margin-bottom: 0;
 }
 
+/* ===== SUB ROW (badge + tag + domains) ===== */
+
+.app-row-sub {
+    height: auto;
+    align: center middle;
+    margin-bottom: 0;
+}
+
+/* ===== BADGE ===== */
+
+.app-row-badge {
+    width: auto;
+    padding: 0 1;
+    background: #1f2335;
+    color: #565f89;
+    text-style: bold;
+    margin-right: 1;
+    margin-bottom: 0;
+}
+
+/* ===== STATUS TAG ===== */
+
+.app-row-tag {
+    width: auto;
+    padding: 0 1;
+    text-style: bold;
+    margin-right: 1;
+    margin-bottom: 0;
+}
+
+.tag-blocked {
+    color: #f7768e;
+    background: #2f1a1e;
+}
+
+.tag-unblocked {
+    color: #41a6b5;
+    background: #1a2f33;
+}
+
+/* ===== DOMAINS ===== */
+
 .app-row-domains {
-    width: 50%;
-    color: #a9b1d6;
+    width: 1fr;
+    color: #565f89;
     overflow: hidden;
     text-overflow: ellipsis;
+    margin-bottom: 0;
+    padding-right: 1;
 }
 
 AppRow Label {
@@ -946,11 +1025,14 @@ AppRow Label {
     margin-bottom: 0;
 }
 
+/* ===== ACTIONS ===== */
+
 .app-row-actions {
-    width: 30%;
+    width: auto;
     layout: horizontal;
     align-horizontal: right;
     content-align: right middle;
+    margin-right: 1;
 }
 
 .app-row-actions > * {

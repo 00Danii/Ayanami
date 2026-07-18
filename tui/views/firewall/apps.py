@@ -114,6 +114,7 @@ class AppsTab(Vertical):
             blocked = event.value
             app_data["blocked"] = blocked
             self.save_apps(data)
+            self.refresh_apps()
 
             domains = app_data.get("domains", [])
 
