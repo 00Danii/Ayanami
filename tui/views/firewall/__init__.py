@@ -9,13 +9,13 @@ from views.firewall.config import ConfigTab
 class FirewallView(Vertical):
     def compose(self):
         with Horizontal(classes="fw-tab-bar"):
-            yield Button("Reglas", id="fw-tab-rules", classes="fw-tab active")
-            yield Button("Apps", id="fw-tab-apps", classes="fw-tab")
+            yield Button("Apps", id="fw-tab-apps", classes="fw-tab active")
+            yield Button("Reglas", id="fw-tab-rules", classes="fw-tab")
             yield Button("Config", id="fw-tab-config", classes="fw-tab")
 
-        with ContentSwitcher(initial="fw-panel-rules", id="fw-content"):
-            yield RulesTab(id="fw-panel-rules")
+        with ContentSwitcher(initial="fw-panel-apps", id="fw-content"):
             yield AppsTab(id="fw-panel-apps")
+            yield RulesTab(id="fw-panel-rules")
             yield ConfigTab(id="fw-panel-config")
 
     def on_button_pressed(self, event: Button.Pressed):
