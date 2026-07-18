@@ -6,6 +6,7 @@ import subprocess
 
 import network
 from firewall_ops import get_dns_block_file, reset_apps_state
+from widgets.confirm_screen import ConfirmScreen
 
 
 class ConfigTab(Vertical):
@@ -46,7 +47,17 @@ class ConfigTab(Vertical):
         elif bid == "cfg-show-status":
             self.show_status()
         elif bid == "cfg-flush":
-            self.flush_all()
+            self.app.push_screen(
+                ConfirmScreen(
+                    "Se limpiarán todas las reglas de firewall,\n"
+                    "se desbloquearán todas las apps y\n"
+                    "se perderá la configuración del gateway.\n\n"
+                    "Tendrás que configurar el gateway nuevamente.\n\n"
+                    "¿Continuar?",
+                    confirm_text="Limpiar"
+                ),
+                self.flush_all
+            )
 
     def log(self, text: str):
         self.query_one("#cfg-log", RichLog).write(text)
@@ -118,7 +129,9 @@ class ConfigTab(Vertical):
         self.log("\n[#e0af68]━━━ NAT ━━━[/]")
         self.run("iptables -t nat -L -n --line-numbers")
 
-    def flush_all(self):
+    def flush_all(self, confirmed: bool | None = None):
+        if not confirmed:
+            return
         dns_conf = get_dns_block_file()
         self.query_one("#cfg-log", RichLog).clear()
         self.log("\n[#f7768e]━━━ Limpiando firewall ━━━[/]")
