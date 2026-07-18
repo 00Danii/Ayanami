@@ -917,7 +917,6 @@ AppRow {
     height: 5;
     padding: 0;
     margin-bottom: 1;
-    background: #24283b;
     border: round #3b4261;
     layout: horizontal;
     align: center middle;
