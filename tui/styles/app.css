@@ -964,7 +964,8 @@ AppRow:hover {
     width: 1fr;
     text-style: bold;
     color: #c0caf5;
-    margin-bottom: 0;
+    margin-bottom: 1;
+    margin-left: 1;
 }
 
 /* ===== SUB ROW (badge + tag + domains) ===== */
