@@ -5,7 +5,7 @@ import os
 import subprocess
 
 import network
-from firewall_ops import get_dns_block_file
+from firewall_ops import get_dns_block_file, reset_apps_state
 
 
 class ConfigTab(Vertical):
@@ -129,7 +129,13 @@ class ConfigTab(Vertical):
         self.run("iptables -F FORWARD")
         self.log("[#7dcfff]◆ Limpiando iptables NAT[/]")
         self.run("iptables -t nat -F")
+        self.log("[#7dcfff]◆ Sincronizando estado de apps[/]")
+        reset_apps_state()
+        self.log("[#9ece6a]✓ Apps desbloqueadas en config[/]")
         self.log("[#9ece6a]━━━ Firewall limpiado ━━━[/]")
         self.log("[#7dcfff]◆ Cerrando conexiones activas[/]")
         self.run("conntrack -F")
+        apps_tab = self.screen.query_one("#fw-panel-apps")
+        if hasattr(apps_tab, "refresh_apps"):
+            apps_tab.refresh_apps()
         self.app.notify("Firewall limpiado")

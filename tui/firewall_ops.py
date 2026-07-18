@@ -59,3 +59,18 @@ def unblock_quic():
 
 def get_dns_block_file() -> str:
     return DNSMASQ_CONF
+
+
+def reset_apps_state():
+    import json
+    apps_file = Path(__file__).resolve().parent.parent / "apps_firewall.json"
+    if not apps_file.exists():
+        return
+    data = json.loads(apps_file.read_text())
+    changed = False
+    for info in data.values():
+        if info.get("blocked"):
+            info["blocked"] = False
+            changed = True
+    if changed:
+        apps_file.write_text(json.dumps(data, indent=2) + "\n")
