@@ -1,6 +1,6 @@
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal
-from textual.widgets import Header, Footer, ListView, ContentSwitcher
+from textual.widgets import Header, Footer, Button, ContentSwitcher
 from textual.binding import Binding
 
 from widgets.sidebar import Sidebar
@@ -11,16 +11,21 @@ from views.scanner import ScannerView
 from views.monitor import MonitorView
 from views.sniffer import SnifferView
 from views.firewall import FirewallView
+
+
+NAV_ORDER = ["nav-interfaces", "nav-hotspot", "nav-scanner", "nav-monitor", "nav-sniffer", "nav-firewall"]
+
+
 class AyanamiApp(App):
 
     CSS_PATH = "styles/app.css"
-    
+
     ENABLE_COMMAND_PALETTE = False
 
     capture_print = True
-    
+
     selected_interface = None
-    
+
     BINDINGS = [
         Binding("q", "quit", "Salir"),
         Binding("r", "refresh", "Actualizar Vista"),
@@ -39,9 +44,20 @@ class AyanamiApp(App):
                 yield FirewallView(id="nav-firewall")
         yield Footer()
 
-    def on_list_view_selected(self, event: ListView.Selected) -> None:
-        if event.item and event.item.id:
-            self.query_one("#main-content", ContentSwitcher).current = event.item.id
+    def on_mount(self):
+        self._activate_nav("nav-interfaces")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        btn_id = event.button.id
+        if btn_id in NAV_ORDER:
+            self.query_one("#main-content", ContentSwitcher).current = btn_id
+            self._activate_nav(btn_id)
+
+    def _activate_nav(self, item_id: str):
+        for btn in self.query(".nav-btn"):
+            btn.remove_class("nav-active")
+        active = self.query_one("#sidebar-list").query_one(f"#{item_id}", Button)
+        active.add_class("nav-active")
 
     def action_refresh(self) -> None:
         current_view = self.query_one("#main-content", ContentSwitcher).current
