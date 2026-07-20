@@ -212,42 +212,47 @@ InterfaceRow {
 
 InterfaceRow:hover {
     background: #2f3549;
+    border: round #7aa2f7;
 }
 
 /* ===== COLUMNAS ===== */
 
 .iface-name {
     width: 35%;
+    color: #c0caf5;
+    text-style: bold;
+    margin-bottom: 0;
 }
 
 .iface-type {
     width: 20%;
+    color: #7dcfff;
+    text-style: bold;
+    margin-bottom: 0;
 }
 
 .iface-state {
     width: 15%;
+    text-style: bold;
+    margin-bottom: 0;
 }
+
+.iface-state-up {
+    color: #09b609;
+}
+
+.iface-state-down {
+    color: #f7768e;
+}
+
+/* ===== ACTIONS ===== */
 
 .iface-actions {
     width: 30%;
     layout: horizontal;
     align-horizontal: right;
     content-align: right middle;
-}
-
-/* ===== ESTILOS ===== */
-
-InterfaceRow .iface-name {
-    color: cyan;
-    text-style: bold;
-}
-
-InterfaceRow .iface-type {
-    color: orange;
-}
-
-InterfaceRow .iface-state {
-    color: #09b609;
+    margin-right: 1;
 }
 
 /* ===== LABELS ===== */
@@ -263,6 +268,7 @@ InterfaceRow Label {
     width: 8;
     min-width: 8;
     margin-left: 1;
+    margin-bottom: 0;
 }
 
 /* ===== TOPBAR ===== */

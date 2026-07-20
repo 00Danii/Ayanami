@@ -23,7 +23,7 @@ class InterfacesView(Vertical):
             ),
             classes="topbar"
         )
-        
+
         yield Horizontal(
             Label("Interfaz", classes="header-col iface-name"),
             Label("Tipo", classes="header-col iface-type"),
