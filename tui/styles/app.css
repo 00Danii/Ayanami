@@ -176,6 +176,11 @@ Label {
  * ===== INTERFACE VIEW ===== *
  ******************************/
 
+InterfacesView {
+    layout: vertical;
+    padding: 1;
+}
+
 #interfaces-header {
     height: 3;
     padding: 0 1;
@@ -295,6 +300,11 @@ InterfaceRow Label {
  * ====== HOSTSPOT VIEW ====== *
  *******************************/
 
+HotspotView {
+    layout: vertical;
+    padding: 1;
+}
+
 .hotspot-card {
     height: 15;
     background: #24283b;
@@ -360,6 +370,11 @@ InterfaceRow Label {
 /****************
  * SCANNER VIEW *
  ****************/
+
+ScannerView {
+    layout: vertical;
+    padding: 1;
+}
 
 .scanner-topbar {
     height: 3;
