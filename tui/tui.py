@@ -52,6 +52,8 @@ class AyanamiApp(App):
         if btn_id in NAV_ORDER:
             self.query_one("#main-content", ContentSwitcher).current = btn_id
             self._activate_nav(btn_id)
+            if btn_id == "nav-hotspot":
+                self.query_one(HotspotView).refresh_data()
 
     def _activate_nav(self, item_id: str):
         for btn in self.query(".nav-btn"):
@@ -68,8 +70,8 @@ class AyanamiApp(App):
             self.query_one(ScannerView).refresh_data()
         elif current_view == "nav-sniffer":
             self.query_one(SnifferView).refresh_devices()
-        #elif current_view == "nav-firewall":
-            
+        elif current_view == "nav-hotspot":
+            self.query_one(HotspotView).refresh_data()
 
 if __name__ == "__main__":
     app = AyanamiApp()

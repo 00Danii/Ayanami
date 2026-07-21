@@ -17,63 +17,67 @@ import subprocess, qrcode, io, re
 class HotspotView(Vertical):
 
     def compose(self):
-        # HEADER
-        yield Label(
-            "Crear punto de acceso inalámbrico",
-            classes="help-text"
-        )
+        # HEADER BANNER
+        with Horizontal(classes="hs-banner"):
+            yield Label("◈  Hotspot", classes="hs-banner-title")
+            with Horizontal(classes="hs-banner-info"):
+                yield Label("", id="hs-iface-label", classes="hs-tag")
+                yield Label("", id="hs-status-label", classes="hs-tag")
 
-        # FORM
-        with Vertical(classes="hotspot-card"):
-            # SSID
-            with Horizontal(classes="input-row"):
-                yield Label(
-                    "SSID",
-                    classes="input-label"
-                )
-                yield Input(
-                    placeholder="Nombre de la red",
-                    id="hotspot-ssid",
-                    classes="hotspot-input"
-                )
+        # CONTENT: CONFIG + LOG SIDE BY SIDE
+        with Horizontal(id="hs-content"):
+            # CONFIG CARD
+            with Vertical(classes="hs-card"):
+                yield Label("─── Configuración ───", classes="hs-card-title")
 
-            # PASSWORD
-            with Horizontal(classes="input-row"):
-                yield Label(
-                    "PASSWORD",
-                    classes="input-label"
-                )
-                yield Input(
-                    placeholder="Mínimo 8 caracteres",
-                    password=True,
-                    id="hotspot-password",
-                    classes="hotspot-input"
-                )
+                with Horizontal(classes="input-row"):
+                    yield Label("SSID", classes="input-label")
+                    yield Input(
+                        placeholder="Nombre de la red",
+                        id="hotspot-ssid",
+                        classes="hotspot-input"
+                    )
 
-            # BUTTONS
-            with Horizontal(classes="hotspot-buttons"):
-                yield Button(
-                    "CREAR HOTSPOT",
-                    variant="success",
-                    id="btn-create-hotspot",
-                    classes="hotspot-btn"
-                )
+                with Horizontal(classes="input-row"):
+                    yield Label("PASSWORD", classes="input-label")
+                    yield Input(
+                        placeholder="Mínimo 8 caracteres",
+                        password=True,
+                        id="hotspot-password",
+                        classes="hotspot-input"
+                    )
 
-                yield Button(
-                    "MOSTRAR CONTRASEÑA",
-                    id="btn-show-password",
-                    classes="hotspot-btn"
-                )
+                with Horizontal(classes="hotspot-buttons"):
+                    yield Button("CREAR HOTSPOT", variant="success", id="btn-create-hotspot", classes="hotspot-btn")
+                    yield Button("MOSTRAR CONTRASEÑA", id="btn-show-password", classes="hotspot-btn")
 
-        # PANEL DE LOGS
-        with Vertical(classes="log-card"):
-            yield RichLog(
-                id="hotspot-log",
-                markup=True,
-                highlight=True
-            )
+            # LOG PANEL
+            with Vertical(classes="hs-log-card"):
+                yield Label("─── Actividad ───", classes="hs-log-title")
+                yield RichLog(id="hotspot-log", markup=True, highlight=True)
 
     # EVENTOS DE BOTONES
+    def on_mount(self):
+        self._update_banner()
+
+    def refresh_data(self):
+        self._update_banner()
+
+    def _update_banner(self):
+        iface = getattr(self.app, "selected_interface", None)
+        self.query_one("#hs-iface-label", Label).update(f"◉  {iface}" if iface else "◉  —")
+
+        try:
+            out = subprocess.check_output(
+                f"iw dev {iface} info 2>/dev/null | grep -i type",
+                shell=True, text=True
+            )
+            is_ap = "AP" in out
+        except Exception:
+            is_ap = False
+        status = "●  Activo" if is_ap else "○  Inactivo"
+        self.query_one("#hs-status-label", Label).update(status)
+
     def on_button_pressed(self, event: Button.Pressed):
         event.stop()
         if event.button.id == "btn-create-hotspot":
@@ -144,7 +148,8 @@ class HotspotView(Vertical):
             )
 
             self.show_hotspot_password()
-            
+            self._update_banner()
+
             self.notify(f"Hostspot {ssid} creado")
 
         except subprocess.CalledProcessError:
