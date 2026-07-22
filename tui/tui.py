@@ -11,9 +11,10 @@ from views.scanner import ScannerView
 from views.monitor import MonitorView
 from views.sniffer import SnifferView
 from views.firewall import FirewallView
+from views.sistema import SistemaView
 
 
-NAV_ORDER = ["nav-interfaces", "nav-hotspot", "nav-scanner", "nav-monitor", "nav-sniffer", "nav-firewall"]
+NAV_ORDER = ["nav-interfaces", "nav-hotspot", "nav-scanner", "nav-monitor", "nav-sniffer", "nav-firewall", "nav-sistema"]
 
 
 class AyanamiApp(App):
@@ -42,6 +43,7 @@ class AyanamiApp(App):
                 yield HotspotView(id="nav-hotspot")
                 yield MonitorView(id="nav-monitor")
                 yield FirewallView(id="nav-firewall")
+                yield SistemaView(id="nav-sistema")
         yield Footer()
 
     def on_mount(self):
