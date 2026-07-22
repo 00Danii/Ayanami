@@ -1296,3 +1296,23 @@ AppRow Label {
 /*********************
  * FIN FIREWALL VIEW *
  *********************/
+
+
+/********************
+ * SISTEMA VIEW *
+ ********************/
+
+SistemaView {
+    layout: vertical;
+    padding: 1;
+}
+
+#sistema-container {
+    height: 1fr;
+    overflow-y: auto;
+    padding: 0;
+}
+
+/********************
+ * FIN SISTEMA VIEW *
+ ********************/
