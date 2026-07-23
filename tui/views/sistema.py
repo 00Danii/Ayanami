@@ -180,13 +180,13 @@ class SistemaView(Vertical):
         for p in top:
             cpu_val = float(p["cpu"])
             lines.append(
-                f" {dot(cpu_val)} [#e0af68]{p['cpu']:>5}%[/] [#a9b1d6]{p['name'][:16]}[/]"
+                f" {dot(cpu_val)} [#e0af68]{p['cpu']:>5}%[/] [#a9b1d6]{p['name'][:55]}[/]"
             )
         if top_mem:
             lines.append("[#3b4261]  Top Mem:[/]")
             for p in top_mem:
                 lines.append(
-                    f"   [#7dcfff]{p['mem']:>5}%[/] [#a9b1d6]{p['name']}[/]"
+                    f"   [#7dcfff]{p['mem']:>5}%[/] [#a9b1d6]{p['name'][:55]}[/]"
                 )
         content = "\n".join(lines)
         self.query_one("#sys-proc-card", Static).update(content)

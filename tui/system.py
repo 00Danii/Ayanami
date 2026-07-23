@@ -264,7 +264,7 @@ def get_top_processes(n=5):
                     "pid": parts[1],
                     "cpu": parts[2],
                     "mem": parts[3],
-                    "name": parts[10][:20],
+                    "name": parts[10],
                 })
         return procs
     except Exception:
@@ -282,7 +282,7 @@ def get_top_mem_processes(n=3):
             parts = line.split(None, 10)
             if len(parts) >= 11:
                 procs.append({
-                    "name": parts[10][:14],
+                    "name": parts[10],
                     "mem": parts[3],
                 })
         return procs
