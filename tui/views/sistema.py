@@ -126,14 +126,30 @@ class SistemaView(Vertical):
         total, used, buffers, cached, swap_total, swap_used = system.get_memory()
         pct = int(used / total * 100) if total else 0
         swap_pct = int(swap_used / swap_total * 100) if swap_total else 0
-        content = (
-            "[#3b4261]── [/][bold #7aa2f7]MEMORIA RAM[/][#3b4261] ─────────────[/]\n"
-            f"  {dot(pct)} [white]{fmt_bytes(used)}[/][#565f89] /[/] {fmt_bytes(total)}\n"
-            f"  {bar(pct)}\n"
-            f"[#565f89]Buf[/] [#a9b1d6]{fmt_bytes(buffers)}[/]"
-            f"  [#565f89]Cached[/] [#a9b1d6]{fmt_bytes(cached)}[/]\n"
-            f"[#565f89]Swap[/] {dot(swap_pct)} {fmt_bytes(swap_used)} / {fmt_bytes(swap_total)}"
-        )
+
+        if pct >= 80:
+            pct_c = "#f7768e"
+        elif pct >= 50:
+            pct_c = "#e0af68"
+        else:
+            pct_c = "#09b609"
+
+        lines = [
+            "[#3b4261]── [/][bold #7aa2f7]MEMORIA RAM[/][#3b4261] ─────────────[/]",
+            f"  {dot(pct)} [white]{fmt_bytes(used)}[/][#565f89] usado de[/] [#a9b1d6]{fmt_bytes(total)}[/]"
+            f"  {bar(pct, 20)}",
+            "",
+            f"  [#e0af68]██[/] [#565f89]Buffer[/] [#a9b1d6]{fmt_bytes(buffers)}[/]",
+            f"  [#7aa2f7]██[/] [#565f89]Cached[/] [#a9b1d6]{fmt_bytes(cached)}[/]",
+            "",
+        ]
+        if swap_total > 0:
+            lines.append(
+                "[#3b4261]── [/][bold #7aa2f7]MEMORIA SWAP[/][#3b4261] ─────────────[/]\n"
+                f"  {dot(swap_pct)} [white]{fmt_bytes(swap_used)}[/][#565f89] usado de[/] [#a9b1d6]{fmt_bytes(swap_total)}[/]"
+                f"  {bar(swap_pct, 20)}"
+            )
+        content = "\n".join(lines)
         self.query_one("#sys-mem-card", Static).update(content)
 
     def _render_disk(self):
