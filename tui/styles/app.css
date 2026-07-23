@@ -1384,11 +1384,6 @@ SistemaView {
     min-height: 0; 
     border: round #3b4261;
     padding: 1;
-    margin-bottom: 1;
-}
-
-.sys-section:last-child {
-    margin-bottom: 0;
 }
 
 /********************
