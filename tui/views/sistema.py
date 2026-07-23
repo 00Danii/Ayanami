@@ -37,17 +37,17 @@ class SistemaView(Vertical):
     def compose(self):
         yield Static("", id="sys-header", classes="sys-header")
 
-        with Horizontal(id="sys-row-top"):
-            yield Static("", id="sys-net-card", classes="sys-panel")
-            with Vertical(id="sys-right-top", classes="sys-panel"):
-                yield Static("", id="sys-info-card", classes="sys-section")
-                yield Static("", id="sys-cpu-card", classes="sys-section")
-
-        with Horizontal(id="sys-row-bot"):
-            with Vertical(id="sys-left-bot", classes="sys-panel"):
-                yield Static("", id="sys-mem-card", classes="sys-section")
-                yield Static("", id="sys-disk-card", classes="sys-section")
-            yield Static("", id="sys-proc-card", classes="sys-panel")
+        with Horizontal(id="sys-main"):
+            with Vertical(id="sys-col-left"):
+                yield Static("", id="sys-net-card", classes="sys-panel")
+                with Vertical(id="sys-left-bot", classes="sys-panel"):
+                    yield Static("", id="sys-mem-card", classes="sys-section")
+                    yield Static("", id="sys-disk-card", classes="sys-section")
+            with Vertical(id="sys-col-right"):
+                with Vertical(id="sys-right-top", classes="sys-panel"):
+                    yield Static("", id="sys-info-card", classes="sys-section")
+                    yield Static("", id="sys-cpu-card", classes="sys-section")
+                yield Static("", id="sys-proc-card", classes="sys-panel")
 
     def on_mount(self):
         self.refresh_data()

@@ -1319,18 +1319,43 @@ SistemaView {
 
 /* ===== ROWS ===== */
 
-#sys-row-top,
-#sys-row-bot {
+#sys-main {
     height: 1fr;
-    margin-bottom: 1;
     min-height: 0;
+}
+
+#sys-col-left,
+#sys-col-right {
+    width: 1fr;
+    height: 100%;
+    min-height: 0;
+}
+
+#sys-col-left > .sys-panel,
+#sys-col-right > .sys-panel {
+    width: 100%;
+    min-height: 0;
+}
+
+#sys-col-left > #sys-net-card {
+    height: 1fr;
+}
+
+#sys-col-left > #sys-left-bot {
+    height: 2fr;
+}
+
+#sys-col-right > #sys-right-top {
+    height: 1fr;
+}
+
+#sys-col-right > #sys-proc-card {
+    height: 1fr;
 }
 
 /* ===== PANELS ===== */
 
 .sys-panel {
-    height: 100%;
-    margin-right: 1;
     min-height: 0;
 }
 
@@ -1338,15 +1363,16 @@ SistemaView {
     margin-right: 0;
 }
 
+#sys-net-card,
+#sys-left-bot,
 #sys-right-top,
-#sys-left-bot {
-    width: 1fr;
+#sys-proc-card {
+    width: 100%;
     min-height: 0;
 }
 
 #sys-net-card,
 #sys-proc-card {
-    width: 1fr; 
     border: round #3b4261;
     padding: 1;
 }
