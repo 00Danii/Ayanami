@@ -42,7 +42,8 @@ class SistemaView(Vertical):
                 yield Static("", id="sys-net-card", classes="sys-panel")
                 with Vertical(id="sys-left-bot", classes="sys-panel"):
                     yield Static("", id="sys-mem-card", classes="sys-section")
-                    yield Static("", id="sys-disk-card", classes="sys-section")
+                    with Vertical(id="sys-disk-card", classes="sys-section"):
+                        yield Static("", id="sys-disk-content")
             with Vertical(id="sys-col-right"):
                 with Vertical(id="sys-right-top", classes="sys-panel"):
                     yield Static("", id="sys-info-card", classes="sys-section")
@@ -138,14 +139,15 @@ class SistemaView(Vertical):
     def _render_disk(self):
         disks = system.get_disk()
         lines = ["[#3b4261]── [/][bold #7aa2f7]DISCO[/][#3b4261] ─────────────────[/]"]
-        for d in disks[:4]:
-            mount = d["mount"]
-            if len(mount) > 10:
-                mount = ".." + mount[-8:]
+        for d in disks:
             pct = d["percent"]
-            lines.append(f" {dot(pct)} [#a9b1d6]{mount:>10}[/] {bar(pct, 12)}")
+            lines.append(
+                f" {dot(pct)} [white]{d['mount']}[/]"
+                f"  [#565f89]{d['size']}[/]  [#e0af68]{d['used']}[/][#565f89]/{d['avail']}[/]"
+            )
+            lines.append(f"   {bar(pct, 16)}")
         content = "\n".join(lines)
-        self.query_one("#sys-disk-card", Static).update(content)
+        self.query_one("#sys-disk-content", Static).update(content)
 
     def _render_network(self):
         ifaces = system.get_network()
