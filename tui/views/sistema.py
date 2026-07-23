@@ -13,7 +13,7 @@ def bar(pct, width=16):
         c = "#e0af68"
     else:
         c = "#09b609"
-    return f"[{c}]{'#' * filled}[/][#2a2e42]{'-' * empty}[/] [white]{pct:>3}%[/]"
+    return f"[{c}]{'█' * filled}[/][#3b4261]{'░' * empty}[/] [white]{pct:>3}%[/]"
 
 
 def dot(pct):
