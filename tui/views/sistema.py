@@ -172,8 +172,8 @@ class SistemaView(Vertical):
 
     def _render_processes(self):
         count = system.get_process_count()
-        top = system.get_top_processes(4)
-        top_mem = system.get_top_mem_processes(2)
+        top = system.get_top_processes(8)
+        top_mem = system.get_top_mem_processes(3)
 
         lines = ["[#3b4261]── [/][bold #7aa2f7]PROCESSES[/][#3b4261] ──────────[/]"]
         lines.append(f"[white]{count}[/][#565f89] total[/]")
