@@ -141,11 +141,21 @@ class SistemaView(Vertical):
         lines = ["[#3b4261]── [/][bold #7aa2f7]DISCO[/][#3b4261] ─────────────────[/]"]
         for d in disks:
             pct = d["percent"]
+            if pct >= 80:
+                used_c = "#f7768e"
+            elif pct >= 50:
+                used_c = "#e0af68"
+            else:
+                used_c = "#09b609"
             lines.append(
                 f" {dot(pct)} [white]{d['mount']}[/]"
-                f"  [#565f89]{d['size']}[/]  [#e0af68]{d['used']}[/][#565f89]/{d['avail']}[/]"
+                f"  [#565f89]Total[/] [#a9b1d6]{d['size']}[/]"
             )
-            lines.append(f"   {bar(pct, 16)}")
+            lines.append(
+                f"   [#565f89]Usado[/] [{used_c}]{d['used']}[/]"
+                f"  [#565f89]Libre[/] [#09b609]{d['avail']}[/]"
+                f"  {bar(pct, 12)}"
+            )
         content = "\n".join(lines)
         self.query_one("#sys-disk-content", Static).update(content)
 
