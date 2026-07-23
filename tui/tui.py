@@ -48,6 +48,12 @@ class AyanamiApp(App):
 
     def on_mount(self):
         self._activate_nav("nav-interfaces")
+        self.set_interval(3.0, self._auto_refresh_sistema)
+
+    def _auto_refresh_sistema(self):
+        current = self.query_one("#main-content", ContentSwitcher).current
+        if current == "nav-sistema":
+            self.query_one(SistemaView).refresh_data()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         btn_id = event.button.id
@@ -74,6 +80,8 @@ class AyanamiApp(App):
             self.query_one(SnifferView).refresh_devices()
         elif current_view == "nav-hotspot":
             self.query_one(HotspotView).refresh_data()
+        elif current_view == "nav-sistema":
+            self.query_one(SistemaView).refresh_data()
 
 if __name__ == "__main__":
     app = AyanamiApp()
