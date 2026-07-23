@@ -91,7 +91,7 @@ class SistemaView(Vertical):
         temp = system.get_temperature()
 
         lines = [
-            "[#3b4261]── [/][bold #7aa2f7]SYSTEMA[/][#3b4261] ──────────────[/]",
+            "[#3b4261]── [/][bold #7aa2f7]SISTEMA[/][#3b4261] ──────────────[/]",
             f"[#565f89]Host   [/] [white]{hostname}[/]",
             f"[#565f89]Kernel  [/] [#a9b1d6]{kernel}[/]",
             f"[#565f89]Uptime  [/] [#09b609]{uptime}[/]",
@@ -126,7 +126,7 @@ class SistemaView(Vertical):
         pct = int(used / total * 100) if total else 0
         swap_pct = int(swap_used / swap_total * 100) if swap_total else 0
         content = (
-            "[#3b4261]── [/][bold #7aa2f7]MEMORY[/][#3b4261] ─────────────[/]\n"
+            "[#3b4261]── [/][bold #7aa2f7]MEMORIA RAM[/][#3b4261] ─────────────[/]\n"
             f"  {dot(pct)} [white]{fmt_bytes(used)}[/][#565f89] /[/] {fmt_bytes(total)}\n"
             f"  {bar(pct)}\n"
             f"[#565f89]Buf[/] [#a9b1d6]{fmt_bytes(buffers)}[/]"
@@ -137,7 +137,7 @@ class SistemaView(Vertical):
 
     def _render_disk(self):
         disks = system.get_disk()
-        lines = ["[#3b4261]── [/][bold #7aa2f7]DISK[/][#3b4261] ─────────────────[/]"]
+        lines = ["[#3b4261]── [/][bold #7aa2f7]DISCO[/][#3b4261] ─────────────────[/]"]
         for d in disks[:4]:
             mount = d["mount"]
             if len(mount) > 10:
@@ -175,7 +175,7 @@ class SistemaView(Vertical):
         top = system.get_top_processes(8)
         top_mem = system.get_top_mem_processes(3)
 
-        lines = ["[#3b4261]── [/][bold #7aa2f7]PROCESSES[/][#3b4261] ──────────[/]"]
+        lines = ["[#3b4261]── [/][bold #7aa2f7]PROCESOS[/][#3b4261] ──────────[/]"]
         lines.append(f"[white]{count}[/][#565f89] total[/]")
         for p in top:
             cpu_val = float(p["cpu"])
