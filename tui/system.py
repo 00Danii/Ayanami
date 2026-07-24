@@ -240,6 +240,11 @@ def get_net_traffic():
         return 0, 0
 
 
+def get_user():
+    import getpass
+    return getpass.getuser()
+
+
 def get_users():
     try:
         result = subprocess.check_output(
