@@ -110,16 +110,25 @@ class SistemaView(Vertical):
         cores = system.get_cpu_cores()
         load1, load5, load15 = system.get_load_avg()
         pct = min(100, int(load1 / cores * 100)) if cores != "?" else 0
-        short = model.split()[-3] if len(model.split()) >= 3 else model
-        if len(short) > 22:
-            short = short[:22]
-        content = (
-            "[#3b4261]── [/][bold #7aa2f7]CPU[/][#3b4261] ─────────────────[/]\n"
-            f"[white]{short}[/]\n"
-            f"[#565f89]Cores[/] [#a9b1d6]{cores}[/]"
-            f"   [#565f89]Load[/] {load1:.2f}\n"
-            f"  {bar(pct)}"
-        )
+        temp = system.get_temperature() or "---"
+
+        def load_color(v, c):
+            if v >= c * 0.8:
+                return "#f7768e"
+            elif v >= c * 0.5:
+                return "#e0af68"
+            return "#09b609"
+
+        lines = [
+            "[#3b4261]── [/][bold #7aa2f7]CPU[/][#3b4261] ─────────────────[/]",
+            f"[white]{model[:40]}[/]",
+            f"  [#565f89]Cores[/] [#a9b1d6]{cores}[/]  [#565f89]Temp[/] [#f7768e]{temp}[/]",
+            f"  [#565f89]Load[/] [{load_color(load1, cores)}]{load1:.2f}[/]"
+            f"  [{load_color(load5, cores)}]{load5:.2f}[/]"
+            f"  [{load_color(load15, cores)}]{load15:.2f}[/]",
+            f"  {bar(pct, 20)}",
+        ]
+        content = "\n".join(lines)
         self.query_one("#sys-cpu-card", Static).update(content)
 
     def _render_memory(self):
