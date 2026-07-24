@@ -76,11 +76,22 @@ def get_temperature():
         pass
     try:
         result = subprocess.check_output(
-            "sensors 2>/dev/null | grep -i 'core 0' | head -1",
+            "sensors 2>/dev/null",
             shell=True, text=True
         )
-        if "+" in result:
-            return result.split("+")[1].split()[0]
+        priority = ["Tctl", "Composite", "edge"]
+        temps = {}
+        for line in result.splitlines():
+            line = line.strip()
+            if "°C" in line and "+" in line:
+                name = line.split(":")[0].strip() if ":" in line else ""
+                temp_str = line.split("+")[1].split("°")[0].strip()
+                temps[name] = f"{float(temp_str):.0f}C"
+        for key in priority:
+            if key in temps:
+                return temps[key]
+        if temps:
+            return next(iter(temps.values()))
     except Exception:
         pass
     return None
