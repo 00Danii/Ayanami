@@ -89,19 +89,27 @@ class SistemaView(Vertical):
         uptime = system.get_uptime()
         shell = system.get_shell()
         gpu = system.get_gpu()
-        temp = system.get_temperature()
+        os_name = system.get_os().split()[0] if system.get_os() != "Unknown" else "?"
+        dt = system.get_datetime()
+        user = system.get_user()
 
-        lines = [
-            "[#3b4261]── [/][bold #7aa2f7]SISTEMA[/][#3b4261] ──────────────[/]",
-            f"[#565f89]Host   [/] [white]{hostname}[/]",
-            f"[#565f89]Kernel  [/] [#a9b1d6]{kernel}[/]",
-            f"[#565f89]Uptime  [/] [#09b609]{uptime}[/]",
-            f"[#565f89]Shell   [/] [#e0af68]{shell}[/]",
-        ]
-        if gpu:
-            lines.append(f"[#565f89]GPU     [/] [#a9b1d6]{gpu[:22]}[/]")
-        if temp:
-            lines.append(f"[#565f89]Temp    [/] [#f7768e]{temp}[/]")
+        lines = ["[#3b4261]── [/][bold #7aa2f7]SISTEMA[/][#3b4261] ──────────────[/]"]
+        lines.append(
+            f"  [#565f89]User   [/] [#ff007c]{user:<15}[/]"
+            f"[#565f89]Shell  [/] [#a9b1d6]{shell}[/]"
+        )
+        lines.append(
+            f"  [#565f89]Host   [/] [#a9b1d6]{hostname:<15}[/]"
+            f"[#565f89]GPU    [/] [#a9b1d6]{(gpu or '---')[:18]}[/]"
+        )
+        lines.append(
+            f"  [#565f89]OS     [/] [#a9b1d6]{os_name:<15}[/]"
+            f"[#565f89]Kernel [/] [#a9b1d6]{kernel}[/]"
+        )
+        lines.append(
+            f"  [#565f89]Uptime [/] [#09b609]{uptime:<15}[/]"
+            f"[#565f89]Date   [/] [#a9b1d6]{dt}[/]"
+        )
         content = "\n".join(lines)
         self.query_one("#sys-info-card", Static).update(content)
 
