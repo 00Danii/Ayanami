@@ -75,9 +75,11 @@ class SistemaView(Vertical):
         count = system.get_process_count()
         dt = system.get_datetime()
         users = system.get_users()
+        user = system.get_user()
 
         content = (
             f"[bold #ff007c]AYANAMI[/]  "
+            f"[#565f89]|[/]  [#e0af68]{user}[/]  "
             f"[#565f89]|[/]  [white]{hostname}[/]  "
             f"[#565f89]|[/]  [#7aa2f7]{os_name}[/]  "
             f"[#565f89]|[/]  [#a9b1d6]{kernel}[/]  "
