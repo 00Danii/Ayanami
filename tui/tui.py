@@ -4,6 +4,7 @@ from textual.widgets import Header, Footer, Button, ContentSwitcher
 from textual.binding import Binding
 
 from widgets.sidebar import Sidebar
+from widgets.theme_screen import ThemeScreen
 
 from views.interfaces import InterfacesView
 from views.hostspot import HotspotView
@@ -30,6 +31,7 @@ class AyanamiApp(App):
     BINDINGS = [
         Binding("q", "quit", "Salir"),
         Binding("r", "refresh", "Actualizar Vista"),
+        Binding("t", "theme", "Temas"),
     ]
 
     def compose(self) -> ComposeResult:
@@ -82,6 +84,9 @@ class AyanamiApp(App):
             self.query_one(HotspotView).refresh_data()
         elif current_view == "nav-sistema":
             self.query_one(SistemaView).refresh_data()
+
+    def action_theme(self) -> None:
+        self.push_screen(ThemeScreen())
 
 if __name__ == "__main__":
     app = AyanamiApp()

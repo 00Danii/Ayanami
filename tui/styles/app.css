@@ -1392,3 +1392,59 @@ SistemaView {
 /********************
  * FIN SISTEMA VIEW *
  ********************/
+
+
+/********************
+ * THEME SELECTOR *
+ ********************/
+
+ThemeScreen {
+    align: center middle;
+}
+
+#theme-modal {
+    width: 40;
+    height: 20;
+    background: #1f2335;
+    border: thick #7aa2f7;
+    padding: 1 2;
+}
+
+.theme-title {
+    text-style: bold;
+    color: #7aa2f7;
+    height: auto;
+    content-align: center middle;
+}
+
+.theme-item {
+    height: 3;
+    width: 1fr;
+    padding: 0 1;
+    background: #24283b;
+    border: round #3b4261;
+    margin-bottom: 1;
+    layout: horizontal;
+    align: center middle;
+}
+
+.theme-item:hover {
+    background: #2f3549;
+    border: round #7aa2f7;
+}
+
+.theme-name {
+    width: 1fr;
+    color: #c0caf5;
+    text-style: bold;
+    content-align: center middle;
+}
+
+.theme-colors {
+    width: auto;
+    color: #565f89;
+}
+
+.theme-close {
+    align: center middle;
+}
