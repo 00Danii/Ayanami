@@ -1315,6 +1315,7 @@ SistemaView {
     background: #1a1b26;
     border: round #ff007c;
     margin-bottom: 1;
+    content-align: center middle;
 }
 
 /* ===== ROWS ===== */
