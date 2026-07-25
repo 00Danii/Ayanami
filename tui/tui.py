@@ -48,7 +48,7 @@ class AyanamiApp(App):
 
     def on_mount(self):
         self._activate_nav("nav-interfaces")
-        self.set_interval(3.0, self._auto_refresh_sistema)
+        self.set_interval(1.0, self._auto_refresh_sistema)
 
     def _auto_refresh_sistema(self):
         current = self.query_one("#main-content", ContentSwitcher).current
