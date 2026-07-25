@@ -203,15 +203,22 @@ class SistemaView(Vertical):
             dev = iface["device"]
             ip = system.get_ip(dev)
             if iface["type"] == "wifi":
-                icon = "[#41a6b5]~[/]"
+                icon = "[#41a6b5]≈≈ WIFI [/]"
             else:
-                icon = "[#e0af68]|[/]"
-            lines.append(f" {icon} [white]{dev:8}[/] [#a9b1d6]{ip or '---'}[/]")
-        if gw:
-            lines.append(f"[#565f89]GW [/] [#a9b1d6]{gw}[/]")
-        if dns:
-            lines.append(f"[#565f89]DNS[/] [#a9b1d6]{dns}[/]")
-        lines.append(f"[#565f89]RX [/] [#09b609]{fmt_bytes(rx)}[/]  [#565f89]TX[/] [#e0af68]{fmt_bytes(tx)}[/]")
+                icon = "[#e0af68]↑↓[/]"
+            lines.append(f"  {icon}  [white]{dev:<14}[/] [#a9b1d6]{ip or '---'}[/]")
+        lines.append(
+            f"  [#7aa2f7]→ [/] [#565f89]Gateway      [/] [#a9b1d6]{gw or '---'}[/]"
+        )
+        lines.append(
+            f"  [#7dcfff]◆ [/] [#565f89]DNS          [/] [#a9b1d6]{dns or '---'}[/]"
+        )
+        total = rx + tx
+        lines.append(
+            f"  [#09b609]RX ↓ [/] {fmt_bytes(rx)}"
+            f"  [#e0af68]TX ↑ [/] {fmt_bytes(tx)}"
+            f"   [#565f89]Total[/] [#a9b1d6]{fmt_bytes(total)}[/]"
+        )
         content = "\n".join(lines)
         self.query_one("#sys-net-card", Static).update(content)
 
