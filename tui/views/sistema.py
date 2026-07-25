@@ -180,13 +180,14 @@ class SistemaView(Vertical):
                 used_c = "#e0af68"
             else:
                 used_c = "#09b609"
+            mount = d["mount"]
             lines.append(
                 f" {dot(pct)} [white]{d['mount']}[/]"
                 f"  [#565f89]Total[/] [#a9b1d6]{d['size']}[/]"
             )
             lines.append(
-                f"   [#565f89]Usado[/] [{used_c}]{d['used']}[/]"
-                f"  [#565f89]Libre[/] [#09b609]{d['avail']}[/]"
+                f"   [#565f89]Usado[/] [{used_c}]{d['used']:<6}[/]"
+                f"[#565f89]Libre[/] [#09b609]{d['avail']:<6}[/]"
                 f"  {bar(pct, 25)}"
             )
         content = "\n".join(lines)
