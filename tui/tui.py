@@ -5,6 +5,7 @@ from textual.binding import Binding
 
 from widgets.sidebar import Sidebar
 from widgets.theme_screen import ThemeScreen
+from themes import THEMES
 
 from views.interfaces import InterfacesView
 from views.hostspot import HotspotView
@@ -49,6 +50,9 @@ class AyanamiApp(App):
         yield Footer()
 
     def on_mount(self):
+        for theme in THEMES.values():
+            self.register_theme(theme)
+        self.theme = "midnight"
         self._activate_nav("nav-interfaces")
         self.set_interval(3.0, self._auto_refresh_sistema)
 
@@ -86,7 +90,11 @@ class AyanamiApp(App):
             self.query_one(SistemaView).refresh_data()
 
     def action_theme(self) -> None:
-        self.push_screen(ThemeScreen())
+        self.push_screen(ThemeScreen(), self._apply_theme)
+
+    def _apply_theme(self, theme_id):
+        if theme_id and theme_id in THEMES:
+            self.theme = theme_id
 
 if __name__ == "__main__":
     app = AyanamiApp()

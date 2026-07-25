@@ -3,7 +3,7 @@
  **********************************/
 
 Screen {
-    background: #1a1b26;
+    background: $background;
 }
 
 /* ===== SIDEBAR TITLE ===== */
@@ -12,8 +12,8 @@ Screen {
     height: auto;
     margin: 0 0 0 0;
     padding: 0;
-    background: #1a1b26;
-    border-bottom: solid #3b4261;
+    background: $background;
+    border-bottom: solid $border;
 }
 
 #app-title {
@@ -21,7 +21,7 @@ Screen {
     width: 100%;
     padding: 1 1 0 1;
     background: transparent;
-    color: #ff007c;
+    color: $accent;
     text-style: bold;
 }
 
@@ -30,13 +30,13 @@ Screen {
     width: 100%;
     padding: 0 1 1 1;
     background: transparent;
-    color: #565f89;
+    color: $text-muted;
     text-style: italic;
 }
 
 .sidebar-label {
     padding: 1 1 0 1;
-    color: #565f89;
+    color: $text-muted;
     text-align: left;
 }
 
@@ -44,8 +44,8 @@ Screen {
 
 Sidebar {
     width: 25;
-    background: #16161e;
-    border-right: solid #3b4261;
+    background: $panel;
+    border-right: solid $border;
 }
 
 /* ===== NAV DIVIDER ===== */
@@ -54,7 +54,7 @@ Sidebar {
     width: 100%;
     padding: 1 0;
     text-align: center;
-    color: #3b4261;
+    color: $border;
     text-style: bold;
 }
 
@@ -77,7 +77,7 @@ Sidebar {
     border-top: none;
     border-right: none;
     border-bottom: none;
-    color: #565f89;
+    color: $text-muted;
     text-align: left;
     margin-bottom: 0;
     min-width: 0;
@@ -85,28 +85,28 @@ Sidebar {
 }
 
 .nav-btn:hover {
-    background: #1f2335;
-    border-left: solid #7aa2f7;
-    color: #c0caf5;
+    background: $surface;
+    border-left: solid $primary;
+    color: $foreground;
     text-style: bold;
 }
 
 .nav-btn:focus {
-    background: #1f2335;
-    border-left: solid #7aa2f7;
-    color: #c0caf5;
+    background: $surface;
+    border-left: solid $primary;
+    color: $foreground;
     text-style: bold;
 }
 
 .nav-btn.nav-active {
-    background: #1f2335;
-    border-left: solid #ff007c;
-    color: #ffffff;
+    background: $surface;
+    border-left: solid $accent;
+    color: $foreground;
     text-style: bold;
 }
 
 #sidebar-list > .list-view--highlighted > Label {
-    color: #ffffff;
+    color: $foreground;
     text-style: bold;
 }
 
@@ -117,14 +117,14 @@ Sidebar {
 .section-title {
     text-style: bold;
     padding: 1;
-    background: #24283b;
+    background: $surface-lighten-1;
     width: 100%;
     margin-bottom: 1;
 }
 
 DataTable {
     height: 1fr;
-    border: solid #3b4261;
+    border: solid $border;
 }
 
 .button-bar {
@@ -134,8 +134,8 @@ DataTable {
 }
 
 RichLog {
-    background: #1a1b26;
-    border: solid #3b4261;
+    background: $background;
+    border: solid $border;
     height: 1fr;
     margin-top: 1;
 }
@@ -148,7 +148,7 @@ Input {
 .help-text {
     width: 1fr;
     text-style: bold;
-    color: #565f89;
+    color: $text-muted;
 }
 
 Button {
@@ -184,14 +184,14 @@ InterfacesView {
 #interfaces-header {
     height: 3;
     padding: 0 1;
-    background: #16161e;
-    border-bottom: solid #3b4261;
+    background: $panel;
+    border-bottom: solid $border;
     align: center middle;
 }
 
 .header-col {
     text-style: bold;
-    color: #7aa2f7;
+    color: $primary;
     content-align: left middle;
 }
 
@@ -209,29 +209,29 @@ InterfaceRow {
     height: 4;
     padding: 0 1;
     margin-bottom: 1;
-    background: #24283b;
-    border: round #3b4261;
+    background: $surface-lighten-1;
+    border: round $border;
     layout: horizontal;
     align: center middle;
 }
 
 InterfaceRow:hover {
-    background: #2f3549;
-    border: round #7aa2f7;
+    background: $boost;
+    border: round $primary;
 }
 
 /* ===== COLUMNAS ===== */
 
 .iface-name {
     width: 35%;
-    color: #c0caf5;
+    color: $foreground;
     text-style: bold;
     margin-bottom: 0;
 }
 
 .iface-type {
     width: 20%;
-    color: #7dcfff;
+    color: $secondary;
     text-style: bold;
     margin-bottom: 0;
 }
@@ -243,11 +243,11 @@ InterfaceRow:hover {
 }
 
 .iface-state-up {
-    color: #09b609;
+    color: $success;
 }
 
 .iface-state-down {
-    color: #f7768e;
+    color: $error;
 }
 
 /* ===== ACTIONS ===== */
@@ -288,7 +288,7 @@ InterfaceRow Label {
 .title {
     width: 1fr;
     text-style: bold;
-    color: #565f89;
+    color: $text-muted;
 }
 
 /**********************************
@@ -312,14 +312,14 @@ HotspotView {
     align: center middle;
     margin-bottom: 1;
     padding: 1;
-    background: #1f2335;
-    border: round #3b4261;
+    background: $surface;
+    border: round $border;
 }
 
 .hs-banner-title {
     width: 1fr;
     text-style: bold;
-    color: #7aa2f7;
+    color: $primary;
     margin-bottom: 0;
 }
 
@@ -334,8 +334,8 @@ HotspotView {
     padding: 0 1;
     margin-left: 1;
     margin-bottom: 0;
-    background: #24283b;
-    color: #c0caf5;
+    background: $surface-lighten-1;
+    color: $foreground;
     text-style: bold;
 }
 
@@ -351,15 +351,15 @@ HotspotView {
 .hs-card {
     width: 1fr;
     height: 100%;
-    background: #24283b;
-    border: round #3b4261;
+    background: $surface-lighten-1;
+    border: round $border;
     padding: 1;
     margin-right: 1;
 }
 
 .hs-card-title {
     text-style: bold;
-    color: #565f89;
+    color: $text-muted;
     margin-bottom: 1;
 }
 
@@ -371,7 +371,7 @@ HotspotView {
 
 .input-label {
     width: 12;
-    color: cyan;
+    color: $secondary;
     text-style: bold;
 }
 
@@ -395,13 +395,13 @@ HotspotView {
 .hs-log-card {
     width: 1fr;
     height: 100%;
-    background: #1a1b26;
-    border: round #3b4261;
+    background: $background;
+    border: round $border;
     padding: 1;
 }
 
 .hs-log-title {
-    color: #565f89;
+    color: $text-muted;
     text-style: bold;
     margin-bottom: 1;
 }
@@ -435,7 +435,7 @@ ScannerView {
 .scanner-title {
     width: 1fr;
     text-style: bold;
-    color: #565f89;
+    color: $text-muted;
 }
 
 /* =========================================================
@@ -445,15 +445,15 @@ STATS BAR
 .scanner-stats-bar {
     height: 3;
     margin-bottom: 1;
-    background: #1f2335;
-    border: round #3b4261;
+    background: $surface;
+    border: round $border;
     align: center middle;
 }
 
 .scanner-stat {
     width: 1fr;
     content-align: center middle;
-    color: #7dcfff;
+    color: $secondary;
 }
 
 /* =========================================================
@@ -465,15 +465,15 @@ TABLE
 
     margin-bottom: 1;
 
-    border: round #3b4261;
+    border: round $border;
 
-    background: #1a1b26;
+    background: $background;
 }
 
 #scanner-table>.datatable--header {
-    background: #24283b;
+    background: $surface-lighten-1;
 
-    color: #7aa2f7;
+    color: $primary;
 
     text-style: bold;
 }
@@ -495,13 +495,13 @@ DEVICE PANEL
     height: 100%;
     width: 1fr;
     padding: 1;
-    background: #1f2335;
-    border: round #3b4261;
+    background: $surface;
+    border: round $border;
 }
 
 .device-title {
     text-style: bold;
-    color: cyan;
+    color: $secondary;
     margin-bottom: 1;
 }
 
@@ -511,7 +511,7 @@ DEVICE PANEL
 }
 
 #device-info {
-    color: white;
+    color: $foreground;
     width: 100%;
 }
 
@@ -542,7 +542,7 @@ MonitorView {
 .monitor-title {
     width: 1fr;
     text-style: bold;
-    color: #565f89;
+    color: $text-muted;
 }
 
 #monitor-host-select {
@@ -583,9 +583,9 @@ STATS BAR
 
 .monitor-stat {
     width: 1fr;
-    background: #1f2335;
-    border: round #3b4261;
-    color: white;
+    background: $surface;
+    border: round $border;
+    color: $foreground;
     content-align: center middle;
     text-style: bold;
 }
@@ -597,25 +597,25 @@ TABLE
 #monitor-table {
     width: 100%;
     height: 1fr;
-    border: round #3b4261;
-    background: #1a1b26;
-    color: white;
+    border: round $border;
+    background: $background;
+    color: $foreground;
 }
 
 #monitor-table>.datatable--header {
-    background: #111827;
-    color: #7aa2f7;
+    background: $panel-darken-1;
+    color: $primary;
     text-style: bold;
 }
 
 /* SCROLLBAR */
 
 #monitor-table ScrollBar {
-    background: #1a1b26;
+    background: $background;
 }
 
 #monitor-table ScrollBar:hover {
-    background: #24283b;
+    background: $surface-lighten-1;
 }
 
 /* =========================================================
@@ -625,8 +625,8 @@ BOTTOM PANEL
 #monitor-bottom-panel {
     height: 14;
     margin-top: 1;
-    background: #1f2335;
-    border: round #3b4261;
+    background: $surface;
+    border: round $border;
     padding: 0;
 }
 
@@ -646,20 +646,20 @@ INFO PANEL
 #monitor-side-panel {
     width: 45;
     min-width: 35;
-    border: round #3b4261;
-    background: #1a1b26;
+    border: round $border;
+    background: $background;
     padding: 1 2;
     height: 100%;
 }
 
 .monitor-panel-title {
     text-style: bold;
-    color: #7aa2f7;
+    color: $primary;
     margin-bottom: 1;
 }
 
 #monitor-info {
-    color: #c0caf5;
+    color: $foreground;
 }
 
 /* =========================================================
@@ -667,13 +667,13 @@ SELECT
 ========================================================= */
 
 #monitor-host-select {
-    background: #1f2335;
-    border: round #3b4261;
-    color: white;
+    background: $surface;
+    border: round $border;
+    color: $foreground;
 }
 
 #monitor-host-select:focus {
-    border: round #7aa2f7;
+    border: round $primary;
 }
 
 /* =========================================================
@@ -725,9 +725,9 @@ SnifferView {
 
     align: center middle;
 
-    background: #1a1b26;
+    background: $background;
 
-    border: solid #414868;
+    border: solid $border;
 
     padding: 0 1;
 }
@@ -735,7 +735,7 @@ SnifferView {
 .sniffer-title {
     width: 1fr;
     text-style: bold;
-    color: #565f89;
+    color: $text-muted;
 }
 
 #sniffer-status {
@@ -787,13 +787,13 @@ SnifferView {
     height: 3;
     min-height: 3;
     margin-right: 1;
-    background: #1f2335;
-    border: round #3b4261;
-    color: white;
+    background: $surface;
+    border: round $border;
+    color: $foreground;
 }
 
 #sniffer-host-select:focus {
-    border: round #7aa2f7;
+    border: round $primary;
 }
 
 #sniffer-host-select>SelectCurrent {
@@ -857,13 +857,13 @@ SnifferView {
 
     width: 1fr;
 
-    border: round #414868;
+    border: round $border;
 
-    background: #1a1b26;
+    background: $background;
 
     padding: 0 1;
 
-    color: #a9b1d6;
+    color: $text;
 }
 
 #sniffer-stats-right {
@@ -875,9 +875,9 @@ SnifferView {
 
 #sniffer-stats-right > Static {
 
-    background: #24283b;
+    background: $surface-lighten-1;
 
-    border: round #414868;
+    border: round $border;
 
     margin-left: 1;
 
@@ -891,13 +891,13 @@ SnifferView {
     height: 1fr;
     min-height: 10;
 
-    border: round #414868;
+    border: round $border;
 
-    background: #1a1b26;
+    background: $background;
 
     padding: 0 0;
 
-    color: #a9b1d6;
+    color: $text;
 
     margin-top: 1;
 }
@@ -930,17 +930,17 @@ FirewallView {
     margin: 0 0 0 0;
     padding: 0 2;
     border: none;
-    border-bottom: solid #3b4261;
+    border-bottom: solid $border;
     background: transparent;
-    color: #565f89;
+    color: $text-muted;
     text-style: bold;
 }
 
 .fw-tab.active {
-    background: #24283b;
-    border: solid #3b4261;
-    border-bottom: solid #24283b;
-    color: #7aa2f7;
+    background: $surface-lighten-1;
+    border: solid $border;
+    border-bottom: solid $surface-lighten-1;
+    color: $primary;
 }
 
 #fw-content {
@@ -950,7 +950,7 @@ FirewallView {
 #fw-panel-rules, #fw-panel-apps, #fw-panel-config {
     height: 1fr;
     padding: 1;
-    border: solid #3b4261;
+    border: solid $border;
 }
 
 /* =========================================================
@@ -959,27 +959,27 @@ FirewallView {
 
 .fw-section-title {
     text-style: bold;
-    color: #7aa2f7;
+    color: $primary;
     margin-bottom: 1;
 }
 
 .fw-card {
     width: 1fr;
     height: auto;
-    background: #1f2335;
-    border: round #3b4261;
+    background: $surface;
+    border: round $border;
     padding: 1;
     margin-right: 1;
 }
 
 .fw-card-title {
     text-style: bold;
-    color: #7dcfff;
+    color: $secondary;
     margin-bottom: 0;
 }
 
 .fw-card-desc {
-    color: #565f89;
+    color: $text-muted;
     margin-bottom: 1;
 }
 
@@ -1013,8 +1013,8 @@ FirewallView {
 #cfg-log {
     height: 1fr;
     margin-top: 1;
-    background: #1a1b26;
-    border: solid #3b4261;
+    background: $background;
+    border: solid $border;
 }
 
 /* =========================================================
@@ -1067,14 +1067,14 @@ AppRow {
     height: 5;
     padding: 0;
     margin-bottom: 1;
-    border: round #3b4261;
+    border: round $border;
     layout: horizontal;
     align: center middle;
 }
 
 AppRow:hover {
-    background: #2f3549;
-    border: round #7aa2f7;
+    background: $boost;
+    border: round $primary;
 }
 
 /* ===== ACCENT BAR ===== */
@@ -1087,11 +1087,11 @@ AppRow:hover {
 }
 
 .app-accent-blocked {
-    background: #f7768e;
+    background: $error;
 }
 
 .app-accent-unblocked {
-    background: #41a6b5;
+    background: $secondary;
 }
 
 /* ===== BODY ===== */
@@ -1113,7 +1113,7 @@ AppRow:hover {
 .app-row-name {
     width: 1fr;
     text-style: bold;
-    color: #c0caf5;
+    color: $foreground;
     margin-bottom: 1;
     margin-left: 1;
 }
@@ -1131,8 +1131,8 @@ AppRow:hover {
 .app-row-badge {
     width: auto;
     padding: 0 1;
-    background: #1f2335;
-    color: #565f89;
+    background: $surface;
+    color: $text-muted;
     text-style: bold;
     margin-right: 1;
     margin-bottom: 0;
@@ -1149,20 +1149,20 @@ AppRow:hover {
 }
 
 .tag-blocked {
-    color: #f7768e;
-    background: #2f1a1e;
+    color: $error;
+    background: $error-darken-2;
 }
 
 .tag-unblocked {
-    color: #41a6b5;
-    background: #1a2f33;
+    color: $secondary;
+    background: $success-darken-2;
 }
 
 /* ===== DOMAINS ===== */
 
 .app-row-domains {
     width: 1fr;
-    color: #565f89;
+    color: $text-muted;
     overflow: hidden;
     text-overflow: ellipsis;
     margin-bottom: 0;
@@ -1213,26 +1213,26 @@ AppRow Label {
 #app-modal {
     width: 50;
     height: auto;
-    background: #1f2335;
-    border: thick #7aa2f7;
+    background: $surface;
+    border: thick $primary;
     padding: 2;
 }
 
 .modal-title {
     text-style: bold;
-    color: #7aa2f7;
+    color: $primary;
     margin-bottom: 2;
 }
 
 .modal-label {
-    color: #a9b1d6;
+    color: $text;
     margin-bottom: 0;
 }
 
 .modal-textarea {
     height: 10;
     margin-bottom: 1;
-    border: solid #3b4261;
+    border: solid $border;
 }
 
 .modal-switch-row {
@@ -1269,14 +1269,14 @@ AppRow Label {
 #confirm-modal {
     width: 52;
     height: auto;
-    background: #1f2335;
-    border: thick #f7768e;
+    background: $surface;
+    border: thick $error;
     padding: 2;
 }
 
 #confirm-message {
     text-style: bold;
-    color: #c0caf5;
+    color: $foreground;
     margin-bottom: 2;
     content-align: center middle;
 }
@@ -1312,8 +1312,8 @@ SistemaView {
 .sys-header {
     height: 3;
     padding: 0 1;
-    background: #1a1b26;
-    border: round #ff007c;
+    background: $background;
+    border: round $accent;
     margin-bottom: 1;
     content-align: center middle;
 }
@@ -1375,7 +1375,7 @@ SistemaView {
 
 #sys-net-card,
 #sys-proc-card {
-    border: round #3b4261;
+    border: round $border;
     padding: 1;
 }
 
@@ -1384,7 +1384,7 @@ SistemaView {
 .sys-section {
     height: 1fr;
     min-height: 0;
-    border: round #3b4261;
+    border: round $border;
     padding: 1;
     overflow-y: auto;
 }
@@ -1405,14 +1405,14 @@ ThemeScreen {
 #theme-modal {
     width: 40;
     height: 20;
-    background: #1f2335;
-    border: thick #7aa2f7;
+    background: $surface;
+    border: thick $primary;
     padding: 1 2;
 }
 
 .theme-title {
     text-style: bold;
-    color: #7aa2f7;
+    color: $primary;
     height: auto;
     content-align: center middle;
 }
@@ -1421,28 +1421,28 @@ ThemeScreen {
     height: 3;
     width: 1fr;
     padding: 0 1;
-    background: #24283b;
-    border: round #3b4261;
+    background: $surface-lighten-1;
+    border: round $border;
     margin-bottom: 1;
     layout: horizontal;
     align: center middle;
 }
 
 .theme-item:hover {
-    background: #2f3549;
-    border: round #7aa2f7;
+    background: $boost;
+    border: round $primary;
 }
 
 .theme-name {
     width: 1fr;
-    color: #c0caf5;
+    color: $foreground;
     text-style: bold;
     content-align: center middle;
 }
 
 .theme-colors {
     width: auto;
-    color: #565f89;
+    color: $text-muted;
 }
 
 .theme-close {
