@@ -39,16 +39,21 @@ class SistemaView(Vertical):
 
         with Horizontal(id="sys-main"):
             with Vertical(id="sys-col-left"):
-                yield Static("", id="sys-net-card", classes="sys-panel")
+                with Vertical(id="sys-net-card", classes="sys-panel"):
+                    yield Static("", id="sys-net-content")
                 with Vertical(id="sys-left-bot", classes="sys-panel"):
-                    yield Static("", id="sys-mem-card", classes="sys-section")
+                    with Vertical(id="sys-mem-card", classes="sys-section"):
+                        yield Static("", id="sys-mem-content")
                     with Vertical(id="sys-disk-card", classes="sys-section"):
                         yield Static("", id="sys-disk-content")
             with Vertical(id="sys-col-right"):
                 with Vertical(id="sys-right-top", classes="sys-panel"):
-                    yield Static("", id="sys-info-card", classes="sys-section")
-                    yield Static("", id="sys-cpu-card", classes="sys-section")
-                yield Static("", id="sys-proc-card", classes="sys-panel")
+                    with Vertical(id="sys-info-card", classes="sys-section"):
+                        yield Static("", id="sys-info-content")
+                    with Vertical(id="sys-cpu-card", classes="sys-section"):
+                        yield Static("", id="sys-cpu-content")
+                with Vertical(id="sys-proc-card", classes="sys-panel"):
+                    yield Static("", id="sys-proc-content")
 
     def on_mount(self):
         self.refresh_data()
@@ -111,7 +116,7 @@ class SistemaView(Vertical):
             f"[#565f89]Date   [/] [#a9b1d6]{dt}[/]"
         )
         content = "\n".join(lines)
-        self.query_one("#sys-info-card", Static).update(content)
+        self.query_one("#sys-info-content", Static).update(content)
 
     def _render_cpu(self):
         model = system.get_cpu_model()
@@ -137,7 +142,7 @@ class SistemaView(Vertical):
             f"  {bar(pct, 30)}",
         ]
         content = "\n".join(lines)
-        self.query_one("#sys-cpu-card", Static).update(content)
+        self.query_one("#sys-cpu-content", Static).update(content)
 
     def _render_memory(self):
         total, used, buffers, cached, swap_total, swap_used = system.get_memory()
@@ -167,7 +172,7 @@ class SistemaView(Vertical):
                 f"  {bar(swap_pct, 30)}"
             )
         content = "\n".join(lines)
-        self.query_one("#sys-mem-card", Static).update(content)
+        self.query_one("#sys-mem-content", Static).update(content)
 
     def _render_disk(self):
         disks = system.get_disk()
@@ -230,7 +235,7 @@ class SistemaView(Vertical):
             f"   [#565f89]Total[/] [#a9b1d6]{fmt_bytes(total)}[/]"
         )
         content = "\n".join(lines)
-        self.query_one("#sys-net-card", Static).update(content)
+        self.query_one("#sys-net-content", Static).update(content)
 
     def _render_processes(self):
         count = system.get_process_count()
@@ -251,4 +256,4 @@ class SistemaView(Vertical):
                     f"   [#7dcfff]{p['mem']:>5}%[/] [#a9b1d6]{p['name'][:55]}[/]"
                 )
         content = "\n".join(lines)
-        self.query_one("#sys-proc-card", Static).update(content)
+        self.query_one("#sys-proc-content", Static).update(content)
