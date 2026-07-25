@@ -134,7 +134,7 @@ class SistemaView(Vertical):
             f"  [#565f89]Load[/] [{load_color(load1, cores)}]{load1:.2f}[/]"
             f"  [{load_color(load5, cores)}]{load5:.2f}[/]"
             f"  [{load_color(load15, cores)}]{load15:.2f}[/]",
-            f"  {bar(pct, 20)}",
+            f"  {bar(pct, 30)}",
         ]
         content = "\n".join(lines)
         self.query_one("#sys-cpu-card", Static).update(content)
@@ -154,7 +154,7 @@ class SistemaView(Vertical):
         lines = [
             "[#3b4261]── [/][bold #7aa2f7]MEMORIA RAM[/][#3b4261] ─────────────[/]",
             f"  {dot(pct)} [white]{fmt_bytes(used)}[/][#565f89] usado de[/] [#a9b1d6]{fmt_bytes(total)}[/]"
-            f"  {bar(pct, 20)}",
+            f"  {bar(pct, 30)}",
             "",
             f"  [#e0af68]██[/] [#565f89]Buffer[/] [#a9b1d6]{fmt_bytes(buffers)}[/]",
             f"  [#7aa2f7]██[/] [#565f89]Cached[/] [#a9b1d6]{fmt_bytes(cached)}[/]",
@@ -164,7 +164,7 @@ class SistemaView(Vertical):
             lines.append(
                 "[#3b4261]── [/][bold #7aa2f7]MEMORIA SWAP[/][#3b4261] ─────────────[/]\n"
                 f"  {dot(swap_pct)} [white]{fmt_bytes(swap_used)}[/][#565f89] usado de[/] [#a9b1d6]{fmt_bytes(swap_total)}[/]"
-                f"  {bar(swap_pct, 20)}"
+                f"  {bar(swap_pct, 30)}"
             )
         content = "\n".join(lines)
         self.query_one("#sys-mem-card", Static).update(content)
@@ -187,7 +187,7 @@ class SistemaView(Vertical):
             lines.append(
                 f"   [#565f89]Usado[/] [{used_c}]{d['used']}[/]"
                 f"  [#565f89]Libre[/] [#09b609]{d['avail']}[/]"
-                f"  {bar(pct, 12)}"
+                f"  {bar(pct, 25)}"
             )
         content = "\n".join(lines)
         self.query_one("#sys-disk-content", Static).update(content)
