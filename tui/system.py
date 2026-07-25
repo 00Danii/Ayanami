@@ -195,10 +195,13 @@ def get_ip(iface):
             f"nmcli -t -f IP4.ADDRESS device show {iface} 2>/dev/null | head -1",
             shell=True, text=True
         )
-        ip = out.strip().split("=", 1)[1] if "=" in out else ""
-        return ip.split("/")[0] if ip else ""
+        out = out.strip()
+        if ":" in out:
+            ip = out.split(":", 1)[1]
+            return ip.split("/")[0] if ip else ""
     except Exception:
-        return ""
+        pass
+    return ""
 
 
 def get_gateway():
