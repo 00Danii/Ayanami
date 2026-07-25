@@ -202,10 +202,13 @@ class SistemaView(Vertical):
         for iface in ifaces[:3]:
             dev = iface["device"]
             ip = system.get_ip(dev)
-            if iface["type"] == "wifi":
-                icon = "[#41a6b5]≈≈ WIFI [/]"
-            else:
+            iface_type = iface["type"]
+            if iface_type == "wifi":
+                icon = "[#41a6b5]≈≈[/]"
+            elif iface_type == "ethernet":
                 icon = "[#e0af68]↑↓[/]"
+            else:
+                icon = "[#565f89]··[/]"
             lines.append(f"  {icon}  [white]{dev:<14}[/] [#a9b1d6]{ip or '---'}[/]")
         lines.append(
             f"  [#7aa2f7]→ [/] [#565f89]Gateway      [/] [#a9b1d6]{gw or '---'}[/]"
