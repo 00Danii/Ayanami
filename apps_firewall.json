@@ -290,5 +290,41 @@
       "xsts.auth.xboxlive.com"
     ],
     "blocked": false
+  },
+  "Genshing Impact": {
+    "domains": [
+      "genshin.hoyoverse.com",
+      "yuanshen.com",
+      "autopatchhk.yuanshen.com",
+      "autopatch-os.hoyoverse.com",
+      "sg-hk4e-api.hoyoverse.com",
+      "sg-hk4e-api-static.hoyoverse.com",
+      "hk4e-sdk-os.hoyoverse.com",
+      "api-os-takumi-static.hoyoverse.com"
+    ],
+    "blocked": false
+  },
+  "Star Rail": {
+    "domains": [
+      "starrails.com",
+      "hsr.hoyoverse.com",
+      "autopatch-os-eur.hoyoverse.com",
+      "sg-public-data-api.starrails.com"
+    ],
+    "blocked": false
+  },
+  "Impact 3RD": {
+    "domains": [
+      "honkaiimpact3.hoyoverse.com",
+      "global-sdk-static.hoyoverse.com"
+    ],
+    "blocked": false
+  },
+  "Zenless Zone Zero": {
+    "domains": [
+      "zenless.hoyoverse.com",
+      "nap.hoyoverse.com"
+    ],
+    "blocked": false
   }
 }
