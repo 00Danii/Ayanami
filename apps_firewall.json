@@ -39,5 +39,25 @@
       "garena.live"
     ],
     "blocked": false
+  },
+  "Minecraft": {
+    "domains": [
+      "api.minecraftservices.com",
+      "fp.msedge.net",
+      "libraries.minecraft.net",
+      "me-identity.minecraft-services.net",
+      "minecraft.net",
+      "minecraftprod.rtep.msgamestudios.com",
+      "minecraftservices.com",
+      "mojang.com",
+      "multiplayer.minecraft.net",
+      "pc.realms.minecraft.net",
+      "pocket.realms.minecraft.net",
+      "resources.download.minecraft.net",
+      "textures.minecraft.net",
+      "www.minecraft.net",
+      "www.mojang.com"
+    ],
+    "blocked": false
   }
 }
