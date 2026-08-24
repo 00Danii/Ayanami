@@ -326,5 +326,36 @@
       "nap.hoyoverse.com"
     ],
     "blocked": false
+  },
+  "Solo Leveling": {
+    "domains": [
+      "netmarble.com",
+      "cdn2.netmarble.com",
+      "slo.netmarble.com",
+      "slgame.netmarble.com",
+      "nmcdn.io"
+    ],
+    "blocked": false
+  },
+  "Dragon Ball Legends": {
+    "domains": [
+      "bandainamcoent.com",
+      "legends.dbz.space",
+      "dbl.bandainamcoent.com",
+      "cdn.legends.dbz.space",
+      "bngi-gate.bandainamcoent.com"
+    ],
+    "blocked": false
+  },
+  "Pokemon TCG Poket": {
+    "domains": [
+      "pokemon.com",
+      "mtcgp.pokemon.com",
+      "api.mtcgp.pokemon.com",
+      "cdn.pokemon.com",
+      "dena.com",
+      "dena-games.com"
+    ],
+    "blocked": false
   }
 }
