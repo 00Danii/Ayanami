@@ -1,9 +1,16 @@
+import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
 
 DNSMASQ_CONF = "/etc/NetworkManager/dnsmasq-shared.d/ayanami-block.conf"
+WHITELIST_FILE = str(Path(__file__).resolve().parent.parent / "whitelist.json")
+
+IP_RE = re.compile(r"^(\d{1,3}\.){3}\d{1,3}$")
+CIDR_RE = re.compile(r"^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$")
+RANGE_RE = re.compile(r"^(\d{1,3}\.){3}\d{1,3}-(\d{1,3}\.){3}\d{1,3}$")
 
 
 def _run(cmd: str):
@@ -12,6 +19,97 @@ def _run(cmd: str):
 
 def _ensure_dnsmasq_shared_dir():
     Path("/etc/NetworkManager/dnsmasq-shared.d").mkdir(parents=True, exist_ok=True)
+
+
+def is_valid_ip(ip: str) -> bool:
+    if not IP_RE.match(ip):
+        return False
+    return all(0 <= int(octet) <= 255 for octet in ip.split("."))
+
+
+def is_valid_cidr(cidr: str) -> bool:
+    if not CIDR_RE.match(cidr):
+        return False
+    ip, mask = cidr.split("/")
+    return is_valid_ip(ip) and 0 <= int(mask) <= 32
+
+
+def is_valid_range(r: str) -> bool:
+    if not RANGE_RE.match(r):
+        return False
+    start, end = r.split("-")
+    return is_valid_ip(start) and is_valid_ip(end)
+
+
+def is_valid_whitelist_entry(entry: str) -> bool:
+    return is_valid_ip(entry) or is_valid_cidr(entry) or is_valid_range(entry)
+
+
+def load_whitelist() -> list[str]:
+    if not os.path.exists(WHITELIST_FILE):
+        return []
+    try:
+        with open(WHITELIST_FILE) as f:
+            data = json.load(f)
+        return data.get("whitelist", [])
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def save_whitelist(entries: list[str]):
+    with open(WHITELIST_FILE, "w") as f:
+        json.dump({"whitelist": entries}, f, indent=2)
+
+
+def add_whitelist_ip(entry: str) -> bool:
+    whitelist = load_whitelist()
+    if entry in whitelist:
+        return False
+    whitelist.append(entry)
+    save_whitelist(whitelist)
+    return True
+
+
+def remove_whitelist_ip(entry: str) -> bool:
+    whitelist = load_whitelist()
+    if entry not in whitelist:
+        return False
+    whitelist.remove(entry)
+    save_whitelist(whitelist)
+    return True
+
+
+def apply_whitelist():
+    _remove_all_whitelist_rules()
+    whitelist = load_whitelist()
+    for entry in whitelist:
+        _run(
+            f"iptables -I FORWARD 1 -s {entry} -j ACCEPT -m comment --comment 'ayanami-wl' 2>/dev/null"
+        )
+        _run(
+            f"iptables -I FORWARD 1 -d {entry} -j ACCEPT -m comment --comment 'ayanami-wl' 2>/dev/null"
+        )
+        for proto in ("udp", "tcp"):
+            _run(
+                f"iptables -t nat -I PREROUTING 1 -s {entry} -p {proto} --dport 53 "
+                f"-j DNAT --to-destination 8.8.8.8:53 "
+                f"-m comment --comment 'ayanami-wl-dns' 2>/dev/null"
+            )
+    if whitelist:
+        _run("conntrack -F 2>/dev/null")
+
+
+def _remove_all_whitelist_rules():
+    for chain in ("FORWARD", "PREROUTING"):
+        table = "-t nat" if chain == "PREROUTING" else ""
+        result = subprocess.run(
+            f"iptables {table} -S {chain} 2>/dev/null",
+            shell=True, capture_output=True, text=True
+        )
+        for line in result.stdout.strip().split("\n"):
+            if "ayanami-wl" in line:
+                rule = line.replace("-A", "-D", 1)
+                _run(f"iptables {table} {rule} 2>/dev/null")
 
 
 def write_block_domains(domains: list[str]):

@@ -1,7 +1,7 @@
 from textual.containers import Vertical, Horizontal
 from textual.widgets import Label, Button, ContentSwitcher
 
-from views.firewall.rules import RulesTab
+from views.firewall.whitelist import WhitelistTab
 from views.firewall.apps import AppsTab
 from views.firewall.config import ConfigTab
 
@@ -10,12 +10,12 @@ class FirewallView(Vertical):
     def compose(self):
         with Horizontal(classes="fw-tab-bar"):
             yield Button("Apps", id="fw-tab-apps", classes="fw-tab active")
-            yield Button("Reglas", id="fw-tab-rules", classes="fw-tab")
+            yield Button("Lista Blanca", id="fw-tab-rules", classes="fw-tab")
             yield Button("Config", id="fw-tab-config", classes="fw-tab")
 
         with ContentSwitcher(initial="fw-panel-apps", id="fw-content"):
             yield AppsTab(id="fw-panel-apps")
-            yield RulesTab(id="fw-panel-rules")
+            yield WhitelistTab(id="fw-panel-rules")
             yield ConfigTab(id="fw-panel-config")
 
     def on_button_pressed(self, event: Button.Pressed):
