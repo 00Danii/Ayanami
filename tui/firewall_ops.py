@@ -83,18 +83,34 @@ def apply_whitelist():
     _remove_all_whitelist_rules()
     whitelist = load_whitelist()
     for entry in whitelist:
-        _run(
-            f"iptables -I FORWARD 1 -s {entry} -j ACCEPT -m comment --comment 'ayanami-wl' 2>/dev/null"
-        )
-        _run(
-            f"iptables -I FORWARD 1 -d {entry} -j ACCEPT -m comment --comment 'ayanami-wl' 2>/dev/null"
-        )
-        for proto in ("udp", "tcp"):
-            _run(
-                f"iptables -t nat -I PREROUTING 1 -s {entry} -p {proto} --dport 53 "
-                f"-j DNAT --to-destination 8.8.8.8:53 "
-                f"-m comment --comment 'ayanami-wl-dns' 2>/dev/null"
-            )
+        if is_valid_range(entry):
+            for chain, table_flag in [("FORWARD", ""), ("PREROUTING", "-t nat")]:
+                _run(
+                    f"iptables {table_flag} -I {chain} 1 -m iprange "
+                    f"--src-range {entry} -m comment --comment 'ayanami-wl' -j ACCEPT 2>/dev/null"
+                )
+                _run(
+                    f"iptables {table_flag} -I {chain} 1 -m iprange "
+                    f"--dst-range {entry} -m comment --comment 'ayanami-wl' -j ACCEPT 2>/dev/null"
+                )
+            for proto in ("udp", "tcp"):
+                _run(
+                    f"iptables -t nat -I PREROUTING 1 -m iprange --src-range {entry} "
+                    f"-p {proto} --dport 53 -m comment --comment 'ayanami-wl-dns' "
+                    f"-j DNAT --to-destination 8.8.8.8:53 2>/dev/null"
+                )
+        else:
+            for flag in ("-s", "-d"):
+                _run(
+                    f"iptables -I FORWARD 1 {flag} {entry} "
+                    f"-m comment --comment 'ayanami-wl' -j ACCEPT 2>/dev/null"
+                )
+            for proto in ("udp", "tcp"):
+                _run(
+                    f"iptables -t nat -I PREROUTING 1 -s {entry} "
+                    f"-p {proto} --dport 53 -m comment --comment 'ayanami-wl-dns' "
+                    f"-j DNAT --to-destination 8.8.8.8:53 2>/dev/null"
+                )
     if whitelist:
         _run("conntrack -F 2>/dev/null")
 
