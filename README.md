@@ -1,127 +1,136 @@
 # Ayanami
 
-Ayanami es una herramienta CLI para inspección, monitoreo y control básico de una red local desde Linux. Agrupa utilidades para listar interfaces, crear un hotspot, detectar vecinos (ARP/ip neigh), esnifar tráfico con Scapy, monitorear ancho de banda e imponer bloqueos simples con iptables. 
+**Ayanami** es una herramienta de control de red con **Interfaz de Texto (TUI)** y una versión CLI, ambas pensadas para Linux. Permite inspeccionar interfaces, crear un hotspot, detectar dispositivos, monitorear tráfico en tiempo real, esnifar paquetes con Scapy, gestionar un firewall con bloqueo por apps y una lista blanca de IPs, y consultar el estado del sistema.
 
 ```text
-▄████▄ ██  ██ ▄████▄ ███  ██ ▄████▄ ██▄  ▄██ ██ 
-██▄▄██  ▀██▀  ██▄▄██ ██ ▀▄██ ██▄▄██ ██ ▀▀ ██ ██ 
+▄████▄ ██  ██ ▄████▄ ███  ██ ▄████▄ ██▄  ▄██ ██
+██▄▄██  ▀██▀  ██▄▄██ ██ ▀▄██ ██▄▄██ ██ ▀▀ ██ ██
 ██  ██   ██   ██  ██ ██   ██ ██  ██ ██    ██ ██
-
 ```
+
 ---
 
-**Estado:** herramienta en Python 3, pensada para ejecutarse con permisos de root para la mayoría de sus funcionalidades (iptables, iftop, nmcli, sniffing).
+Herramienta en Python 3, diseñada para ejecutarse con permisos de root para la mayoría de sus funcionalidades (iptables, nmcli, sniffing).
 
-## Contenido del repositorio
+---
 
-- `ayanami.py`: Entrada principal; menú interactivo que orquesta las opciones.
-- `colors.py`: Constantes ANSI para colorear la salida.
-- `network.py`: Funciones para listar interfaces (`nmcli`), desconectar y obtener detalles.
-- `gateway.py`: Crear un hotspot con `nmcli` y mostrar contraseña.
-- `scanner.py`: Detectar vecinos en la LAN usando `ip neigh`.
-- `monitor_bw.py`: Interfaz para lanzar `iftop` y monitorear ancho de banda.
-- `sniffer.py`: Sniffer basado en Scapy (varios modos: whole, por dispositivo, RAW).
-- `firewall.py`: Funciones para aplicar reglas `iptables` (bloquear IPs, listar, borrar, flush) y menú de firewall.
-- `firewall_apps.py`: Gestión simple de aplicaciones con IPs asociadas (persistencia en `firewall_apps.json`).
-- `firewall_apps.json`: Archivo de datos (registro de apps/ips).
+## TUI — Interfaz de Texto (recomendada)
 
-## Requisitos
+La TUI está construida con **Textual** y es la forma más completa y amigable de usar Ayanami. Incluye una barra lateral de navegación y **7 vistas**:
 
-- Sistema Linux con NetworkManager (`nmcli`).
+| Vista | Descripción |
+|---|---|
+| **Interfaces** | Lista las interfaces de red con tipo, estado, IPs y acciones. |
+| **Hotspot** | Crea y gestiona un punto de acceso WiFi con `nmcli`. |
+| **Scanner** | Detecta dispositivos en la LAN (`ip neigh`) con panel de detalles. |
+| **Monitor** | Monitorea ancho de banda por host en tiempo real. |
+| **Sniffer** | Captura paquetes con Scapy (todo el tráfico, por dispositivo, RAW). |
+| **Firewall** | Control total del firewall con 3 pestañas (ver abajo). |
+| **Sistema** | Dashboard tipo *fastfetch*: CPU, memoria, disco, procesos, temperatura y red. |
+
+### Pestañas del Firewall
+
+- **Apps** — Registra aplicaciones con sus dominios, activa/desactiva su bloqueo con un switch, filtra y ordena. El bloqueo se aplica vía **dnsmasq** (`address=/{dominio}/0.0.0.0`) más **iptables** para QUIC/NAT.
+- **Lista Blanca** — Exenta IPs, rangos (`10.0.0.1-10.0.0.255`) o subredes CIDR (`192.168.1.0/24`) de todas las reglas de bloqueo. Las IPs listadas resuelven DNS externamente (8.8.8.8) en vez del dnsmasq local, con aplicación automática de las reglas.
+- **Config** — Configura el gateway/NAT, fuerza DNS local, muestra el estado de las reglas y limpia el firewall completo.
+
+### Atajos de teclado
+
+| Tecla | Acción |
+|---|---|
+| `q` | Salir |
+| `r` | Actualizar la vista actual |
+
+### Ejecutar la TUI
+
+```bash
+cd tui
+sudo venv/bin/python tui.py
+```
+
+---
+
+## Requisitos e instalación
+
+### Dependencias del sistema
+
+- Linux con **NetworkManager** (`nmcli`).
 - `iptables` disponible en el sistema.
 - `iftop` para el monitoreo de ancho de banda (opcional pero recomendado).
-- Python 3.8+.
-- Módulo Python `scapy` para el sniffer: `pip3 install scapy`.
-- Ejecutar la mayoría de comandos con privilegios de root (sudo) para que `iptables`, `nmcli` y `sniff` funcionen correctamente.
-
-Instalación (ejemplo):
+- `dnsmasq` (el bloqueo de apps usa el dnsmasq compartido de NetworkManager).
 
 ```bash
 sudo apt update
-sudo apt install -y network-manager iftop iptables
-pip3 install scapy
+sudo apt install -y network-manager iftop iptables dnsmasq
 ```
 
-Ejecución:
+> En otras distribuciones usa tu gestor de paquetes (`pacman`, `dnf`, etc.).
+
+### Dependencias de Python
+
+Las dependencias están fijadas en **`requirements.txt`**. Se recomienda instalarlas en un entorno virtual:
 
 ```bash
-sudo python3 ayanami.py
+# Crear el entorno virtual
+python3 -m venv venv
+
+# Activar el entorno
+source venv/bin/activate
+
+# Instalar las dependencias
+pip install -r requirements.txt
 ```
 
-> Nota: Ejecutar con `sudo` o como root es necesario para manipular reglas de firewall, crear hotspots y capturar paquetes.
+El contenido del archivo incluye: `textual` (la TUI), `scapy` (sniffer), `python-nmap`, `qrcode` y utilidades relacionadas.
 
-## Uso / Menú principal
+### Permisos
 
-Al ejecutar `ayanami.py` verás un menú con secciones claras:
+Las funciones que manipulan el firewall, crean el hotspot o capturan paquetes requieren privilegios de root.
 
-- RED / INTERFACES
-  - Ver Interfaces de Red (nmcli) — muestra `nmcli device status`.
-  - Desconectar interfaz — desconecta una interfaz seleccionada con `nmcli device disconnect`.
+```bash
+# Opción A: usar el Python del venv directamente
+sudo venv/bin/python tui/tui.py
 
-- HOTSPOT / GATEWAY
-  - Crear hotspot — lanza `nmcli dev wifi hotspot ifname <iface> ssid <ssid> password <pwd>`.
-  - Ver detalles de hotspot — muestra la contraseña vía `nmcli dev wifi show-password`.
+# Opción B: activar el venv y luego ejecutar
+source venv/bin/activate
+sudo python tui/tui.py
+```
 
-- ESCANEO / MONITOREO
-  - Ver dispositivos en la red — usa `ip neigh` para listar vecinos (IPs/MACs/interfaces).
-  - Monitorear ancho de banda — lanza `iftop` en una interfaz, con opción de filtrar por host.
+---
 
-- ANÁLISIS / SEGURIDAD
-  - Sniffer de paquetes — menú con 3 modos: todo el tráfico, por dispositivo (filtro `host`), RAW (pkt.show()).
-  - Firewall — menú para aplicar bloqueos con `iptables` (bloquear dispositivo, bloqueo global, bloquear IP destino sólo para un origen, bloquear apps por IPs, ver reglas, eliminar regla, limpiar todo).
+## CLI — Versión de consola (alternativa)
 
-## Detalle por módulo
+Existe una versión CLI basada en menús interactivos en la carpeta `cli/`. Es útil cuando no se dispone de la TUI o se prefiere un flujo por prompts.
 
-- `network.py`
-  - `show_devices()`: imprime salida de `nmcli device status`.
-  - `get_interfaces()`, `get_interfaces_detailed()`: devuelven listas para selección en otros menús.
-  - `disconnect_interface()`: interacción para desconectar.
+```bash
+sudo python3 cli/ayanami.py
+```
 
-- `gateway.py`
-  - `create_hotspot()`: pide interfaz, SSID y contraseña; crea hotspot con `nmcli`.
-  - `show_hotspot_password()`: muestra la contraseña del hotspot.
+### Módulos CLI
 
-- `scanner.py`
-  - `get_neighbors()`: parsea `ip neigh` buscando entradas REACHABLE/STALE y devuelve lista de dicts `{ip, mac, iface}`.
-  - `show_neighbors()`: imprime la lista.
+- `ayanami.py` — Entrada principal; menú interactivo que orquesta las opciones.
+- `network.py` — Lista interfaces (`nmcli`), desconecta y obtiene detalles.
+- `gateway.py` — Crea un hotspot con `nmcli` y muestra la contraseña.
+- `scanner.py` — Detecta vecinos en la LAN usando `ip neigh`.
+- `monitor_bw.py` — Lanza `iftop` para monitorear ancho de banda.
+- `sniffer.py` — Sniffer basado en Scapy (modos: todo, por dispositivo, RAW).
+- `firewall.py` — Aplica reglas `iptables` (bloquear IPs, listar, borrar, flush).
+- `firewall_apps.py` — Gestión de aplicaciones con IPs asociadas (persistencia en `firewall_apps.json`).
 
-- `monitor_bw.py`
-  - Usa `iftop` para monitorear tráfico en la interfaz elegida. Puede monitorear toda la red o filtrar por un host detectado.
-
-- `sniffer.py`
-  - Requiere `scapy`.
-  - `sniff_all()`: sniff en la interfaz seleccionada, muestra resumen y detalles básicos (IP/TCP/UDP/DNS).
-  - `sniff_by_device()`: aplica filtro BPF `host <IP>` para capturar sólo tráfico del objetivo.
-  - `sniff_raw()`: muestra `pkt.show()` para cada paquete.
-  - Atención: capturar tráfico puede requerir privilegios y puede violar políticas de uso en redes que no administras.
-
-- `firewall.py`
-  - Funciones de alto nivel que ejecutan comandos `iptables` vía shell.
-  - Bloqueos soportados:
-    - `block_device(ip)`: añade regla DROP para todo tráfico desde la IP origen.
-    - `block_global(ip)`: añade regla DROP hacia la IP destino.
-    - `block_ip_for_device(src, dst)`: bloquea dst sólo cuando el origen es src.
-    - `block_app_ips(ips)`, `block_app_ips_for_device(ips, src_ip)`: aplican reglas para una lista de IPs (útil con `firewall_apps`).
-  - Gestión de reglas: listar (`iptables -L FORWARD -n --line-numbers`), eliminar por número, vaciar (`-F`).
-
-- `firewall_apps.py` (registro de apps)
-  - Permite registrar aplicaciones con una lista de IPs asociadas.
-  - Soporte para bloquear/desbloquear apps globalmente o por dispositivo (usa funciones de `firewall.py`).
-  - Persistencia en `firewall_apps.json`.
-
-
+---
 
 ## Permisos y seguridad
 
 - Muchas funciones requieren privilegios de administrador: ejecutar la herramienta con `sudo` o como root.
-- Manipular `iptables` afecta la conectividad; úsalo con cuidado y sólo en entornos de prueba o con autorización.
+- Manipular `iptables` y `dnsmasq` afecta la conectividad de la red; úsalo con cuidado y solo en entornos de prueba o con autorización.
 - El sniffer captura paquetes — evita usarlo en redes que no administras o sin permisos.
 
 ## Depuración y problemas comunes
 
-- `nmcli` no disponible: instala NetworkManager o ejecuta las funciones manualmente.
-- `scapy` falla: instala con `pip3 install scapy` y prueba `python3 -c "from scapy.all import sniff; print('OK')"`.
-- `iftop` no está instalado: instala `iftop` en tu distribución (ej. `sudo apt install iftop`).
-- Errores de permisos: reintenta con `sudo`.
+- **`nmcli` no disponible**: instala NetworkManager o ejecuta las funciones manualmente.
+- **`scapy` falla**: verifica la instalación con `pip show scapy` y prueba `python3 -c "from scapy.all import sniff; print('OK')"`.
+- **`iftop` no está instalado**: instálalo en tu distribución (ej. `sudo apt install iftop`).
+- **Errores de permisos**: reintenta con `sudo`.
+- **La TUI no arranca**: asegúrate de que `textual` está instalado y ejecuta desde la carpeta `tui/`.
 
 ---
