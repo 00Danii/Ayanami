@@ -32,6 +32,8 @@ class ConfigTab(Vertical):
         yield RichLog(id="cfg-log", markup=True, highlight=True)
 
     def on_mount(self):
+        self._get_selected_interface()
+        
         ifaces = network.get_interfaces_detailed()
         select = self.query_one("#cfg-nat-iface", Select)
         options = [
@@ -39,6 +41,10 @@ class ConfigTab(Vertical):
             for d in ifaces
         ]
         select.set_options(options)
+
+    def _get_selected_interface(self):
+        iface = getattr(self.app, "selected_interface", None)
+        return iface
 
     def on_button_pressed(self, event: Button.Pressed):
         bid = event.button.id
@@ -101,12 +107,26 @@ class ConfigTab(Vertical):
         )
 
         self.log("[#7dcfff]◆ Forzando DNS local[/]")
+        dns_target = network.get_iface_ip(self._get_selected_interface())
+        
+        if not dns_target:
+            self.log(
+                f"[#f7768e]✗ No se pudo obtener la IP de la interfaz LAN "
+                f"{dns_target}[/]"
+            )
+            self.notify(
+                "No se pudo obtener la IP de la interfaz LAN",
+                severity="error"
+            )
+            return
+        
+        self.log(f"[#565f89]   → DNS local en {dns_target}[/]")
         for proto in ("udp", "tcp"):
             self.run(
                 f"iptables -t nat -C PREROUTING -p {proto} --dport 53 "
-                f"-j DNAT --to-destination 10.42.0.1 2>/dev/null || "
+                f"-j DNAT --to-destination {dns_target} 2>/dev/null || "
                 f"iptables -t nat -A PREROUTING -p {proto} --dport 53 "
-                f"-j DNAT --to-destination 10.42.0.1"
+                f"-j DNAT --to-destination {dns_target}"
             )
 
         self.log("[#9ece6a]━━━ Gateway configurado ━━━[/]")
