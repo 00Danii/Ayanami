@@ -86,9 +86,21 @@ class ConfigTab(Vertical):
             self.app.notify("Selecciona la interfaz con internet", severity="error")
             return
         self.query_one("#cfg-log", RichLog).clear()
-        self.log(f"\n[#e0af68]━━━ Configurando gateway en [bold]{iface}[/] ━━━[/]")
 
-        self.log("[#7dcfff]◆ Activando IP Forward[/]")
+        lan_iface = self._get_selected_interface()
+        dns_target = network.get_iface_ip(lan_iface)
+
+        self.log(f"\n[#e0af68]━━━ Configuración del Gateway ━━━[/]")
+
+        self.log(f"[#565f89]   Interfaz WAN : {iface}[/]")
+        self.log(f"[#565f89]   Interfaz LAN : {lan_iface}[/]")
+
+        # ─────────────────────────────────────────────
+        # IP FORWARD
+        # ─────────────────────────────────────────────
+
+        self.log("[#7dcfff]◆ Habilitando reenvío de paquetes IPv4[/]")
+
         self.run("sysctl -w net.ipv4.ip_forward=1")
         try:
             with open("/etc/sysctl.conf", "r") as f:
@@ -96,31 +108,51 @@ class ConfigTab(Vertical):
             if "net.ipv4.ip_forward=1" not in content:
                 with open("/etc/sysctl.conf", "a") as f:
                     f.write("\nnet.ipv4.ip_forward=1\n")
-                self.log("[#9ece6a]✓ Persistente en /etc/sysctl.conf[/]")
-        except Exception as e:
-            self.log(f"[#f7768e]✗ Error en sysctl.conf: {e}[/]")
+                self.log("[#9ece6a]  ✓ IP Forward habilitado de forma persistente en /etc/sysctl.conf[/]")
+            else:
+                self.log("[#9ece6a]  ✓ IP Forward ya estaba configurado[/]")
 
-        self.log("[#7dcfff]◆ Configurando MASQUERADE[/]")
+        except Exception as e:
+            self.log(f"[#f7768e]  ✗ Error al configurar /etc/sysctl.conf: {e}[/]")
+
+        # ─────────────────────────────────────────────
+        # MASQUERADE
+        # ─────────────────────────────────────────────
+
+        self.log("[#7dcfff]◆ Configurando NAT (MASQUERADE)[/]")
+
+        self.log(f"[#565f89]  → El tráfico de los clientes saldrá por {iface}[/]")
+
         self.run(
             f"iptables -t nat -C POSTROUTING -o {iface} -j MASQUERADE 2>/dev/null || "
             f"iptables -t nat -A POSTROUTING -o {iface} -j MASQUERADE"
         )
 
-        self.log("[#7dcfff]◆ Forzando DNS local[/]")
-        dns_target = network.get_iface_ip(self._get_selected_interface())
-        
+        self.log("[#9ece6a]  ✓ Regla MASQUERADE configurada[/]")
+
+        # ─────────────────────────────────────────────
+        # DNS
+        # ─────────────────────────────────────────────
+
+        self.log("[#7dcfff]◆ Configurando redirección DNS[/]")
+
         if not dns_target:
             self.log(
-                f"[#f7768e]✗ No se pudo obtener la IP de la interfaz LAN "
-                f"{dns_target}[/]"
+                f"[#f7768e]  ✗ No se pudo obtener la IP de la interfaz LAN "
+                f"{lan_iface}[/]"
             )
-            self.notify(
+
+            self.app.notify(
                 "No se pudo obtener la IP de la interfaz LAN",
                 severity="error"
             )
+
             return
-        
-        self.log(f"[#565f89]   → DNS local en {dns_target}[/]")
+
+        self.log(f"[#565f89]  → Interfaz DNS: {lan_iface}[/]")
+        self.log(f"[#565f89]  → Dirección local: {dns_target}[/]")
+        self.log("[#565f89]  → Las consultas DNS de los clientes serán redirigidas a AYANAMI[/]")
+
         for proto in ("udp", "tcp"):
             self.run(
                 f"iptables -t nat -C PREROUTING -p {proto} --dport 53 "
@@ -129,7 +161,22 @@ class ConfigTab(Vertical):
                 f"-j DNAT --to-destination {dns_target}"
             )
 
-        self.log("[#9ece6a]━━━ Gateway configurado ━━━[/]")
+            self.log(f"[#9ece6a]  ✓ DNS {proto.upper()} (puerto 53) redirigido[/]")
+
+        # ─────────────────────────────────────────────
+        # FINAL
+        # ─────────────────────────────────────────────
+
+        self.log("[#9ece6a]━━━ Gateway configurado correctamente ━━━[/]")
+
+        self.log(f"[#565f89]   WAN → {iface}[/]")
+
+        self.log(f"[#565f89]   LAN → {lan_iface} ({dns_target})[/]")
+
+        self.log("[#565f89]   NAT → Activo[/]")
+
+        self.log("[#565f89]   DNS → Redirección local activa[/]")
+
         self.app.notify(f"Gateway configurado en {iface}")
 
     def show_status(self):
