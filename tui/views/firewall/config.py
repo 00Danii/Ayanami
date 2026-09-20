@@ -32,8 +32,6 @@ class ConfigTab(Vertical):
         yield RichLog(id="cfg-log", markup=True, highlight=True)
 
     def on_mount(self):
-        self._get_selected_interface()
-        
         ifaces = network.get_interfaces_detailed()
         select = self.query_one("#cfg-nat-iface", Select)
         options = [
