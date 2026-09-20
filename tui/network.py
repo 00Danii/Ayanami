@@ -3,6 +3,17 @@ import subprocess
 def run(cmd):
     return subprocess.check_output(cmd, shell=True).decode()
 
+def get_iface_ip(iface):
+    """Devuelve la IP IPv4 de la interfaz o cadena vacía."""
+    try:
+        out = subprocess.check_output(
+            f"ip -4 addr show {iface} 2>/dev/null | awk '/inet /{{print $2}}' | cut -d/ -f1",
+            shell=True, text=True
+        )
+        return out.strip().splitlines()[0] if out.strip() else ""
+    except Exception:
+        return ""
+
 def get_interfaces_detailed():
     output = run("nmcli device status")
     interfaces = []
