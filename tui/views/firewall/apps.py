@@ -145,10 +145,7 @@ class AppsTab(Vertical):
         with open(APPS_FILE, "w") as f:
             json.dump(data, f, indent=2)
 
-    def refresh_apps(self):
-        container = self.query_one("#apps-container", Vertical)
-        container.remove_children()
-
+    def _filtered_names(self):
         data = self.load_apps()
         search = self.query_one("#apps-search", Input).value.lower()
         filter_opt = self.query_one("#apps-filter", Select).value
@@ -175,7 +172,13 @@ class AppsTab(Vertical):
             reverse = True
         items.sort(key=lambda x: x[0].lower(), reverse=reverse)
 
-        for name, info in items:
+        return items
+
+    def refresh_apps(self):
+        container = self.query_one("#apps-container", Vertical)
+        container.remove_children()
+
+        for name, info in self._filtered_names():
             container.mount(AppRow(name, info))
 
     def modify_app(self, app_name: str):
@@ -280,8 +283,18 @@ class AppsTab(Vertical):
             self.notify("No hay apps registradas", severity="warning")
             return
 
+        visible = self._filtered_names()
+        if not visible:
+            self.notify("No hay apps en el filtro actual", severity="warning")
+            return
+
+        if len(visible) == len(data):
+            msg = f"¿Bloquear todas las apps ({len(visible)})?"
+        else:
+            msg = f"¿Bloquear las {len(visible)} apps del filtro actual?"
+
         self.app.push_screen(
-            ConfirmScreen("¿Bloquear todas las apps?", confirm_text="Bloquear"),
+            ConfirmScreen(msg, confirm_text="Bloquear"),
             self._do_block_all
         )
 
@@ -289,8 +302,14 @@ class AppsTab(Vertical):
         if not confirmed:
             return
         data = self.load_apps()
+        visible = [name for name, _ in self._filtered_names()]
+        if not visible:
+            self.notify("No hay apps en el filtro actual", severity="warning")
+            return
+
         all_domains = []
-        for name, info in data.items():
+        for name in visible:
+            info = data[name]
             info["blocked"] = True
             all_domains.extend(info.get("domains", []))
         self.save_apps(data)
@@ -299,7 +318,10 @@ class AppsTab(Vertical):
         def _work():
             write_block_domains(all_domains)
             self.app.call_from_thread(self._schedule_apply)
-            self.app.call_from_thread(self.notify, "Todas las apps bloqueadas")
+            self.app.call_from_thread(
+                self.notify,
+                f"{len(visible)} apps bloqueadas"
+            )
 
         self.run_worker(_work, name="block-all", group="firewall", thread=True)
 
@@ -309,8 +331,18 @@ class AppsTab(Vertical):
             self.notify("No hay apps registradas", severity="warning")
             return
 
+        visible = self._filtered_names()
+        if not visible:
+            self.notify("No hay apps en el filtro actual", severity="warning")
+            return
+
+        if len(visible) == len(data):
+            msg = f"¿Desbloquear todas las apps ({len(visible)})?"
+        else:
+            msg = f"¿Desbloquear las {len(visible)} apps del filtro actual?"
+
         self.app.push_screen(
-            ConfirmScreen("¿Desbloquear todas las apps?", confirm_text="Desbloquear"),
+            ConfirmScreen(msg, confirm_text="Desbloquear"),
             self._do_unblock_all
         )
 
@@ -318,8 +350,13 @@ class AppsTab(Vertical):
         if not confirmed:
             return
         data = self.load_apps()
-        for name, info in data.items():
-            info["blocked"] = False
+        visible = [name for name, _ in self._filtered_names()]
+        if not visible:
+            self.notify("No hay apps en el filtro actual", severity="warning")
+            return
+
+        for name in visible:
+            data[name]["blocked"] = False
         self.save_apps(data)
         self.refresh_apps()
 
@@ -329,6 +366,9 @@ class AppsTab(Vertical):
             if os.path.exists(dns_conf):
                 os.remove(dns_conf)
             self.app.call_from_thread(self._schedule_apply)
-            self.app.call_from_thread(self.notify, "Todas las apps desbloqueadas")
+            self.app.call_from_thread(
+                self.notify,
+                f"{len(visible)} apps desbloqueadas"
+            )
 
         self.run_worker(_work, name="unblock-all", group="firewall", thread=True)
