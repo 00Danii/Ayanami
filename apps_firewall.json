@@ -5,7 +5,8 @@
       "clashroyale.com",
       "game.clashroyaleapp.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Videojuegos"
   },
   "TikTok": {
     "domains": [
@@ -19,7 +20,8 @@
       "ibytedtos.com",
       "ibytedtos.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Social"
   },
   "Roblox": {
     "domains": [
@@ -29,7 +31,8 @@
       "rbx.com",
       "robloxlabs.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Videojuegos"
   },
   "Free Fire": {
     "domains": [
@@ -38,7 +41,8 @@
       "ff.garena.com",
       "garena.live"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Videojuegos"
   },
   "Minecraft": {
     "domains": [
@@ -58,7 +62,8 @@
       "www.minecraft.net",
       "www.mojang.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Videojuegos"
   },
   "Ubisoft": {
     "domains": [
@@ -86,7 +91,8 @@
       "uplay.com",
       "www.ubisoft.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Plataforma"
   },
   "Steam": {
     "domains": [
@@ -106,7 +112,8 @@
       "steamusercontent.com",
       "www.steampowered.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Plataforma"
   },
   "Rockstar Games": {
     "domains": [
@@ -117,7 +124,8 @@
       "socialclub.rockstargames.com",
       "www.rockstargames.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Plataforma"
   },
   "Riot Games": {
     "domains": [
@@ -135,7 +143,8 @@
       "store.riotgames.com",
       "www.riotgames.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Plataforma"
   },
   "PlayStation": {
     "domains": [
@@ -159,7 +168,8 @@
       "trophy.api.playstation.com",
       "www.playstation.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Plataforma"
   },
   "Nintendo": {
     "domains": [
@@ -198,7 +208,8 @@
       "www.nintendo-europe.com",
       "www.nintendo.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Plataforma"
   },
   "EpicGames": {
     "domains": [
@@ -224,7 +235,8 @@
       "tracking.epicgames.com",
       "www.epicgames.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Plataforma"
   },
   "EA - ElectronicArts": {
     "domains": [
@@ -241,7 +253,8 @@
       "www.ea.com",
       "www.origin.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Plataforma"
   },
   "Blizzard": {
     "domains": [
@@ -256,7 +269,8 @@
       "www.battle.net",
       "www.blizzard.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Plataforma"
   },
   "Xbox": {
     "domains": [
@@ -289,7 +303,8 @@
       "xboxlive.com",
       "xsts.auth.xboxlive.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Plataforma"
   },
   "Genshing Impact": {
     "domains": [
@@ -302,7 +317,8 @@
       "hk4e-sdk-os.hoyoverse.com",
       "api-os-takumi-static.hoyoverse.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Videojuegos"
   },
   "Star Rail": {
     "domains": [
@@ -311,21 +327,24 @@
       "autopatch-os-eur.hoyoverse.com",
       "sg-public-data-api.starrails.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Videojuegos"
   },
   "Impact 3RD": {
     "domains": [
       "honkaiimpact3.hoyoverse.com",
       "global-sdk-static.hoyoverse.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Videojuegos"
   },
   "Zenless Zone Zero": {
     "domains": [
       "zenless.hoyoverse.com",
       "nap.hoyoverse.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Videojuegos"
   },
   "Solo Leveling": {
     "domains": [
@@ -335,7 +354,8 @@
       "slgame.netmarble.com",
       "nmcdn.io"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Videojuegos"
   },
   "Dragon Ball Legends": {
     "domains": [
@@ -345,7 +365,8 @@
       "cdn.legends.dbz.space",
       "bngi-gate.bandainamcoent.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Videojuegos"
   },
   "Pokemon TCG Poket": {
     "domains": [
@@ -356,6 +377,7 @@
       "dena.com",
       "dena-games.com"
     ],
-    "blocked": false
+    "blocked": false,
+    "type": "Videojuegos"
   }
 }
