@@ -24,12 +24,17 @@ class AppRow(Horizontal):
         accent_cls = "app-accent-blocked" if blocked else "app-accent-unblocked"
         yield Label("", classes=f"app-accent {accent_cls}")
 
+        app_type = self.app_data.get("type", "Videojuegos")
+        type_cls = f"app-type-tag app-type-{safe_id(app_type.lower())}"
+
         with Vertical(classes="app-row-body"):
             yield Label(self.app_name, classes="app-row-name")
 
             with Horizontal(classes="app-row-sub"):
                 domains = self.app_data.get("domains", [])
                 yield Label(f"{len(domains)} dominios", classes="app-row-badge")
+
+                yield Label(app_type, classes=type_cls)
 
                 status_cls = "tag-blocked" if blocked else "tag-unblocked"
                 status_text = "BLOQUEADA" if blocked else "DESBLOQUEADA"

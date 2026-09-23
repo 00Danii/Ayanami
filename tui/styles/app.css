@@ -1158,6 +1158,36 @@ AppRow:hover {
     background: #1a2f33;
 }
 
+/* ===== TYPE TAG ===== */
+
+.app-type-tag {
+    width: auto;
+    padding: 0 1;
+    text-style: bold;
+    margin-right: 1;
+    margin-bottom: 0;
+}
+
+.app-type-videojuegos {
+    color: #bb9af7;
+    background: #2a1f40;
+}
+
+.app-type-plataforma {
+    color: #7dcfff;
+    background: #1a2f3f;
+}
+
+.app-type-social {
+    color: #f7768e;
+    background: #2f1a1e;
+}
+
+.app-type-dns {
+    color: #9ece6a;
+    background: #1f2f1a;
+}
+
 /* ===== DOMAINS ===== */
 
 .app-row-domains {

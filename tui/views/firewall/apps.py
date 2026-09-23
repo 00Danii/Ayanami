@@ -5,7 +5,7 @@ from pathlib import Path
 from textual.containers import Vertical, Horizontal
 from textual.widgets import Label, Button, Switch, Input, Select
 
-from views.firewall.app_modal import AppModal
+from views.firewall.app_modal import AppModal, APP_TYPES
 from widgets.app_row import AppRow
 from widgets.confirm_screen import ConfirmScreen
 from firewall_ops import (
@@ -27,7 +27,8 @@ class AppsTab(Vertical):
         with Horizontal(classes="fw-apps-toolbar"):
             yield Input(placeholder="Buscar app...", id="apps-search")
             yield Select(
-                [("Todas", "all"), ("Bloqueadas", "blocked"), ("Desbloqueadas", "unblocked")],
+                [("Todas", "all"), ("Bloqueadas", "blocked"), ("Desbloqueadas", "unblocked")]
+                + [(t, t) for t in APP_TYPES],
                 id="apps-filter",
                 value="all",
                 prompt="Filtrar"
@@ -166,6 +167,8 @@ class AppsTab(Vertical):
             items = [(n, d) for n, d in items if d.get("blocked")]
         elif filter_opt == "unblocked":
             items = [(n, d) for n, d in items if not d.get("blocked")]
+        elif filter_opt != "all":
+            items = [(n, d) for n, d in items if d.get("type", "Videojuegos") == filter_opt]
 
         reverse = False
         if sort_opt == "name-desc":
@@ -194,6 +197,7 @@ class AppsTab(Vertical):
 
             data.pop(app_name, None)
             data[new_name] = {
+                "type": result.get("type", "Videojuegos"),
                 "domains": new_domains,
                 "blocked": new_blocked,
             }
@@ -252,6 +256,7 @@ class AppsTab(Vertical):
                 return
             data = self.load_apps()
             data[result["name"]] = {
+                "type": result.get("type", "Videojuegos"),
                 "domains": result["domains"],
                 "blocked": result["blocked"],
             }

@@ -1,9 +1,16 @@
 from textual.screen import Screen
 from textual.containers import Vertical, Horizontal
-from textual.widgets import Label, Input, TextArea, Switch, Button
+from textual.widgets import Label, Input, TextArea, Switch, Button, Select
 
 
 DOMAIN_RE = r"^([a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$"
+
+APP_TYPES = [
+    "Videojuegos",
+    "Plataforma",
+    "Social",
+    "DNS"
+]
 
 
 class AppModal(Screen):
@@ -23,12 +30,20 @@ class AppModal(Screen):
         name_val = self.app_data.get("name", "")
         domains_val = "\n".join(self.app_data.get("domains", []))
         blocked_val = self.app_data.get("blocked", True)
+        type_val = self.app_data.get("type", "Videojuegos")
 
         with Vertical(id="app-modal"):
             yield Label(title, classes="modal-title")
 
             yield Label("Nombre", classes="modal-label")
             yield Input(value=name_val, placeholder="Ej: tiktok", id="modal-name")
+
+            yield Label("Tipo", classes="modal-label")
+            yield Select(
+                [(t, t) for t in APP_TYPES],
+                value=type_val if type_val in APP_TYPES else "Videojuegos",
+                id="modal-type",
+            )
 
             yield Label("Dominios (uno por línea)", classes="modal-label")
             yield TextArea(domains_val, id="modal-domains", classes="modal-textarea")
@@ -51,6 +66,7 @@ class AppModal(Screen):
         name = self.query_one("#modal-name", Input).value.strip()
         domains_text = self.query_one("#modal-domains", TextArea).text.strip()
         blocked = self.query_one("#modal-blocked", Switch).value
+        app_type = self.query_one("#modal-type", Select).value
 
         if not name:
             self.notify("El nombre es obligatorio", severity="error")
@@ -82,6 +98,7 @@ class AppModal(Screen):
 
         self.dismiss({
             "name": name,
+            "type": app_type,
             "domains": domains,
             "blocked": blocked,
         })
