@@ -9,7 +9,8 @@ APP_TYPES = [
     "Videojuegos",
     "Plataforma",
     "Social",
-    "DNS"
+    "DNS",
+    "Otro",
 ]
 
 

@@ -1188,6 +1188,11 @@ AppRow:hover {
     background: #1f2f1a;
 }
 
+.app-type-otro {
+    color: #a9b1d6;
+    background: #2a2f3f;
+}
+
 /* ===== DOMAINS ===== */
 
 .app-row-domains {
