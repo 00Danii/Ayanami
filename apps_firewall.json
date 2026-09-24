@@ -524,5 +524,75 @@
       "garena-launcher.com"
     ],
     "blocked": false
+  },
+  "Miniclip": {
+    "type": "Plataforma",
+    "domains": [
+      "miniclip.com",
+      "miniclippt.com",
+      "pool.miniclippt.com",
+      "mc-static.com",
+      "miniclip.net",
+      "miniclip-api.io",
+      "miniclip-auth.net",
+      "miniclip-store.com",
+      "cdn.miniclip.com"
+    ],
+    "blocked": false
+  },
+  "Agar.io": {
+    "type": "Videojuegos",
+    "domains": [
+      "agar.io",
+      "miniclip.com",
+      "miniclippt.com",
+      "agar-server.net"
+    ],
+    "blocked": false
+  },
+  "Golf Battle": {
+    "type": "Videojuegos",
+    "domains": [
+      "miniclip.com",
+      "miniclippt.com",
+      "purei.io"
+    ],
+    "blocked": false
+  },
+  "Football Strike": {
+    "type": "Videojuegos",
+    "domains": [
+      "miniclip.com",
+      "miniclippt.com",
+      "purei.io"
+    ],
+    "blocked": false
+  },
+  "Carrom Pool": {
+    "type": "Videojuegos",
+    "domains": [
+      "miniclip.com",
+      "miniclippt.com",
+      "purei.io"
+    ],
+    "blocked": false
+  },
+  "Ultimate Golf!": {
+    "type": "Videojuegos",
+    "domains": [
+      "miniclip.com",
+      "hypgames.com",
+      "purei.io"
+    ],
+    "blocked": false
+  },
+  "Mini Football": {
+    "type": "Videojuegos",
+    "domains": [
+      "miniclip.com",
+      "miniclippt.com",
+      "purei.io"
+    ],
+    "blocked": false
   }
 }
