@@ -379,5 +379,150 @@
     ],
     "blocked": false,
     "type": "Videojuegos"
+  },
+  "Call of Duty Mobile": {
+    "type": "Videojuegos",
+    "domains": ["activision.com", "codm.activision.com", "callofduty.com"],
+    "blocked": false
+  },
+  "Among Us": {
+    "type": "Videojuegos",
+    "domains": [
+      "innersloth.com",
+      "playinnersloth.com",
+      "matchmaker.innersloth.com",
+      "exitgames.com"
+    ],
+    "blocked": false
+  },
+  "8 Ball Pool": {
+    "type": "Videojuegos",
+    "domains": ["miniclip.com", "miniclippt.com", "pool.miniclippt.com"],
+    "blocked": false
+  },
+  "Snake.io": {
+    "type": "Videojuegos",
+    "domains": ["kooapps.com", "snake.io", "playfabapi.com"],
+    "blocked": false
+  },
+  "PUBG Mobile": {
+    "type": "Videojuegos",
+    "domains": [
+      "pubgmobile.com",
+      "tencent.com",
+      "proximabeta.com",
+      "igamebuy.com"
+    ],
+    "blocked": false
+  },
+  "Clash of Clans": {
+    "type": "Videojuegos",
+    "domains": ["supercell.com", "supercellid.com", "gameanalytics.com"],
+    "blocked": false
+  },
+  "Brawl Stars": {
+    "type": "Videojuegos",
+    "domains": ["supercell.com", "brawlstars.com", "supercellid.com"],
+    "blocked": false
+  },
+  "Subway Surfers": {
+    "type": "Videojuegos",
+    "domains": ["sybo.com", "sybo-games.com"],
+    "blocked": false
+  },
+  "Stumble Guys": {
+    "type": "Videojuegos",
+    "domains": ["stumbleguys.com", "scopely.com"],
+    "blocked": false
+  },
+  "Supercell": {
+    "type": "Plataforma",
+    "domains": [
+      "supercell.com",
+      "supercellid.com",
+      "clashofclans.com",
+      "clashroyale.com",
+      "brawlstars.com",
+      "haydaygame.com",
+      "boombeach.com",
+      "squadbustersgame.com",
+      "gameanalytics.com"
+    ],
+    "blocked": false
+  },
+  "Arena of Valor": {
+    "domains": [
+      "arenaofvalor.com",
+      "hoyoverse.com",
+      "tencent.com",
+      "pvp-service.com",
+      "cdn.aov.com"
+    ],
+    "type": "Videojuegos",
+    "blocked": false
+  },
+  "Delta Force": {
+    "domains": [
+      "playdeltaforce.com",
+      "df-game.com",
+      "deltaforce-backend.io"
+    ],
+    "type": "Videojuegos",
+    "blocked": false
+  },
+  "Free City": {
+    "domains": [
+      "freecity-game.com",
+      "api.freecity.io",
+      "socket-service.net"
+    ],
+    "type": "Videojuegos",
+    "blocked": false
+  },
+  "Haikyu Fly High": {
+    "domains": [
+      "haikyu-game.com",
+      "play-service.io"
+    ],
+    "type": "Videojuegos",
+    "blocked": false
+  },
+  "Speed Drifters": {
+    "domains": [
+      "speeddrifters.com",
+      "racing-api.io",
+      "global-game-server.net"
+    ],
+    "type": "Videojuegos",
+    "blocked": false
+  },
+  "Undawn": {
+    "domains": [
+      "undawn-game.com",
+      "level-infinite.com",
+      "api.undawn.io",
+      "cdn.levelinfinite.com"
+    ],
+    "type": "Videojuegos",
+    "blocked": false
+  },
+  "Garena": {
+    "type": "Plataforma",
+    "domains": [
+      "garena.com",
+      "garena.tw",
+      "garenanow.com",
+      "garena.co.id",
+      "garena.my",
+      "garena.sg",
+      "gas.garena.com",
+      "garena.com",
+      "garena-api.com",
+      "garena-auth.io",
+      "garena-store.net",
+      "cdn.garena.com",
+      "garena-launcher.com"
+    ],
+    "blocked": false
   }
 }
