@@ -61,7 +61,7 @@ sudo venv/bin/python tui.py
 
 ```bash
 sudo apt update
-sudo apt install -y network-manager iftop iptables dnsmasq
+sudo apt install -y network-manager iftop iptables dnsmasq nmap arp-scan
 ```
 
 > En otras distribuciones usa tu gestor de paquetes (`pacman`, `dnf`, etc.).
