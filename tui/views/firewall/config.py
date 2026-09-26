@@ -126,7 +126,7 @@ class ConfigTab(Vertical):
         ok, reason = firewall_config.validate_config(candidate)
         if not ok:
             self.app.notify(
-                f"No es una configuración válida: {reason}",
+                f"No es un archivo de configuración válido",
                 severity="error",
             )
             return
@@ -343,11 +343,11 @@ class ConfigTab(Vertical):
         ok, reason = firewall_config.validate_config(config)
         if not ok:
             self.log(
-                f"[#f7768e]  ✗ {source} no es una configuración válida: "
+                f"[#f7768e]  ✗ {source} no es un archivo de configuración válido: "
                 f"{reason}[/]"
             )
             self.app.notify(
-                f"El archivo no es válido: {reason}",
+                f"El archivo no es válido",
                 severity="error",
             )
             return
