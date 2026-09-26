@@ -37,10 +37,11 @@ class ConfigTab(Vertical):
                 yield Button("Configurar Gateway", id="cfg-setup-nat", variant="success")
                 yield Button("Ver Estado", id="cfg-show-status", variant="primary")
                 yield Button("Limpiar Firewall", id="cfg-flush", variant="error")
-
-            with Horizontal(classes="fw-gw-row"):
-                yield Button("Guardar Config", id="cfg-export", variant="primary")
-                yield Button("Cargar Config", id="cfg-import", variant="primary")
+                yield Select(
+                    [("Guardar Config", "export"), ("Cargar Config", "import")],
+                    id="cfg-backup",
+                    prompt="Copia de Seguridad",
+                )
 
         yield RichLog(id="cfg-log", markup=True, highlight=True)
 
@@ -75,24 +76,36 @@ class ConfigTab(Vertical):
                 ),
                 self.flush_all
             )
-        elif bid == "cfg-export":
-            self.app.push_screen(
-                PathPicker(
-                    "Guardar Configuración",
-                    firewall_config.CONFIG_FILE,
-                    confirm_text="Guardar",
-                ),
-                self._do_export
-            )
-        elif bid == "cfg-import":
-            self.app.push_screen(
-                PathPicker(
-                    "Cargar Configuración",
-                    firewall_config.CONFIG_FILE,
-                    confirm_text="Cargar",
-                ),
-                self._pick_import_path
-            )
+
+    def on_select_changed(self, event: Select.Changed):
+        if event.select.id != "cfg-backup":
+            return
+        value = event.value
+        if value == "export":
+            self._request_export()
+        elif value == "import":
+            self._request_import()
+        event.select.clear()
+
+    def _request_export(self):
+        self.app.push_screen(
+            PathPicker(
+                "Guardar Configuración",
+                firewall_config.CONFIG_FILE,
+                confirm_text="Guardar",
+            ),
+            self._do_export
+        )
+
+    def _request_import(self):
+        self.app.push_screen(
+            PathPicker(
+                "Cargar Configuración",
+                firewall_config.CONFIG_FILE,
+                confirm_text="Cargar",
+            ),
+            self._pick_import_path
+        )
 
     def _pick_import_path(self, path):
         if not path:
