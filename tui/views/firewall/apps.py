@@ -138,7 +138,7 @@ class AppsTab(Vertical):
         try:
             with open(APPS_FILE) as f:
                 return json.load(f)
-        except (json.JSONDecodeError, OSError):
+        except (json.JSONDecodeError, UnicodeDecodeError, OSError):
             return {}
 
     def save_apps(self, data: dict):

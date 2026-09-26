@@ -35,7 +35,7 @@ def _read_json(path: str, default=None) -> dict:
         with open(path) as f:
             data = json.load(f)
         return data if isinstance(data, dict) else (default or {})
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError):
         return default or {}
 
 

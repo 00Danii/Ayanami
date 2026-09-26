@@ -52,7 +52,7 @@ def load_whitelist() -> list[str]:
         with open(WHITELIST_FILE) as f:
             data = json.load(f)
         return data.get("whitelist", [])
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError):
         return []
 
 
