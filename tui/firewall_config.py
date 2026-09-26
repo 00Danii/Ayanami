@@ -104,6 +104,20 @@ def load_config(path: str | None = None) -> dict:
     return _read_json(path or CONFIG_FILE)
 
 
+def validate_config(cfg: dict) -> tuple[bool, str]:
+    """Comprueba que un bundle cargado sea realmente una configuración
+    de Ayanami. Devuelve (ok, razón). No debe aplicarse nada si no es ok."""
+    if not isinstance(cfg, dict):
+        return False, "no es un objeto JSON válido"
+    if "version" not in cfg:
+        return False, "falta el campo 'version'"
+    if not isinstance(cfg.get("apps"), dict):
+        return False, "falta el campo 'apps' (dict de aplicaciones)"
+    if not isinstance(cfg.get("whitelist"), list):
+        return False, "falta el campo 'whitelist' (lista de IPs)"
+    return True, ""
+
+
 def save_config(bundle: dict, path: str | None = None) -> str:
     target = path or CONFIG_FILE
     _write_json(target, bundle)

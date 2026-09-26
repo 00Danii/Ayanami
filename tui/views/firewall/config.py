@@ -113,6 +113,18 @@ class ConfigTab(Vertical):
         if not os.path.exists(path):
             self.app.notify("El archivo seleccionado no existe", severity="error")
             return
+
+        # Validación temprana: rechazar antes de pedir confirmación si
+        # el archivo no tiene la estructura de una configuración.
+        candidate = firewall_config.load_config(path)
+        ok, reason = firewall_config.validate_config(candidate)
+        if not ok:
+            self.app.notify(
+                f"No es una configuración válida: {reason}",
+                severity="error",
+            )
+            return
+
         self.app.push_screen(
             ConfirmScreen(
                 f"Se cargará:\n\n{path}\n\n"
@@ -306,10 +318,17 @@ class ConfigTab(Vertical):
         self.log(f"[#565f89]  → Origen: {source}[/]")
 
         config = firewall_config.load_config(source)
-        if not config:
-            self.log(f"[#f7768e]  ✗ {source} vacío o inválido[/]")
+
+        # Guarda de seguridad: si la estructura no es válida, abortar antes
+        # de escribir whitelist.json o apps_firewall.json.
+        ok, reason = firewall_config.validate_config(config)
+        if not ok:
+            self.log(
+                f"[#f7768e]  ✗ {source} no es una configuración válida: "
+                f"{reason}[/]"
+            )
             self.app.notify(
-                "El archivo de configuración está vacío o es inválido",
+                f"El archivo no es válido: {reason}",
                 severity="error",
             )
             return
