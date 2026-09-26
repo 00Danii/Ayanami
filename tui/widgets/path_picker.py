@@ -84,15 +84,13 @@ class PathPicker(Screen):
             return
         self._set_tree_dir(str(parent))
 
-    def on_directory_tree_node_selected(self, event: DirectoryTree.NodeSelected):
-        selected = event.node.data
-        if selected is None:
-            return
-        path_str = str(selected)
-        if os.path.isdir(path_str):
-            self._set_tree_dir(path_str)
-        else:
-            self.query_one("#pp-path", Input).value = path_str
+    def on_directory_tree_directory_selected(self, event: DirectoryTree.DirectorySelected):
+        """Seleccionaste una carpeta → navega y actualiza la ruta."""
+        self._set_tree_dir(str(event.path))
+
+    def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected):
+        """Seleccionaste un archivo → completa la ruta exacta."""
+        self.query_one("#pp-path", Input).value = str(event.path)
 
     def _set_tree_dir(self, dir_path: str):
         """Re-enraiza el árbol en dir_path y actualiza el directorio del Input,
