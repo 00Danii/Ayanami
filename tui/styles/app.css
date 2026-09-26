@@ -1329,6 +1329,39 @@ AppRow Label {
 
 
 /* =========================================================
+   PATH PICKER (Guardar / Cargar Config)
+============================================================ */
+
+#path-picker {
+    width: 64;
+    max-height: 90%;
+    height: auto;
+    background: #1f2335;
+    border: thick #7aa2f7;
+    padding: 1 2 2 2;
+}
+
+#pp-path {
+    margin-bottom: 1;
+    border: solid #3b4261;
+}
+
+#pp-tree {
+    height: 10;
+    border: solid #3b4261;
+    margin-bottom: 1;
+}
+
+#path-picker .modal-buttons {
+    margin-top: 1;
+}
+
+#path-picker .modal-buttons > Button {
+    min-width: 12;
+}
+
+
+/* =========================================================
    WHITELIST TAB
 ======================================================== */
 

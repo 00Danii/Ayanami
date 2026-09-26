@@ -32,7 +32,62 @@ La TUI está construida con **Textual** y es la forma más completa y amigable d
 
 - **Apps** — Registra aplicaciones con sus dominios, activa/desactiva su bloqueo con un switch, filtra y ordena. El bloqueo se aplica vía **dnsmasq** (`address=/{dominio}/0.0.0.0`) más **iptables** para QUIC/NAT.
 - **Lista Blanca** — Exenta IPs, rangos (`10.0.0.1-10.0.0.255`) o subredes CIDR (`192.168.1.0/24`) de todas las reglas de bloqueo. Las IPs listadas resuelven DNS externamente (8.8.8.8) en vez del dnsmasq local, con aplicación automática de las reglas.
-- **Config** — Configura el gateway/NAT, fuerza DNS local, muestra el estado de las reglas y limpia el firewall completo.
+- **Config** — Configura el gateway/NAT, fuerza DNS local, muestra el estado de las reglas y limpia el firewall completo. Incluye **Guardar/Cargar Config** para exportar e importar toda la configuración del firewall.
+
+### Archivo de configuración y backups
+
+Toda la configuración del firewall se resume en un solo archivo, `firewall_config.json` (en la raíz del proyecto):
+
+```json
+{
+  "version": 1,
+  "exported_at": "2026-09-25T12:00:00",
+  "hostname": "ayanami",
+  "gateway": {
+    "wan_iface": "eth0",
+    "lan_iface": "wlan0",
+    "dns_target": "10.42.0.1",
+    "applied_at": "2026-09-25T12:00:00"
+  },
+  "stats": {
+    "whitelist_count": 3,
+    "apps_count": 22,
+    "blocked_count": 5,
+    "domains_count": 120
+  },
+  "whitelist": ["10.0.0.5", "192.168.1.0/24"],
+  "apps": { "...": { "domains": [], "blocked": false, "type": "Videojuegos" } }
+}
+```
+
+- **Guardar Config** (tab Config) — abre un **selector de rutas** (o escribe la ruta a mano) para exportar lista blanca, apps y datos de referencia del gateway. También crea un backup inmediato.
+- **Cargar Config** — igual que Guardar: selecciona el archivo y se **reaplica** todo: escribe `whitelist.json` y `apps_firewall.json`, regenera las reglas de lista blanca y el bloqueo DNS, y reconfigura el gateway/NAT si está guardado.
+- El gateway se guarda automáticamente cada vez que se configura con "Configurar Gateway". `dns_target` es solo información de referencia: al restaurar se recalcula con `network.get_iface_ip()`.
+
+#### Backups mensuales (systemd timer)
+
+Los backups se guardan en `backups/firewall_config-YYYY-MM.json` (la copia canónica siempre es la raíz del repo) y se conservan los **últimos 3 meses** (el resto se borra solo). En el tab Config también se puede disparar un backup manual con **Guardar Config**.
+
+Instalación del timer — **las rutas se detectan automáticamante**, (usa `AYANAMI_DIR=/ruta` si el repo no está junto al script):
+
+```bash
+sudo systemd/install_backup_timer.sh
+```
+
+Desinstalación:
+
+```bash
+sudo systemd/install_backup_timer.sh --uninstall
+```
+
+Verificación:
+
+```bash
+systemctl list-timers ayanami-backup.timer --no-pager
+sudo systemctl start ayanami-backup.service   # ejecutar el backup ahora mismo
+```
+
+El servicio corre `tui/firewall_config.py`, que copia el archivo al bucket del mes y borra los backups con más de 3 meses. Si `firewall_config.json` aún no existe, lo genera con el estado actual antes de respaldarlo.
 
 ### Atajos de teclado
 
