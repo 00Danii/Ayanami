@@ -113,6 +113,12 @@ class ConfigTab(Vertical):
         if not os.path.exists(path):
             self.app.notify("El archivo seleccionado no existe", severity="error")
             return
+        if os.path.isdir(str(path).strip().rstrip(os.sep)):
+            self.app.notify(
+                "Seleccionaste una carpeta: elige el archivo de configuración",
+                severity="error",
+            )
+            return
 
         # Validación temprana: rechazar antes de pedir confirmación si
         # el archivo no tiene la estructura de una configuración.
@@ -263,8 +269,21 @@ class ConfigTab(Vertical):
         elegida y crea un backup mensual inmediato."""
         if not path:
             return
+
+        # Si el input quedó como carpeta (p. ej. borraron el nombre y la
+        # extensión), completar con el nombre por defecto para evitar
+        # intentar escribir sobre un directorio.
+        stripped = str(path).strip().rstrip(os.sep)
+        if not stripped:
+            path = firewall_config.CONFIG_FILE
+        elif os.path.isdir(stripped):
+            path = os.path.join(stripped, "firewall_config.json")
+        else:
+            path = stripped
+
         self.query_one("#cfg-log", RichLog).clear()
         self.log("\n[#e0af68]━━━ Guardar Configuración ━━━[/]")
+        self.log(f"[#565f89]  → Destino: {path}[/]")
 
         select = self.query_one("#cfg-nat-iface", Select)
         wan = select.value if select.value is not Select.NULL else ""
