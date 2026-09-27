@@ -34,28 +34,23 @@ Ayanami es una herramienta de **control de red y firewall** para Linux con dos i
 - **TUI** (`tui/`) — interfaz de texto completa con **Textual**. Es el front-end **principal**, donde ocurre todo el desarrollo nuevo.
 - **CLI** (`cli/`) — menús por consola sin Textual. Es **legacy/estable**: útil como referencia de funcionalidades que la TUI todavía no expone (bloqueo global de IPs, QUIC, bloqueo por dispositivo).
 
-### El modelo mental de tres capas
+### Diagrama arquitectónico
 
-```
-┌───────────────── TUI (Textual) ─────────────────┐
-│  tui/views/  ───► CAPA UI                      │
-│   (pantallas: interfaces, scanner, firewall...) │
-│        │                                        │
-│        │ eventos de usuario (clics, switches)    │
-│        │ + run_worker(...) para hilos            │
-│        ▼                                        │
-│  CAPA LÓGICA (no importa Textual):              │
-│   tui/firewall_ops.py    tui/network.py         │
-│   tui/firewall_config.py tui/scanner.py         │
-│   tui/system.py                                 │
-│        │                                        │
-│        ▼                                        │
-│  SISTEMA: iptables · dnsmasq · nmcli · conntrack│
-│           ip neigh · /proc · scapy              │
-└─────────────────────────────────────────────────┘
-        │
-        ▼   se guarda en archivos JSON en la raíz del repo
-  apps_firewall.json · whitelist.json · firewall_config.json
+```mermaid
+flowchart TB
+    subgraph TUI["TUI · Textual"]
+        VIEWS["CAPA UI<br/>tui/views/<br/><br/>Interfaces<br/>Scanner<br/>Firewall<br/>Monitor<br/>Sniffer<br/>Hotspot"]
+
+        LOGIC["CAPA LÓGICA<br/><br/>tui/firewall_ops.py<br/>tui/network.py<br/>tui/firewall_config.py<br/>tui/scanner.py<br/>tui/system.py"]
+    end
+
+    SYSTEM["SISTEMA LINUX<br/><br/>iptables<br/>dnsmasq<br/>nmcli<br/>conntrack<br/>ip neigh<br/>/proc<br/>Scapy"]
+
+    JSON["PERSISTENCIA<br/><br/>apps_firewall.json<br/>whitelist.json<br/>firewall_config.json"]
+
+    VIEWS -->|"Eventos de usuario<br/>clics · switches<br/>run_worker()"| LOGIC
+    LOGIC -->|"Ejecución y consulta"| SYSTEM
+    LOGIC -->|"Lectura / escritura"| JSON
 ```
 
 La regla más importante para entender el proyecto: **la capa lógica no sabe que existe la TUI** (no importa `textual`). Esto permite:
@@ -127,15 +122,27 @@ Conceptos que conviene tener claros:
 
 **El flujo DNS completo del gateway** (esto perimite entender el proceso de configuración):
 
-```
-Cliente → consulta DNS (puerto 53, destino 8.8.8.8)
-   │
-   ▼  [PREROUTING, nat]  Ayanami reescribe: destino = IP de la LAN
-dnsmasq del equipo responde    ← SI el dominio está bloqueado → 0.0.0.0
-   │
-   └─ y los clientes de la lista blanca quedan EXENTOS:
-       [PREROUTING]  Ayanami reescribe hacia 8.8.8.8 directamente
-       (regla con comentario 'ayanami-wl-dns', insertada ANTES de la anterior)
+```mermaid
+flowchart LR
+    CLIENT["Cliente<br/><br/>Consulta DNS<br/>Puerto 53<br/>Destino: 8.8.8.8"]
+
+    PREROUTING["PREROUTING · nat<br/><br/>Ayanami intercepta<br/>y reescribe el destino"]
+
+    LAN["IP de la LAN<br/><br/>dnsmasq de Ayanami"]
+
+    BLOCK["Dominio bloqueado<br/><br/>dnsmasq responde<br/>0.0.0.0"]
+
+    WL["Cliente en lista blanca<br/><br/>'ayanami-wl-dns'<br/>Regla insertada primero"]
+
+    GOOGLE["8.8.8.8<br/><br/>DNS externo"]
+
+    CLIENT -->|"Consulta DNS"| PREROUTING
+
+    PREROUTING -->|"Regla normal"| LAN
+    LAN -->|"Dominio bloqueado"| BLOCK
+
+    PREROUTING -->|"Whitelist<br/>regla con prioridad"| WL
+    WL -->|"Exento de redirección"| GOOGLE
 ```
 
 ---
@@ -427,6 +434,73 @@ Estos son **flujos completos** con los nombres exactos de archivos y funciones, 
      c. `conntrack -F` para cortar conexiones ya abiertas.
    - vuelve a la UI con `self.app.call_from_thread(self.app.notify, "Firewall actualizado (N IPs en lista blanca)")`.
 
+#### Diagrama de secuencia - Recorrido A — Agregar una IP a la lista blanca
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    actor U as Usuario
+    participant UI as whitelist.py<br/>WhitelistTab
+    participant OPS as firewall_ops.py
+    participant JSON as whitelist.json
+    participant IPT as iptables
+    participant CT as conntrack
+
+    U->>UI: Escribe IP/CIDR/rango
+    U->>UI: Pulsa "Agregar"
+    
+    UI->>UI: on_button_pressed()
+    UI->>UI: add_ip()
+
+    UI->>OPS: is_valid_whitelist_entry(entry)
+
+    alt Entrada vacía
+        UI-->>U: notify("Escribe una IP, CIDR o rango")
+    else Formato inválido
+        OPS-->>UI: False
+        UI-->>U: notify("Entrada inválida")
+    else Entrada válida
+        OPS-->>UI: True
+
+        UI->>OPS: add_whitelist_ip(entry)
+        OPS->>JSON: Lee whitelist.json
+
+        alt IP ya existe
+            JSON-->>OPS: Entrada existente
+            OPS-->>UI: False
+        else IP nueva
+            OPS->>JSON: Agrega entrada y guarda
+            JSON-->>OPS: Guardado
+            OPS-->>UI: True
+
+            UI->>UI: refresh_list()
+            UI->>UI: run_worker(_apply_and_notify)<br/>thread=True
+
+            Note over UI,OPS: Aplicación de reglas en segundo plano
+
+            UI->>OPS: apply_whitelist()
+
+            OPS->>IPT: Consulta FORWARD
+            OPS->>IPT: Consulta PREROUTING · nat
+            IPT-->>OPS: Reglas ayanami-wl
+
+            OPS->>IPT: Elimina reglas anteriores
+
+            loop Por cada entrada de whitelist
+                OPS->>IPT: Inserta ACCEPT en FORWARD<br/>posición 1
+                OPS->>IPT: Inserta DNAT en PREROUTING<br/>→ 8.8.8.8:53
+            end
+
+            OPS->>CT: conntrack -F
+            CT-->>OPS: Conexiones eliminadas
+
+            OPS-->>UI: call_from_thread()
+            UI-->>U: "Firewall actualizado"
+        end
+    end
+```
+
 ### 6.2 Recorrido B — Bloquear/desbloquear una app con el Switch
 
 **Archivos involucrados**: `tui/views/firewall/apps.py` → `tui/firewall_ops.py`.
@@ -440,6 +514,59 @@ Estos son **flujos completos** con los nombres exactos de archivos y funciones, 
    - luego `call_from_thread(self._schedule_apply)` (debounce) y `call_from_thread(self.notify, "App 'x' bloqueada/desbloqueada")`.
 5. El debounce dispara (1.5 s sin más cambios) `_do_apply(seq)` → `run_worker(apply_changes, ...)`.
 6. `apply_changes()` (firewall_ops.py): `systemctl restart NetworkManager` (dnsmasq relee la config y responde 0.0.0.0 para los dominios) + `conntrack -F`.
+
+#### Diagrama de Secuencia - Recorrido B — Bloquear/desbloquear una app con el Switch
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    actor U as Usuario
+    participant UI as apps.py<br/>AppsTab / AppRow
+    participant JSON as apps_firewall.json
+    participant OPS as firewall_ops.py
+    participant DNS as dnsmasq<br/>ayanami-block.conf
+    participant NM as NetworkManager
+    participant CT as conntrack
+
+    U->>UI: Cambia Switch de una AppRow
+
+    UI->>UI: on_switch_changed()
+    UI->>UI: Obtiene app_name desde AppRow
+    UI->>JSON: Carga apps_firewall.json
+    UI->>JSON: Actualiza blocked = event.value
+    JSON-->>UI: Cambios guardados
+
+    UI->>UI: refresh_apps()
+    UI->>UI: run_worker(_toggle)<br/>thread=True
+
+    alt App bloqueada
+        UI->>OPS: write_block_domains(domains)
+        OPS->>DNS: Agrega líneas<br/>address=/{dominio}/0.0.0.0
+        DNS-->>OPS: Configuración actualizada
+    else App desbloqueada
+        UI->>OPS: remove_block_domains(domains)
+        OPS->>DNS: Elimina líneas<br/>que contengan /{dominio}/
+        DNS-->>OPS: Configuración actualizada
+    end
+
+    UI->>UI: call_from_thread(_schedule_apply)
+    UI-->>U: notify("App bloqueada/desbloqueada")
+
+    Note over UI,OPS: Debounce de 1.5 segundos
+
+    UI->>UI: _do_apply(seq)
+    UI->>OPS: run_worker(apply_changes)
+
+    OPS->>NM: systemctl restart NetworkManager
+    NM->>DNS: Recarga configuración de dnsmasq
+    DNS-->>NM: Nueva configuración activa
+
+    OPS->>CT: conntrack -F
+    CT-->>OPS: Conexiones existentes eliminadas
+
+    Note over DNS,CT: Los dominios bloqueados<br/>resuelven a 0.0.0.0
+```
 
 ### 6.3 Recorrido C — Guardar la configuración (Copia de Seguridad → Guardar Config)
 
@@ -463,6 +590,90 @@ Estos son **flujos completos** con los nombres exactos de archivos y funciones, 
    - `save_backup()` + `prune_backups()`: crea el backup del mes y borra los de más de 3 meses.
    - `notify("Configuración guardada")`.
 
+#### Diagrama de secuencia - Recorrido C — Guardar la configuración (Copia de Seguridad → Guardar Config)
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    actor U as Usuario
+    participant UI as config.py<br/>ConfigTab
+    participant PP as path_picker.py<br/>PathPicker
+    participant FC as firewall_config.py
+    participant NET as network.py
+    participant JSON as Archivos JSON
+    participant FS as Sistema de archivos
+
+    U->>UI: Selecciona "Guardar Config"
+    UI->>UI: on_select_changed()
+    UI->>UI: _request_export()
+
+    UI->>PP: push_screen(PathPicker)
+    Note over PP: "Guardar Configuración"<br/>CONFIG_FILE<br/>confirm_text="Guardar"
+
+    alt Escribir ruta manualmente
+        U->>PP: Escribe ruta en #pp-path
+    else Navegar con DirectoryTree
+        U->>PP: Selecciona carpeta
+        PP->>PP: _set_tree_dir()
+        PP->>PP: Reenraíza árbol y completa Input
+        U->>PP: Selecciona archivo
+        PP->>PP: Completa ruta exacta
+    end
+
+    alt Confirmar
+        U->>PP: Pulsa "Guardar" (#pp-ok)
+        PP-->>UI: dismiss(ruta)
+    else Cancelar / Escape
+        U->>PP: Cancela
+        PP-->>UI: dismiss(None)
+    end
+
+    alt Ruta válida
+        UI->>UI: _do_export(path)
+        UI->>UI: Normaliza ruta
+
+        Note over UI: Carpeta → carpeta/firewall_config.json<br/>Vacía → archivo canónico
+
+        UI->>UI: Obtiene WAN desde #cfg-nat-iface
+        UI->>UI: Obtiene LAN desde app.selected_interface
+
+        UI->>NET: get_iface_ip(lan)
+        NET-->>UI: IP dinámica de LAN
+
+        UI->>FC: build_bundle(wan_iface, lan_iface, dns_target)
+
+        FC->>JSON: Lee apps_firewall.json
+        JSON-->>FC: Configuración actual
+
+        FC->>JSON: Lee whitelist.json
+        JSON-->>FC: Lista blanca actual
+
+        FC->>FC: Genera stats
+        FC->>FC: Fusiona configuración del gateway
+
+        Note over FC: Parámetros actuales tienen prioridad<br/>sobre los valores anteriores
+
+        FC-->>UI: bundle completo
+
+        UI->>FC: save_config(bundle, path)
+        FC->>FS: Escribe configuración
+
+        alt Ruta diferente al archivo canónico
+            FC->>FS: Guarda también copia canónica
+        end
+
+        UI->>FC: save_backup()
+        FC->>FS: Crea backup mensual
+
+        UI->>FC: prune_backups()
+        FC->>FS: Elimina backups con más de 3 meses
+
+        UI-->>U: notify("Configuración guardada")
+    end
+
+```
+
 ### 6.4 Recorrido D — Cargar una configuración
 
 **Archivos**: `tui/views/firewall/config.py` → `tui/firewall_config.py` → `firewall_ops.py`.
@@ -480,6 +691,106 @@ Estos son **flujos completos** con los nombres exactos de archivos y funciones, 
    5. `systemctl restart NetworkManager`;
    6. refresca las listas de las pestañas Apps y Lista Blanca y notifica.
 
+#### Diagrama de secuencia - Recorrido D — Cargar una configuración
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    actor U as Usuario
+    participant UI as config.py<br/>ConfigTab
+    participant PP as path_picker.py<br/>PathPicker
+    participant CF as ConfirmScreen
+    participant CFG as firewall_config.py
+    participant FW as firewall_ops.py
+    participant NET as network.py
+    participant JSON as Archivos JSON
+    participant SYS as Sistema Linux
+
+    U->>UI: Selecciona "Cargar Config"
+    UI->>UI: _request_import()
+    UI->>PP: push_screen(PathPicker)
+    U->>PP: Selecciona archivo
+    PP-->>UI: dismiss(path)
+
+    UI->>UI: _pick_import_path(path)
+
+    alt Ruta vacía
+        UI-->>U: Cancelar operación
+    else Archivo inexistente
+        UI-->>U: notify("El archivo seleccionado no existe")
+    else La ruta es una carpeta
+        UI-->>U: notify("Seleccionaste una carpeta")
+    else Archivo válido
+        UI->>CFG: load_config(path)
+        CFG-->>UI: candidate
+
+        UI->>CFG: validate_config(candidate)
+
+        alt Configuración inválida
+            CFG-->>UI: False
+            UI-->>U: notify("Configuración inválida")
+        else Configuración válida
+            CFG-->>UI: True
+
+            UI->>CF: Mostrar confirmación
+            CF-->>U: "Se cargará... ¿Continuar?"
+
+            alt Usuario cancela
+                U->>CF: Cancelar
+                CF-->>UI: confirmed = False
+            else Usuario confirma
+                U->>CF: Continuar
+                CF-->>UI: confirmed = True
+
+                UI->>CFG: _import_config(confirmed, path)
+
+                Note over UI,CFG: Revalidación de seguridad
+
+                UI->>CFG: validate_config(candidate)
+
+                CFG-->>UI: Configuración válida
+
+                Note over UI,JSON: 1. Restaurar lista blanca
+                UI->>JSON: Escribir whitelist.json
+
+                Note over UI,JSON: 2. Restaurar aplicaciones
+                UI->>JSON: Escribir apps_firewall.json
+
+                Note over UI,FW: 3. Regenerar reglas del firewall
+                UI->>FW: apply_whitelist()
+                FW->>FW: Regenera reglas iptables
+
+                UI->>FW: Regenerar ayanami-block.conf
+                FW->>FW: Borra configuración anterior
+                FW->>FW: write_block_domains()
+
+                Note over UI,NET: 4. Restaurar configuración del gateway
+
+                alt Existe wan_iface
+                    UI->>SYS: Activar ip_forward
+                    UI->>SYS: Configurar MASQUERADE
+                    UI->>SYS: Configurar DNAT DNS :53
+
+                    UI->>NET: get_iface_ip(lan)
+                    NET-->>UI: dns_target actual
+
+                    Note over UI,NET: El dns_target guardado es referencia.<br/>Se usa solo si falla el cálculo actual.
+                end
+
+                Note over UI,SYS: 5. Recargar servicios
+                UI->>SYS: systemctl restart NetworkManager
+
+                Note over UI: 6. Actualizar interfaz
+
+                UI->>UI: refresh_apps()
+                UI->>UI: refresh_whitelist()
+                UI-->>U: notify("Configuración cargada")
+            end
+        end
+    end
+
+```
 ---
 
 ## 7. El Firewall por dentro
@@ -529,16 +840,15 @@ address=/tiktokcdn.com/0.0.0.0
 
 ### 7.3 Ciclo de bloqueo por dominios (resumen visual)
 
-```
-Switch (AppsTab.on_switch_changed)
-   │ 1. graba blocked en apps_firewall.json + refresh_apps()
-   ▼
-worker (hilo): write_block_domains() / remove_block_domains()
-   │            (agrega/borra líneas en ayanami-block.conf)
-   ▼
-_schedule_apply()  ──con debounce 1.5 s──▶  _do_apply(seq)
-   ▼
-apply_changes(): restart NetworkManager  +  conntrack -F
+```mermaid
+flowchart LR
+    A["Switch<br/>Bloquear / desbloquear"]
+    B["apps_firewall.json<br/>Guardar estado"]
+    C["ayanami-block.conf<br/>Actualizar dominios"]
+    D["Debounce<br/>1.5 s"]
+    E["NetworkManager<br/>+ conntrack"]
+
+    A --> B --> C --> D --> E
 ```
 
 Observaciones sobre este flujo:
