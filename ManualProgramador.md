@@ -2,6 +2,11 @@
 
 > Guía para entender la arquitectura, la estructura del código y las convenciones del proyecto, se explican los conceptos desde cero, muestra recorridos del código real paso a paso y termina con guías prácticas para **modificar, corregir y agregar módulos o funciones nuevas**.
 
+```
+▄████▄ ██  ██ ▄████▄ ███  ██ ▄████▄ ██▄  ▄██ ██
+██▄▄██  ▀██▀  ██▄▄██ ██ ▀▄██ ██▄▄██ ██ ▀▀ ██ ██
+██  ██   ██   ██  ██ ██   ██ ██  ██ ██    ██ ██
+```
 ---
 
 ## Contenido
