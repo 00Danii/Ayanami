@@ -594,5 +594,473 @@
       "purei.io"
     ],
     "blocked": false
+  },
+  "Facebook": {
+    "type": "Social",
+    "domains": [
+      "facebook.com",
+      "fb.com",
+      "fbcdn.net",
+      "facebook.net",
+      "m.facebook.com"
+    ],
+    "blocked": false
+  },
+  "Instagram": {
+    "type": "Social",
+    "domains": [
+      "instagram.com",
+      "cdninstagram.com",
+      "instagr.am"
+    ],
+    "blocked": false
+  },
+  "X (Twitter)": {
+    "type": "Social",
+    "domains": [
+      "x.com",
+      "twitter.com",
+      "twimg.com",
+      "t.co"
+    ],
+    "blocked": false
+  },
+  "WhatsApp": {
+    "type": "Social",
+    "domains": [
+      "whatsapp.com",
+      "whatsapp.net",
+      "web.whatsapp.com"
+    ],
+    "blocked": false
+  },
+  "Telegram": {
+    "type": "Social",
+    "domains": [
+      "telegram.org",
+      "t.me",
+      "telegram.me",
+      "telegra.ph"
+    ],
+    "blocked": false
+  },
+  "Discord": {
+    "type": "Social",
+    "domains": [
+      "discord.com",
+      "discord.gg",
+      "discordapp.com",
+      "discordapp.net",
+      "discord.media"
+    ],
+    "blocked": false
+  },
+  "Reddit": {
+    "type": "Social",
+    "domains": [
+      "reddit.com",
+      "redditmedia.com",
+      "redd.it"
+    ],
+    "blocked": false
+  },
+  "Snapchat": {
+    "type": "Social",
+    "domains": [
+      "snapchat.com",
+      "snapkit.com",
+      "sc-cdn.net"
+    ],
+    "blocked": false
+  },
+  "Pinterest": {
+    "type": "Social",
+    "domains": [
+      "pinterest.com",
+      "pinimg.com"
+    ],
+    "blocked": false
+  },
+  "LinkedIn": {
+    "type": "Social",
+    "domains": [
+      "linkedin.com",
+      "licdn.com"
+    ],
+    "blocked": false
+  },
+  "Threads": {
+    "type": "Social",
+    "domains": [
+      "threads.net",
+      "threads.com"
+    ],
+    "blocked": false
+  },
+  "YouTube": {
+    "type": "Social",
+    "domains": [
+      "youtube.com",
+      "youtu.be",
+      "ytimg.com",
+      "googlevideo.com"
+    ],
+    "blocked": false
+  },
+  "Twitch": {
+    "type": "Social",
+    "domains": [
+      "twitch.tv",
+      "ttvnw.net",
+      "jtvnw.net"
+    ],
+    "blocked": false
+  },
+  "Kwai": {
+    "type": "Social",
+    "domains": [
+      "kwai.com",
+      "kwaicdn.com",
+      "kwai-video.com"
+    ],
+    "blocked": false
+  },
+  "Tumblr": {
+    "type": "Social",
+    "domains": [
+      "tumblr.com",
+      "tmblr.co"
+    ],
+    "blocked": false
+  },
+  "Bluesky": {
+    "type": "Social",
+    "domains": [
+      "bsky.app",
+      "bsky.social"
+    ],
+    "blocked": false
+  },
+  "Mastodon": {
+    "type": "Social",
+    "domains": [
+      "joinmastodon.org",
+      "mastodon.social"
+    ],
+    "blocked": false
+  },
+  "VKontakte (VK)": {
+    "type": "Social",
+    "domains": [
+      "vk.com",
+      "userapi.com",
+      "vkuser.net"
+    ],
+    "blocked": false
+  },
+  "LINE": {
+    "type": "Social",
+    "domains": [
+      "line.me",
+      "line-apps.com",
+      "line-naver.jp"
+    ],
+    "blocked": false
+  },
+  "WeChat": {
+    "type": "Social",
+    "domains": [
+      "wechat.com",
+      "qq.com",
+      "weixin.qq.com"
+    ],
+    "blocked": false
+  },
+  "Signal": {
+    "type": "Social",
+    "domains": [
+      "signal.org",
+      "whispersystems.org"
+    ],
+    "blocked": false
+  },
+  "TwitCasting": {
+    "type": "Social",
+    "domains": [
+      "twitcasting.tv"
+    ],
+    "blocked": false
+  },
+  "Kick": {
+    "type": "Social",
+    "domains": [
+      "kick.com"
+    ],
+    "blocked": false
+  },
+  "Google Public DNS": {
+    "type": "DNS",
+    "domains": [
+      "dns.google",
+      "dns.google.com",
+      "8.8.8.8",
+      "8.8.4.4"
+    ],
+    "blocked": false
+  },
+  "Cloudflare": {
+    "type": "DNS",
+    "domains": [
+      "one.one.one.one",
+      "cloudflare-dns.com",
+      "1.1.1.1",
+      "1.0.0.1"
+    ],
+    "blocked": false
+  },
+  "Quad9": {
+    "type": "DNS",
+    "domains": [
+      "quad9.net",
+      "dns.quad9.net",
+      "9.9.9.9",
+      "149.112.112.112"
+    ],
+    "blocked": false
+  },
+  "OpenDNS (Cisco)": {
+    "type": "DNS",
+    "domains": [
+      "opendns.com",
+      "dns.opendns.com",
+      "208.67.222.222",
+      "208.67.220.220"
+    ],
+    "blocked": false
+  },
+  "AdGuard DNS": {
+    "type": "DNS",
+    "domains": [
+      "adguard-dns.com",
+      "dns.adguard.com",
+      "94.140.14.14",
+      "94.140.15.15"
+    ],
+    "blocked": false
+  },
+  "CleanBrowsing": {
+    "type": "DNS",
+    "domains": [
+      "cleanbrowsing.org",
+      "doh.cleanbrowsing.org",
+      "185.228.168.9",
+      "185.228.169.9"
+    ],
+    "blocked": false
+  },
+  "NextDNS": {
+    "type": "DNS",
+    "domains": [
+      "nextdns.io",
+      "dns.nextdns.io",
+      "45.90.28.0",
+      "45.90.30.0"
+    ],
+    "blocked": false
+  },
+  "Control D": {
+    "type": "DNS",
+    "domains": [
+      "controld.com",
+      "dns.controld.com",
+      "76.76.2.0",
+      "76.76.10.0"
+    ],
+    "blocked": false
+  },
+  "Comodo Secure DNS": {
+    "type": "DNS",
+    "domains": [
+      "comodo.com",
+      "8.26.56.26",
+      "8.20.247.20"
+    ],
+    "blocked": false
+  },
+  "Alternate DNS": {
+    "type": "DNS",
+    "domains": [
+      "alternate-dns.com",
+      "76.76.19.19",
+      "76.223.122.150"
+    ],
+    "blocked": false
+  },
+  "Verisign Public DNS": {
+    "type": "DNS",
+    "domains": [
+      "verisign.com",
+      "64.6.64.6",
+      "64.6.65.6"
+    ],
+    "blocked": false
+  },
+  "UltraDNS (Neustar)": {
+    "type": "DNS",
+    "domains": [
+      "ultradns.com",
+      "neustar.biz",
+      "156.154.70.1",
+      "156.154.71.1"
+    ],
+    "blocked": false
+  },
+  "Yandex.DNS": {
+    "type": "DNS",
+    "domains": [
+      "dns.yandex.ru",
+      "dns.yandex.com",
+      "77.88.8.8",
+      "77.88.8.1"
+    ],
+    "blocked": false
+  },
+  "DNS.WATCH": {
+    "type": "DNS",
+    "domains": [
+      "dns.watch",
+      "84.200.69.80",
+      "84.200.70.40"
+    ],
+    "blocked": false
+  },
+  "UncensoredDNS": {
+    "type": "DNS",
+    "domains": [
+      "uncensoreddns.org",
+      "anycast.uncensoreddns.org",
+      "91.239.100.100",
+      "89.233.43.71"
+    ],
+    "blocked": false
+  },
+  "OpenNIC": {
+    "type": "DNS",
+    "domains": [
+      "opennic.org",
+      "185.121.177.177",
+      "169.239.202.202"
+    ],
+    "blocked": false
+  },
+  "FreeDNS": {
+    "type": "DNS",
+    "domains": [
+      "freedns.zone",
+      "37.235.1.174",
+      "37.235.1.177"
+    ],
+    "blocked": false
+  },
+  "SafeDNS": {
+    "type": "DNS",
+    "domains": [
+      "safedns.com",
+      "195.46.39.39",
+      "195.46.39.40"
+    ],
+    "blocked": false
+  },
+  "Level3 (Lumen)": {
+    "type": "DNS",
+    "domains": [
+      "lumen.com",
+      "4.2.2.1",
+      "4.2.2.2",
+      "4.2.2.3",
+      "4.2.2.4"
+    ],
+    "blocked": false
+  },
+  "Oracle Dyn DNS": {
+    "type": "DNS",
+    "domains": [
+      "dyn.com",
+      "oracle.com",
+      "216.146.35.35",
+      "216.146.36.36"
+    ],
+    "blocked": false
+  },
+  "AHA DNS": {
+    "type": "DNS",
+    "domains": [
+      "ahadns.net",
+      "dns.ahadns.net"
+    ],
+    "blocked": false
+  },
+  "Mullvad DNS": {
+    "type": "DNS",
+    "domains": [
+      "mullvad.net",
+      "dns.mullvad.net",
+      "194.242.2.2",
+      "194.242.2.3"
+    ],
+    "blocked": false
+  },
+  "IVPN DNS": {
+    "type": "DNS",
+    "domains": [
+      "ivpn.net",
+      "dns.ivpn.net",
+      "198.251.86.37"
+    ],
+    "blocked": false
+  },
+  "RethinkDNS": {
+    "type": "DNS",
+    "domains": [
+      "rethinkdns.com",
+      "max.rethinkdns.com",
+      "162.251.82.234"
+    ],
+    "blocked": false
+  },
+  "Freenom World": {
+    "type": "DNS",
+    "domains": [
+      "freenom.world",
+      "80.80.80.80",
+      "80.80.81.81"
+    ],
+    "blocked": false
+  },
+  "Hurricane Electric DNS": {
+    "type": "DNS",
+    "domains": [
+      "he.net",
+      "74.82.42.42"
+    ],
+    "blocked": false
+  },
+  "Cisco Umbrella": {
+    "type": "DNS",
+    "domains": [
+      "umbrella.cisco.com",
+      "208.67.222.220",
+      "208.67.220.222"
+    ],
+    "blocked": false
+  },
+  "FlashStart DNS": {
+    "type": "DNS",
+    "domains": [
+      "flashstart.com",
+      "185.236.104.104",
+      "185.236.105.105"
+    ],
+    "blocked": false
   }
 }
