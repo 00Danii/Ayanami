@@ -6,7 +6,7 @@ from textual.binding import Binding
 from widgets.sidebar import Sidebar
 
 from views.interfaces import InterfacesView
-from views.hostspot import HotspotView
+from views.hotspot import HotspotView
 from views.scanner import ScannerView
 from views.monitor import MonitorView
 from views.sniffer import SnifferView

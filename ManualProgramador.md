@@ -234,7 +234,7 @@ Consecuencia práctica: **los archivos nuevos de `tui/` se importan plano, sin p
     │
     └── views/               # las pantallas (una por módulo de la app)
         ├── interfaces.py    # vista "Interfaces"
-        ├── hostspot.py      # vista "Hotspot" (notar: el archivo se llama hostspot, no hotspot)
+        ├── hotspot.py       # vista "Hotspot" (crea el punto de acceso WiFi)
         ├── scanner.py       # vista "Scanner"
         ├── monitor.py       # vista "Monitor" (tráfico en tiempo real)
         ├── sniffer.py       # vista "Sniffer"
@@ -1268,7 +1268,7 @@ Tabla rápida para orientarse:
 | Qué se ve al abrir Ayanami | `tui/tui.py` → `ContentSwitcher(initial=...)` | |
 | Orden o nombre de las vistas | `tui/widgets/sidebar.py` → `NAV_ITEMS` + `tui.py` → `NAV_ORDER` | **id** de botón y vista deben coincidir |
 | Comportamiento de **AppRRow**: datos de una app | `views/firewall/apps.py` + `widgets/app_row.py` | el CRUD está en `apps.py`; el render en `app_row.py` |
-| Tipos de apps (`Videojuegos`, etc.) | `views/firewall/app_modal.py` → `APP_TYPES` + CSS `.app-type-*` + defaults `"Videojuegos"` | actualizá TODOS los puntos que usan type (app_row, _filtered_names, AppModal) |
+| Tipos de apps (`Videojuegos`, etc.) | `views/firewall/app_modal.py` → `APP_TYPES` + CSS `.app-type-*` + defaults `"Videojuegos"` | actualiza TODOS los puntos que usan type (app_row, _filtered_names, AppModal) |
 | Validación de IP/CIDR/rango | `firewall_ops.py` → `IP_RE`, `CIDR_RE`, `RANGE_RE`, `is_valid_*` | |
 | Reglas iptables de la lista blanca | `firewall_ops.py` → `apply_whitelist()` | comentarios `ayanami-wl`/`ayanami-wl-dns` son el marcador |
 | Lista de dominios de una app | `apps_firewall.json` (o la UI de Apps) | ojo: también está la copia dentro de `firewall_config.json`/backups |
