@@ -1069,19 +1069,26 @@ FirewallView {
     padding: 0;
 }
 
-/* ===== CONTADOR Y PAGINACIÓN EN LA BARRA ===== */
+/* ===== PIE DE LA LISTA DE APPS (paginación) ===== */
 
-.apps-count {
-    width: auto;
-    height: 3;
-    content-align: left middle;
-    color: #565f89;
-    margin: 1 1 0 1;
+#apps-footer {
+    height: 1;
+    align: right middle;
+    margin: 1 0 0 0;
 }
 
-.apps-more-btn {
+.apps-count {
+    width: 1fr;
+    height: 1;
+    content-align: center middle;
+    color: #565f89;
+    margin: 0 0 0 0;
+}
+
+.apps-more {
     width: auto;
-    min-width: 19;
+    height: 1;
+    color: #2df94f;
 }
 
 AppRow {

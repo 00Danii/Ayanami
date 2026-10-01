@@ -7,6 +7,7 @@ from textual.widgets import Label, Button, Switch, Input, Select
 
 from views.firewall.app_modal import AppModal, APP_TYPES
 from widgets.app_row import AppRow
+from widgets.clickable_label import ClickableLabel
 from widgets.confirm_screen import ConfirmScreen
 from firewall_ops import (
     write_block_domains,
@@ -57,17 +58,11 @@ class AppsTab(Vertical):
                 prompt="Acciones rápidas",
             )
 
-            
-            
-
         yield Vertical(id="apps-container")
-        yield Label("", id="apps-count", classes="apps-count")
-        yield Button(
-                        "Cargar más",
-                        id="apps-more",
-                        variant="success",
-                        classes="apps-more-btn",
-                    )
+
+        with Horizontal(id="apps-footer"):
+            yield Label("", id="apps-count", classes="apps-count")
+            yield ClickableLabel("Cargar más", id="apps-more", classes="apps-more")
 
     def _schedule_apply(self):
         self._apply_seq += 1
@@ -126,8 +121,6 @@ class AppsTab(Vertical):
         btn_id = event.button.id
         if btn_id == "apps-register":
             self.register_app()
-        elif btn_id == "apps-more":
-            self.load_more()
         elif btn_id and (btn_id.startswith("app-modify-") or btn_id.startswith("app-delete-")):
             node = event.button
             while node is not None:
@@ -142,6 +135,11 @@ class AppsTab(Vertical):
                 self.modify_app(app_name)
             else:
                 self.delete_app(app_name)
+
+    def on_clickable_label_pressed(self, event: ClickableLabel.Pressed):
+        """El pie de la lista usa un label clickeable en vez de un botón."""
+        if event.label.id == "apps-more":
+            self.load_more()
 
     def on_switch_changed(self, event: Switch.Changed):
         switch_id = event.switch.id
@@ -259,17 +257,17 @@ class AppsTab(Vertical):
 
     def _update_footer(self, mostradas: int, total: int):
         count = self.query_one("#apps-count", Label)
-        more = self.query_one("#apps-more", Button)
+        more = self.query_one("#apps-more", ClickableLabel)
 
         if total:
-            count.update(f"Mostrando {mostradas} de {total}")
+            count.update(f"Mostrando {mostradas} de {total} apps")
         else:
             count.update("Sin apps para mostrar")
 
         faltan = total - mostradas
         if faltan > 0:
             more.display = True
-            more.label = f"Cargar más ({faltan})"
+            more.update(f"▸ Cargar más ({faltan})")
         else:
             more.display = False
 
