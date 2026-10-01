@@ -442,16 +442,16 @@ En la lista, cada fila muestra:
 
 #### Pie de la lista (paginación)
 
-Abajo de la lista hay una barra con dos cosas:
+Abajo de la lista hay una línea con dos cosas:
 
 | Elemento | Significado |
 |---|---|
 | `Mostrando "x" de "y" apps` | Cuántas filas estás viendo y cuántas hay en total **con el filtro/búsqueda actual**. |
-| **Cargar más ("x")** | Botón que agrega el siguiente tramo de apps a la lista. |
+| `▸ Cargar más ("x")` | Texto verde: un clic agrega el siguiente tramo de apps a la lista. El número entre paréntesis es cuántas apps faltan mostrar. |
 
 - La lista **no se dibuja completa de una vez**: se muestran de a 25 para que la app no se congele cuando tenés muchas apps registradas. Usá **Cargar más** para ver el resto.
 - El pie se recalcula solo: al cambiar el filtro, el orden o la búsqueda vuelve a la primera página.
-- Cuando ya mostrás todas las apps del filtro, el botón **Cargar más** desaparece.
+- Cuando ya mostrás todas las apps del filtro, el enlace **Cargar más** desaparece.
 - Si el filtro o la búsqueda no deja ninguna app, el pie dice `Sin apps para mostrar`.
 
 > 💡 El buscador tiene un pequeño retardo (medio segundo) a propósito: la lista se vuelve a pintar cuando dejás de escribir, no en cada tecla.

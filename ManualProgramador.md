@@ -229,6 +229,7 @@ Consecuencia práctica: **los archivos nuevos de `tui/` se importan plano, sin p
     │   ├── sidebar.py       # barra lateral + selector de interfaz global
     │   ├── confirm_screen.py# modal de confirmación genérico (Sí/No)
     │   ├── path_picker.py   # modal para elegir una ruta (input + árbol de directorios)
+    │   ├── clickable_label.py # un Label que hace de botón (clic + Enter), para acciones chicas
     │   ├── app_row.py       # una fila de app (switch + modificar + eliminar)
     │   └── interface_row.py # una fila de interfaz (tipo, estado, botones)
     │
@@ -350,6 +351,39 @@ while node is not None:
     node = node.parent
 ```
 
+### 5.4b `ClickableLabel`: un Label que hace de botón
+
+Un `Button` de Textual mide 3 celdas de alto y dibuja bordes. Para una acción secundaria ("Cargar más", "Ver más") eso es demasiado: `tui/widgets/clickable_label.py` es un `Static` que se comporta como botón y ocupa **1 celda**.
+
+Textual entrega los eventos de mouse al widget que está bajo el cursor, así que un `Static` recibe `Click` sin más. Con `can_focus = True` además se llega con Tab y se activa con Enter o espacio, que es lo que lo hace accesible:
+
+```python
+class ClickableLabel(Static):
+    can_focus = True
+
+    class Pressed(Message):                 # mensaje propio, como Button.Pressed
+        def __init__(self, label): super().__init__(); self.label = label
+
+    def on_click(self, event: Click) -> None:
+        event.stop()
+        self.post_message(self.Pressed(self))
+
+    def on_key(self, event: Key) -> None:
+        if event.key in ("enter", "space"):
+            event.stop()
+            self.post_message(self.Pressed(self))
+```
+
+La vista lo escucha por el nombre del handler (Textual arma `on_clickable_label_pressed` a partir de la clase del mensaje):
+
+```python
+def on_clickable_label_pressed(self, event: ClickableLabel.Pressed):
+    if event.label.id == "apps-more":
+        self.load_more()
+```
+
+> ⚠️ Dos detalles: `Message.control` es **solo lectura** en esta versión de Textual (asignarlo lanza `AttributeError`), y una vista oculta tiene `region` 0×0, así que `pilot.click()` sobre ella no hace nada. En las pruebas hay que **navegar a la vista antes de hacer clic**.
+
 ### 5.5 Modales (Screens que devuelven un valor)
 
 Un modal es una `Screen` que termina llamando a `self.dismiss(valor)`. El código que lo abrió pasó un callback, y ese callback recibe el valor:
@@ -426,7 +460,7 @@ Son cuatro técnicas, todas en `views/firewall/apps.py`:
 
 **a) Montar en una sola llamada.** `for f in filas: container.mount(f)` recalcula el layout en cada montaje (cuadrático). `container.mount(*filas)` monta todo de una vez: **22 s → 2,9 s**.
 
-**b) Paginación.** Cada `AppRow` crea ~13 widgets. Se muestran solo `PAGINADO_FILAS` (25) y el botón **Cargar más** agrega el siguiente tramo con otro `mount(*nuevas)`, sin repintar lo que ya está.
+**b) Paginación.** Cada `AppRow` crea ~13 widgets. Se muestran solo `PAGINADO_FILAS` (25) y el enlace **▸ Cargar más** del pie agrega el siguiente tramo con otro `mount(*nuevas)`, sin repintar lo que ya está.
 
 ```python
 PAGINADO_FILAS = 25
@@ -1396,10 +1430,16 @@ async def main():
             assert fw_content.current == panel, f"no abre {tab} (actual: {fw_content.current})"
             print(f"OK  abre la pestaña {tab}")
 
+        # Ojo: hay que volver al Firewall antes de hacer clic, porque una
+        # vista oculta tiene región 0x0 y pilot.click() no encuentra dónde.
+        app.query_one("#nav-firewall", Button).press()
+        await pilot.pause()
+
         container = app.query_one("#apps-container")
-        assert len(container.children) <= PAGINADO_FILAS, "se pintaron más filas de las que tocan"
         assert container.children, "la lista de apps quedó vacía"
-        app.query_one("#apps-more", Button).press()
+        assert len(container.children) <= PAGINADO_FILAS, "se pintaron más filas de las que tocan"
+        # «Cargar más» es un label clickeable: se prueba con un clic real.
+        await pilot.click("#apps-more")
         await pilot.pause()
         assert len(container.children) > PAGINADO_FILAS, "«Cargar más» no agregó filas"
 
