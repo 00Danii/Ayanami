@@ -3,8 +3,9 @@
 Uso:   venv/bin/python prueba.py
 
 Arranca la app en modo test, recorre todos los botones de navegación y
-comprueba que cada vista se muestre, y que las pestañas del Firewall
-cambien de panel. Dura un par de segundos.
+comprueba que cada vista se muestre, que las pestañas del Firewall cambien
+de panel y que la lista de Apps se cargue diferida y paginada. Dura un par
+de segundos.
 
 Nota: el mensaje "sudo: se requiere una contraseña" que puede aparecer
 viene del arp-scan del Scanner al no correr como root; es inofensivo
@@ -20,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent / "tui"))
 from textual.widgets import Button, ContentSwitcher
 
 from tui import AyanamiApp, NAV_ORDER
+from views.firewall.apps import PAGINADO_FILAS
 
 FW_TABS = [
     ("fw-tab-rules", "fw-panel-rules"),
@@ -50,6 +52,18 @@ async def main():
             await pilot.pause()
             assert fw_content.current == panel, f"no abre {tab} (actual: {fw_content.current})"
             print(f"OK  abre la pestaña {tab}")
+
+        # La lista de Apps se pinta al abrir el Firewall (no al arrancar) y
+        # de a un tramo, para que la app no se congele con muchas apps.
+        container = app.query_one("#apps-container")
+        assert container.children, "la lista de apps quedó vacía"
+        assert len(container.children) <= PAGINADO_FILAS, "se pintaron más filas de las que tocan"
+        print(f"OK  lista de apps paginada ({len(container.children)} filas)")
+
+        app.query_one("#apps-more", Button).press()
+        await pilot.pause()
+        assert len(container.children) > PAGINADO_FILAS, "«Cargar más» no agregó filas"
+        print("OK  «Cargar más» agrega el siguiente tramo")
 
     print("\nTODO OK")
 

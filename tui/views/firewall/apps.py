@@ -17,11 +17,22 @@ from firewall_ops import (
 
 APPS_FILE = str(Path(__file__).resolve().parent.parent.parent.parent / "apps_firewall.json")
 
+# ── Rendimiento ────────────────────────────────────────────
+# Con muchas apps registradas el coste de pintar la lista crece: cada
+# AppRow crea ~13 widgets. Por eso las filas se montan de una sola vez
+# (mount(*filas)), se muestran de a PAGINADO_FILAS y se posterga la carga
+# hasta que el usuario abre la pestaña (carga diferida).
+PAGINADO_FILAS = 25
+BUSQUEDA_DELAY = 0.25
+
 
 class AppsTab(Vertical):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._apply_seq = 0
+        self._search_seq = 0
+        self._pagina = PAGINADO_FILAS
+        self._loaded = False
 
     def compose(self):
         with Horizontal(classes="fw-apps-toolbar"):
@@ -46,7 +57,17 @@ class AppsTab(Vertical):
                 prompt="Acciones rápidas",
             )
 
+            
+            
+
         yield Vertical(id="apps-container")
+        yield Label("", id="apps-count", classes="apps-count")
+        yield Button(
+                        "Cargar más",
+                        id="apps-more",
+                        variant="success",
+                        classes="apps-more-btn",
+                    )
 
     def _schedule_apply(self):
         self._apply_seq += 1
@@ -58,12 +79,33 @@ class AppsTab(Vertical):
             return
         self.run_worker(apply_changes, name="apply-changes", group="firewall", thread=True)
 
-    def on_mount(self):
+    def ensure_loaded(self):
+        """Carga la lista solo cuando el usuario abre la pestaña Apps.
+
+        Evita pagar el coste de pintar todas las apps al arrancar la app,
+        porque todas las vistas se montan aunque no se vean.
+        """
+        if self._loaded:
+            return
+        # Si se pide la carga mientras el panel todavía se está montando,
+        # se difiere un ciclo: así los controles de la barra ya existen.
+        if not self.query("#apps-count"):
+            self.call_after_refresh(self.ensure_loaded)
+            return
         self.refresh_apps()
 
     def on_input_changed(self, event: Input.Changed):
         if event.input.id == "apps-search":
-            self.refresh_apps()
+            # Cada tecla reconstruía toda la lista: se espera a que pare.
+            self._search_seq += 1
+            seq = self._search_seq
+            self.set_timer(BUSQUEDA_DELAY, lambda: self._do_search(seq))
+
+    def _do_search(self, seq):
+        if seq != self._search_seq:
+            return
+        self._pagina = PAGINADO_FILAS
+        self.refresh_apps()
 
     def on_select_changed(self, event: Select.Changed):
         if event.select.id == "apps-acciones":
@@ -74,12 +116,18 @@ class AppsTab(Vertical):
                 self.unblock_all()
             event.select.clear()
         elif event.select.id in ("apps-filter", "apps-sort"):
-            self.refresh_apps()
+            # Al montarse los Select disparan Changed; si la lista todavía no
+            # se pintó se ignora (evita el coste al arrancar la app).
+            if self._loaded:
+                self._pagina = PAGINADO_FILAS
+                self.refresh_apps()
 
     def on_button_pressed(self, event: Button.Pressed):
         btn_id = event.button.id
         if btn_id == "apps-register":
             self.register_app()
+        elif btn_id == "apps-more":
+            self.load_more()
         elif btn_id and (btn_id.startswith("app-modify-") or btn_id.startswith("app-delete-")):
             node = event.button
             while node is not None:
@@ -115,7 +163,8 @@ class AppsTab(Vertical):
             blocked = event.value
             app_data["blocked"] = blocked
             self.save_apps(data)
-            self.refresh_apps()
+            # Solo cambió una fila: no se reconstruye la lista completa.
+            self._refresh_row(app_name)
 
             domains = app_data.get("domains", [])
 
@@ -175,11 +224,79 @@ class AppsTab(Vertical):
         return items
 
     def refresh_apps(self):
-        container = self.query_one("#apps-container", Vertical)
-        container.remove_children()
+        """Reconstruye la lista mostrando solo las primeras `_pagina` apps.
 
-        for name, info in self._filtered_names():
-            container.mount(AppRow(name, info))
+        Importante: las filas se montan en una sola llamada (`mount(*filas)`).
+        Montarlas de a una obliga a Textual a recalcular el layout en cada
+        montaje y multiplica el coste por el número de apps.
+        """
+        self._loaded = True
+
+        container = self.query_one("#apps-container", Vertical)
+        items = self._filtered_names()
+
+        filas = [AppRow(nombre, info) for nombre, info in items[:self._pagina]]
+
+        container.remove_children()
+        if filas:
+            container.mount(*filas)
+
+        self._update_footer(len(filas), len(items))
+
+    def load_more(self):
+        """Agrega el siguiente tramo de apps sin volver a pintar las que ya están."""
+        container = self.query_one("#apps-container", Vertical)
+        items = self._filtered_names()
+
+        nuevas = items[self._pagina:self._pagina + PAGINADO_FILAS]
+        if not nuevas:
+            return
+
+        self._pagina += len(nuevas)
+        container.mount(*[AppRow(nombre, info) for nombre, info in nuevas])
+
+        self._update_footer(min(self._pagina, len(items)), len(items))
+
+    def _update_footer(self, mostradas: int, total: int):
+        count = self.query_one("#apps-count", Label)
+        more = self.query_one("#apps-more", Button)
+
+        if total:
+            count.update(f"Mostrando {mostradas} de {total}")
+        else:
+            count.update("Sin apps para mostrar")
+
+        faltan = total - mostradas
+        if faltan > 0:
+            more.display = True
+            more.label = f"Cargar más ({faltan})"
+        else:
+            more.display = False
+
+    def _refresh_row(self, app_name: str):
+        """Actualiza una sola fila en sitio, sin tocar el resto de la lista.
+
+        Alternar un Switch no necesita repintar la lista entera: alcanza con
+        cambiar el estado de esa fila (barra de acento y etiqueta).
+        """
+        container = self.query_one("#apps-container", Vertical)
+
+        fila = next(
+            (
+                child
+                for child in container.children
+                if getattr(child, "app_name", None) == app_name
+            ),
+            None,
+        )
+        if fila is None:
+            return
+
+        info = self.load_apps().get(app_name)
+        if not info:
+            return
+
+        fila.update_state(info.get("blocked", False))
 
     def modify_app(self, app_name: str):
         data = self.load_apps()

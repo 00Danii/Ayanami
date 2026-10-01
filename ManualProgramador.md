@@ -259,9 +259,9 @@ Consecuencia práctica: **los archivos nuevos de `tui/` se importan plano, sin p
 2. Textual instancia la app y llama `compose()`, que declara: `Header` (arriba), `Horizontal(Sidebar, ContentSwitcher)` (el cuerpo) y `Footer` (abajo, muestra las teclas).
 3. El `ContentSwitcher` con `initial="nav-interfaces"` muestra la primera vista; todas las vistas existen montadas **en paralelo** (el switcher solo decide cuál se ve).
 4. `on_mount()` de la app activa la navegación a Interfaces y programa el auto-refresco de Sistema (1 segundo).
-5. Cada vista, en su propio `on_mount()`, carga sus datos iniciales.
+5. Cada vista, en su propio `on_mount()`, carga sus datos iniciales. **La lista de Apps y los datos de Sistema son la excepción**: se cargan al abrir esas vistas (`ensure_loaded()` / `refresh_data()`), porque pintarlos al arrancar hacía que la app tardara 27 s (ver 5.8).
 
-**Punto clave del diseño**: cambiar de pestaña es solo `ContentSwitcher.current = id`. No se destruyen ni recrean las vistas: **los datos de una vista viven mientras la app corre**.
+**Punto clave del diseño**: cambiar de pestaña es solo `ContentSwitcher.current = id`. No se destruyen ni recrean las vistas: **los datos de una vista viven mientras la app corre**. Por eso "montada" no es lo mismo que "pintada": una vista puede estar en el DOM sin haber construido sus listas.
 
 ### 5.2 `AyanamiApp` (`tui/tui.py`)
 
@@ -410,6 +410,60 @@ def _do_apply(self, seq):
         return
     self.run_worker(apply_changes, name="apply-changes", group="firewall", thread=True)
 ```
+
+### 5.8 Rendimiento: listas largas (paginación, carga diferida, montaje en lote)
+
+Con muchas apps registradas, pintar la lista entera en cada interacción **congela la app**. Medido en este proyecto, con 97 apps:
+
+| Situación | Antes | Después |
+|---|---|---|
+| Arranque de la app | 27,5 s | 0,9 s |
+| Refresco completo de la lista | 22 s | ~0,5 s |
+| Cada tecla del buscador | 1,7 s | ~0,06 s |
+| Cada fila: 13 widgets → 97 apps | 1.261 widgets | 325 (solo 25 filas) |
+
+Son cuatro técnicas, todas en `views/firewall/apps.py`:
+
+**a) Montar en una sola llamada.** `for f in filas: container.mount(f)` recalcula el layout en cada montaje (cuadrático). `container.mount(*filas)` monta todo de una vez: **22 s → 2,9 s**.
+
+**b) Paginación.** Cada `AppRow` crea ~13 widgets. Se muestran solo `PAGINADO_FILAS` (25) y el botón **Cargar más** agrega el siguiente tramo con otro `mount(*nuevas)`, sin repintar lo que ya está.
+
+```python
+PAGINADO_FILAS = 25
+
+def refresh_apps(self):
+    items = self._filtered_names()                       # lee el JSON y filtra/ordena
+    filas = [AppRow(n, i) for n, i in items[:self._pagina]]
+    container.remove_children()
+    if filas:
+        container.mount(*filas)                          # ← una sola llamada
+    self._update_footer(len(filas), len(items))
+```
+
+**c) Carga diferida (`ensure_loaded`).** El `ContentSwitcher` monta **todas** las vistas aunque no se vean, así que un `on_mount()` que pinte 1.000 widgets se paga al arrancar. La lista se dibuja la primera vez que se abre la pestaña:
+
+```python
+def ensure_loaded(self):                # en AppsTab
+    if self._loaded:                   # solo una vez
+        return
+    self.refresh_apps()                # refresh_apps() pone _loaded = True
+```
+
+Se llama desde dos lugares: `AyanamiApp.on_button_pressed` (al navegar a `nav-firewall`, porque la pestaña Apps es la inicial del Firewall) y `FirewallView.on_button_pressed` (al hacer clic en la pestaña Apps). `SistemaView` usa el mismo patrón con `refresh_data()`.
+
+> ⚠️ **Advertencia**: los widgets `Select` disparan `Select.Changed` **al montarse** (Textual les asigna el valor inicial). Si ese handler refresca la lista, la carga diferida no sirve de nada. Por eso el handler filtra con `if self._loaded:`.
+
+**d) No reconstruir la lista para cambiar un dato.** Alternar un switch solo cambia esa fila: se actualiza **en sitio** con `AppRow.update_state()` (`set_class` + `Label.update`), sin quitar ni montar widgets:
+
+```python
+def update_state(self, blocked: bool):       # en widgets/app_row.py
+    self._accent.set_class(blocked, "app-accent-blocked")
+    self._status.update("BLOQUEADA" if blocked else "DESBLOQUEADA")
+```
+
+**e) Debounce del buscador.** `Input.Changed` llega en cada tecla. Se espera a que el usuario pare (`BUSQUEDA_DELAY = 0.25` s) con el mismo patrón de contador de 5.7, así que al escribir rápido la lista se repinta una sola vez.
+
+> 💡 **Para medir**: `App.run_test()` de Textual corre la app headless y es ideal para cronometrar. Sirve para comparar antes/después sin tocar la red real. Ojo: nunca hay que triggear un `Switch` en una prueba, porque el worker termina reiniciando NetworkManager de verdad.
 
 ---
 
@@ -1342,6 +1396,13 @@ async def main():
             assert fw_content.current == panel, f"no abre {tab} (actual: {fw_content.current})"
             print(f"OK  abre la pestaña {tab}")
 
+        container = app.query_one("#apps-container")
+        assert len(container.children) <= PAGINADO_FILAS, "se pintaron más filas de las que tocan"
+        assert container.children, "la lista de apps quedó vacía"
+        app.query_one("#apps-more", Button).press()
+        await pilot.pause()
+        assert len(container.children) > PAGINADO_FILAS, "«Cargar más» no agregó filas"
+
     print("\nTODO OK")
 
 
@@ -1349,6 +1410,8 @@ asyncio.run(main())
 ```
 
 **Por qué sirve**: `pilot.press("enter")` y los clics ejercitan el **dispatch real de eventos** de Textual. Esto detecta bugs que las llamadas directas a métodos no ven (como el caso `DirectoryTree`, ver bugs/errores #1).
+
+> ⚠️ La prueba **no debe** tocar un `Switch` de la lista de apps: ese handler dispara el worker que termina reiniciando NetworkManager de verdad. Para probar el refresco de una fila conviene llamar a `AppsTab._refresh_row(nombre)` directamente.
 
 ### Pruebas unitarias de la capa lógica
 
@@ -1417,3 +1480,5 @@ Estos errores ya surgieron durante el proceso de desarrollo; leerlas ahora ahorr
 9. **El tipo de app con default `"Videojuegos"`**: `app_row.py`, `_filtered_names()` y `AppModal` usan `type` con respaldo a `"Videojuegos"`. Si se agrega un tipo nuevo, actualizar **los tres puntos** y el CSS `.app-type-*`.
 10. **Los ids con datos no se parsean**: se reconstruye buscando en los datos por `safe_id`, o subiendo por `parent` hasta el widget contenedor (`AppRow` guarda `app_name`).
 11. **La copia canónica se mantiene "al día"** a propósito: exportar a otra ruta también actualiza `firewall_config.json` (el timer mensual respalda lo más reciente). No eliminar ese comportamiento al tocar `_do_export`.
+12. **`Select` dispara `Changed` al montarse**: Textual les asigna el valor inicial al montar, así que un `on_select_changed` que refresque una lista hace ese trabajo durante el arranque de la app (y con muchas filas se siente como un cuelgue). Filtrá con `if self._loaded:` o un flag equivalente.
+13. **Montar widgets de a uno es lentísimo**: `for f in filas: container.mount(f)` recalcula el layout en cada montaje y se va al cuadrado. Siempre `container.mount(*filas)`. Con ~100 filas la diferencia es de 22 s a 3 s (ver 5.8).

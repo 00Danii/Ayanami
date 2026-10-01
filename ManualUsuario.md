@@ -440,9 +440,26 @@ En la lista, cada fila muestra:
 - Los dominios asociados.
 - Acciones: **Switch** (bloquear/desbloquear), **Modificar** y **Eliminar** (con confirmación).
 
+#### Pie de la lista (paginación)
+
+Abajo de la lista hay una barra con dos cosas:
+
+| Elemento | Significado |
+|---|---|
+| `Mostrando "x" de "y" apps` | Cuántas filas estás viendo y cuántas hay en total **con el filtro/búsqueda actual**. |
+| **Cargar más ("x")** | Botón que agrega el siguiente tramo de apps a la lista. |
+
+- La lista **no se dibuja completa de una vez**: se muestran de a 25 para que la app no se congele cuando tenés muchas apps registradas. Usá **Cargar más** para ver el resto.
+- El pie se recalcula solo: al cambiar el filtro, el orden o la búsqueda vuelve a la primera página.
+- Cuando ya mostrás todas las apps del filtro, el botón **Cargar más** desaparece.
+- Si el filtro o la búsqueda no deja ninguna app, el pie dice `Sin apps para mostrar`.
+
+> 💡 El buscador tiene un pequeño retardo (medio segundo) a propósito: la lista se vuelve a pintar cuando dejás de escribir, no en cada tecla.
+
 #### Comportamiento del bloqueo
 
 - Al activar el switch de una app: guarda el estado, escribe los dominios en el archivo de dnsmasq, y tras **1.5 segundos sin más cambios** (debounce) reinicia NetworkManager y limpia `conntrack -F`. Esto evita reiniciar la red de forma continua mientras editas varias apps.
+- Al alternar un switch solo se repinta **esa fila** (barra de acento y etiqueta de estado); el resto de la lista no se toca.
 - **Desbloquear todo** elimina el archivo `ayanami-block.conf` completo (desbloquea todas las apps de una vez).
 - Las operaciones largas corren en segundo plano (workers) para no congelar la interfaz.
 

@@ -7,6 +7,10 @@ from views.firewall.config import ConfigTab
 
 
 class FirewallView(Vertical):
+    def ensure_apps_loaded(self):
+        """Pide que la pestaña Apps se dibuje si todavía no se pintó."""
+        self.query_one("#fw-panel-apps", AppsTab).ensure_loaded()
+
     def compose(self):
         with Horizontal(classes="fw-tab-bar"):
             yield Button("Apps", id="fw-tab-apps", classes="fw-tab active")
@@ -30,3 +34,7 @@ class FirewallView(Vertical):
             for btn in self.query(".fw-tab"):
                 btn.remove_class("active")
             event.button.add_class("active")
+            # La lista de Apps se dibuja la primera vez que se abre la pestaña
+            # (si se pintara al montar, la app arrancaría lenta).
+            if panel_id == "fw-panel-apps":
+                self.query_one("#fw-panel-apps", AppsTab).ensure_loaded()

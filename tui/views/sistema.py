@@ -55,9 +55,6 @@ class SistemaView(Vertical):
                 with Vertical(id="sys-proc-card", classes="sys-panel"):
                     yield Static("", id="sys-proc-content")
 
-    def on_mount(self):
-        self.refresh_data()
-
     def refresh_data(self):
         self._render_header()
         self._render_sys()

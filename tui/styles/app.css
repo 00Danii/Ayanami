@@ -1069,6 +1069,21 @@ FirewallView {
     padding: 0;
 }
 
+/* ===== CONTADOR Y PAGINACIÓN EN LA BARRA ===== */
+
+.apps-count {
+    width: auto;
+    height: 3;
+    content-align: left middle;
+    color: #565f89;
+    margin: 1 1 0 1;
+}
+
+.apps-more-btn {
+    width: auto;
+    min-width: 19;
+}
+
 AppRow {
     height: 5;
     padding: 0;

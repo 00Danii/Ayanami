@@ -62,6 +62,13 @@ class AyanamiApp(App):
             self._activate_nav(btn_id)
             if btn_id == "nav-hotspot":
                 self.query_one(HotspotView).refresh_data()
+            if btn_id == "nav-sistema":
+                # Sistema lee muchos datos del sistema: se pinta al abrirlo,
+                # no al arrancar (el intervalo de refresco lo mantiene vivo).
+                self.query_one(SistemaView).refresh_data()
+            if btn_id == "nav-firewall":
+                # La lista de Apps se dibuja al abrir el Firewall, no al arrancar.
+                self.query_one(FirewallView).ensure_apps_loaded()
 
     def _activate_nav(self, item_id: str):
         for btn in self.query(".nav-btn"):

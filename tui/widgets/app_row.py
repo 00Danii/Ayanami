@@ -19,10 +19,15 @@ class AppRow(Horizontal):
         self._modify_id = f"app-modify-{sid}"
         self._delete_id = f"app-delete-{sid}"
 
+        # Se llenan en compose(); update_state() los usa para pintar el estado.
+        self._accent = None
+        self._status = None
+
     def compose(self):
         blocked = self.app_data.get("blocked", False)
         accent_cls = "app-accent-blocked" if blocked else "app-accent-unblocked"
-        yield Label("", classes=f"app-accent {accent_cls}")
+        self._accent = Label("", classes=f"app-accent {accent_cls}")
+        yield self._accent
 
         app_type = self.app_data.get("type", "Videojuegos")
         type_cls = f"app-type-tag app-type-{safe_id(app_type.lower())}"
@@ -38,7 +43,8 @@ class AppRow(Horizontal):
 
                 status_cls = "tag-blocked" if blocked else "tag-unblocked"
                 status_text = "BLOQUEADA" if blocked else "DESBLOQUEADA"
-                yield Label(status_text, classes=f"app-row-tag {status_cls}")
+                self._status = Label(status_text, classes=f"app-row-tag {status_cls}")
+                yield self._status
 
                 domains_str = ", ".join(domains)
                 yield Label(domains_str if domains_str else "Sin dominios", classes="app-row-domains")
@@ -47,3 +53,17 @@ class AppRow(Horizontal):
             yield Switch(value=blocked, id=self._switch_id, classes="app-row-switch")
             yield Button("Modificar", id=self._modify_id, classes="app-row-btn")
             yield Button("Eliminar", variant="error", id=self._delete_id, classes="app-row-btn")
+
+    def update_state(self, blocked: bool):
+        """Pinta el nuevo estado sin recrear la fila (mucho más barato)."""
+        self.app_data["blocked"] = blocked
+
+        if self._accent is None or self._status is None:
+            return  # compose() todavía no corrió
+
+        self._accent.set_class(blocked, "app-accent-blocked")
+        self._accent.set_class(not blocked, "app-accent-unblocked")
+
+        self._status.update("BLOQUEADA" if blocked else "DESBLOQUEADA")
+        self._status.set_class(blocked, "tag-blocked")
+        self._status.set_class(not blocked, "tag-unblocked")
