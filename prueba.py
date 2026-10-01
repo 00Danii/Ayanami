@@ -55,12 +55,18 @@ async def main():
 
         # La lista de Apps se pinta al abrir el Firewall (no al arrancar) y
         # de a un tramo, para que la app no se congele con muchas apps.
+        # Hay que volver al Firewall: el bucle de navegación arriba termina
+        # en nav-sistema y una vista oculta tiene región 0x0 (el clic no
+        # tendría dónde caer).
+        sidebar.query_one("#nav-firewall", Button).press()
+        await pilot.pause()
         container = app.query_one("#apps-container")
         assert container.children, "la lista de apps quedó vacía"
         assert len(container.children) <= PAGINADO_FILAS, "se pintaron más filas de las que tocan"
         print(f"OK  lista de apps paginada ({len(container.children)} filas)")
 
-        app.query_one("#apps-more", Button).press()
+        # «Cargar más» es un label clickeable: se prueba con un clic real.
+        await pilot.click("#apps-more")
         await pilot.pause()
         assert len(container.children) > PAGINADO_FILAS, "«Cargar más» no agregó filas"
         print("OK  «Cargar más» agrega el siguiente tramo")
