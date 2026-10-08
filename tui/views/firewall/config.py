@@ -158,13 +158,13 @@ class ConfigTab(Vertical):
 
     def setup_gateway(self):
         select = self.query_one("#cfg-nat-iface", Select)
-        iface = select.value  # WAN
+        iface = select.value
         if iface is Select.NULL:
             self.app.notify("Selecciona la interfaz con internet", severity="error")
             return
         self.query_one("#cfg-log", RichLog).clear()
 
-        lan_iface = self._get_selected_interface()  # LAN (en02)
+        lan_iface = self._get_selected_interface()
         dns_target = network.get_iface_ip(lan_iface)
 
         self.log(f"\n[#e0af68]━━━ Configuración del Gateway ━━━[/]")
@@ -193,37 +193,25 @@ class ConfigTab(Vertical):
             self.log(f"[#f7768e]  ✗ Error al configurar /etc/sysctl.conf: {e}[/]")
 
         # ─────────────────────────────────────────────
-        # MASQUERADE & FORWARD
+        # MASQUERADE
         # ─────────────────────────────────────────────
 
-        self.log("[#7dcfff]◆ Configurando NAT (MASQUERADE y FORWARD)[/]")
+        self.log("[#7dcfff]◆ Configurando NAT (MASQUERADE)[/]")
 
         self.log(f"[#565f89]  → El tráfico de los clientes saldrá por {iface}[/]")
 
-        # Regla NAT Masquerade
         self.run(
             f"iptables -t nat -C POSTROUTING -o {iface} -j MASQUERADE 2>/dev/null || "
             f"iptables -t nat -A POSTROUTING -o {iface} -j MASQUERADE"
         )
 
-        # Reglas de Reenvío entre LAN y WAN (Crucial para Access Points)
-        if lan_iface:
-            self.run(
-                f"iptables -C FORWARD -i {lan_iface} -o {iface} -j ACCEPT 2>/dev/null || "
-                f"iptables -A FORWARD -i {lan_iface} -o {iface} -j ACCEPT"
-            )
-            self.run(
-                f"iptables -C FORWARD -i {iface} -o {lan_iface} -m state --state ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || "
-                f"iptables -A FORWARD -i {iface} -o {lan_iface} -m state --state ESTABLISHED,RELATED -j ACCEPT"
-            )
-
-        self.log("[#9ece6a]  ✓ Reglas de NAT y Reenvío (FORWARD) configuradas[/]")
+        self.log("[#9ece6a]  ✓ Regla MASQUERADE configurada[/]")
 
         # ─────────────────────────────────────────────
-        # DNS & BLOQUEO DOH/DOT
+        # DNS
         # ─────────────────────────────────────────────
 
-        self.log("[#7dcfff]◆ Configurando redirección DNS e interceptación[/]")
+        self.log("[#7dcfff]◆ Configurando redirección DNS[/]")
 
         if not dns_target:
             self.log(
@@ -242,24 +230,15 @@ class ConfigTab(Vertical):
         self.log(f"[#565f89]  → Dirección local: {dns_target}[/]")
         self.log("[#565f89]  → Las consultas DNS de los clientes serán redirigidas a AYANAMI[/]")
 
-        # Redirección de puerto 53 restringido a la LAN
         for proto in ("udp", "tcp"):
             self.run(
-                f"iptables -t nat -C PREROUTING -i {lan_iface} -p {proto} --dport 53 "
+                f"iptables -t nat -C PREROUTING -p {proto} --dport 53 "
                 f"-j DNAT --to-destination {dns_target} 2>/dev/null || "
-                f"iptables -t nat -A PREROUTING -i {lan_iface} -p {proto} --dport 53 "
+                f"iptables -t nat -A PREROUTING -p {proto} --dport 53 "
                 f"-j DNAT --to-destination {dns_target}"
             )
 
-            self.log(f"[#9ece6a]  ✓ DNS {proto.upper()} (puerto 53) redirigido en {lan_iface}[/]")
-
-        # Bloqueo de DNS sobre TLS (puerto 853) para evitar que los teléfonos eudan a Ayanami
-        for proto in ("udp", "tcp"):
-            self.run(
-                f"iptables -C FORWARD -i {lan_iface} -p {proto} --dport 853 -j DROP 2>/dev/null || "
-                f"iptables -A FORWARD -i {lan_iface} -p {proto} --dport 853 -j DROP"
-            )
-        self.log("[#9ece6a]  ✓ Bloqueo anti-evasión (DoT puerto 853) activo[/]")
+            self.log(f"[#9ece6a]  ✓ DNS {proto.upper()} (puerto 53) redirigido[/]")
 
         # ─────────────────────────────────────────────
         # FINAL
@@ -273,7 +252,7 @@ class ConfigTab(Vertical):
 
         self.log("[#565f89]   NAT → Activo[/]")
 
-        self.log("[#565f89]   DNS → Redirección e interceptación local activa[/]")
+        self.log("[#565f89]   DNS → Redirección local activa[/]")
 
         try:
             firewall_config.update_gateway(iface, lan_iface, dns_target)
