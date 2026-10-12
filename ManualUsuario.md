@@ -397,7 +397,7 @@ La vista **Firewall** tiene **3 pestañas**: **Apps**, **Lista Blanca** y **Conf
 
 **Cómo funciona el firewall por dentro:**
 
-- El **bloqueo de aplicaciones** se hace por **dominios** usando el dnsmasq compartido de NetworkManager: cada dominio bloqueado se escribe como `address=/{dominio}/0.0.0.0` en `/etc/NetworkManager/dnsmasq-shared.d/ayanami-block.conf`. Al cambiar el estado se **reinicia NetworkManager** (para que dnsmasq recargue) y se vacían las conexiones con `conntrack -F`.
+- El **bloqueo de aplicaciones** se hace por **dominios** usando el dnsmasq compartido de NetworkManager (y el dnsmasq del sistema si está activo): cada dominio bloqueado se escribe como `address=/{dominio}/0.0.0.0` en `/etc/NetworkManager/dnsmasq-shared.d/ayanami-block.conf`. Al cambiar el estado se **reinician NetworkManager y el servicio dnsmasq** (para que dnsmasq recargue) y se vacían las conexiones con `conntrack -F`.
 - La **lista blanca** se aplica con **iptables** insertando reglas `ACCEPT` en la **primera posición** (`-I ... 1`) de las cadenas `FORWARD` y `PREROUTING` (las reglas blancas ganan a cualquier `DROP`). Además, para las IPs exentas el DNS se **fuerza a 8.8.8.8** (DNAT a puerto 53) para que no pasen por el dnsmasq de Ayanami.
 - El **gateway/NAT** habilita el reenvío de IP (`net.ipv4.ip_forward=1`), hace `MASQUERADE` por la interfaz WAN y redirige el DNS (puerto 53) hacia la IP de la LAN.
 
@@ -458,7 +458,7 @@ Abajo de la lista hay una línea con dos cosas:
 
 #### Comportamiento del bloqueo
 
-- Al activar el switch de una app: guarda el estado, escribe los dominios en el archivo de dnsmasq, y tras **1.5 segundos sin más cambios** (debounce) reinicia NetworkManager y limpia `conntrack -F`. Esto evita reiniciar la red de forma continua mientras editas varias apps.
+- Al activar el switch de una app: guarda el estado, escribe los dominios en el archivo de dnsmasq, y tras **1.5 segundos sin más cambios** (debounce) reinicia NetworkManager y el servicio dnsmasq, y limpia `conntrack -F`. Esto evita reiniciar la red de forma continua mientras editas varias apps.
 - Al alternar un switch solo se repinta **esa fila** (barra de acento y etiqueta de estado); el resto de la lista no se toca.
 - **Desbloquear todo** elimina el archivo `ayanami-block.conf` completo (desbloquea todas las apps de una vez).
 - Las operaciones largas corren en segundo plano (workers) para no congelar la interfaz.

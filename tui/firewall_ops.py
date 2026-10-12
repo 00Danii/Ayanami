@@ -157,6 +157,11 @@ def remove_block_domains(domains: list[str]):
 
 def apply_changes():
     _run("systemctl restart NetworkManager 2>/dev/null")
+    # Un servidor puede tener un dnsmasq standalone del sistema (servicio
+    # systemd) que lee ayanami-block.conf vía conf-dir: reiniciar
+    # NetworkManager no lo recarga, así que hay que reiniciarlo también.
+    # En equipos sin ese servicio el comando falla en silencio (2>/dev/null).
+    _run("systemctl restart dnsmasq 2>/dev/null")
     _run("conntrack -F 2>/dev/null")
 
 

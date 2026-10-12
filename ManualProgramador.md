@@ -603,7 +603,7 @@ sequenceDiagram
    - si pasó a desbloqueada → `remove_block_domains(domains)`: borra las líneas que contengan `/{dominio}/`.
    - luego `call_from_thread(self._schedule_apply)` (debounce) y `call_from_thread(self.notify, "App 'x' bloqueada/desbloqueada")`.
 5. El debounce dispara (1.5 s sin más cambios) `_do_apply(seq)` → `run_worker(apply_changes, ...)`.
-6. `apply_changes()` (firewall_ops.py): `systemctl restart NetworkManager` (dnsmasq relee la config y responde 0.0.0.0 para los dominios) + `conntrack -F`.
+6. `apply_changes()` (firewall_ops.py): `systemctl restart NetworkManager` + `systemctl restart dnsmasq` (dnsmasq relee la config y responde 0.0.0.0 para los dominios; el segundo comando sirve para servidores con un dnsmasq standalone del sistema y falla en silencio si no existe) + `conntrack -F`.
 
 #### Diagrama de Secuencia - Recorrido B — Bloquear/desbloquear una app con el Switch
 
@@ -649,6 +649,7 @@ sequenceDiagram
     UI->>OPS: run_worker(apply_changes)
 
     OPS->>NM: systemctl restart NetworkManager
+    OPS->>DNS: systemctl restart dnsmasq (si el servicio existe)
     NM->>DNS: Recarga configuración de dnsmasq
     DNS-->>NM: Nueva configuración activa
 
