@@ -968,11 +968,32 @@ Observaciones sobre este flujo:
   1. WAN = valor del `Select #cfg-nat-iface`; LAN = `app.selected_interface`.
   2. Habilita `net.ipv4.ip_forward=1` y lo persiste en `/etc/sysctl.conf` (solo si no estaba).
   3. `MASQUERADE` en `POSTROUTING` por la WAN.
-  4. Redirige el puerto 53 (`DNAT` UDP+TCP) hacia la **IP dinámica** de la LAN (`network.get_iface_ip(lan)`); si no se consigue IP, avisa error y **aborta antes de aplicar**.
-  5. `firewall_config.update_gateway(...)` persiste los datos de referencia en el bundle.
+  4. Reenvío `FORWARD` LAN↔WAN: `ACCEPT -i LAN -o WAN` y `ACCEPT -i WAN -o LAN -m state ESTABLISHED,RELATED` (crucial para Access Points/routers detrás de la LAN).
+  5. Redirige el puerto 53 (`DNAT` UDP+TCP, restringido a `-i LAN`) hacia la **IP dinámica** de la LAN (`network.get_iface_ip(lan)`); si no se consigue IP, avisa error y **aborta antes de aplicar**.
+  6. **Bloqueo anti-evasión DoT**: `DROP --dport 853` (UDP+TCP, `-i LAN`). **Se inserta en la posición 1 con `-I FORWARD 1`**, antes del `ACCEPT` LAN→WAN del paso 4: si se agregara con `-A`, el `ACCEPT` la aceptaría primero y el `DROP` nunca se evaluaría (los teléfonos con DNS privado eludirían los bloqueos).
+  7. `firewall_config.update_gateway(...)` persiste los datos de referencia en el bundle.
 - `show_status()` (botón **Ver Estado**): vuelca al log IP forward, dominios bloqueados, `iptables -L FORWARD -n` y `iptables -t nat -L -n`. Usa el helper `self.run(cmd)` que colorea comando y salida.
 - `flush_all()` (botón **Limpiar Firewall**): borra `ayanami-block.conf`, `iptables -F FORWARD`, `iptables -t nat -F`, `reset_apps_state()` (todas las apps a `blocked: false`) y `conntrack -F`. **No borra** `whitelist.json` ni `firewall_config.json`.
 - `#cfg-log`: un `RichLog` que se usa como "consola" con colores Tokyo Night (ver convenciones).
+
+### 7.5.1 Alcance y límites del bloqueo de DNS
+
+El bloqueo *funciona* porque todos los clientes que consultan DNS **plano (puerto 53)** terminan en el dnsmasq local; el gateway redirige esa consulta con el DNAT de `PREROUTING` **independientemente de la IP de destino** (`--dport 53`, sin `-d`), así que configurar `8.8.8.8` o `1.1.1.1` como DNS en un cliente sigue automatizado. La tabla de cobertura:
+
+| Cliente / configuración | Túnel DNS | Cobertura |
+|---|---|---|
+| Android "DNS privado" (1.1.1.1, dns.google) | DoT 853 | ✅ `DROP` en posición 1 → el cliente cae al DNS plano |
+| iPhone/iPad con perfil de DNS cifrado | DoT 853 / DoH 443 | ✅ solo DoT; ❌ DoH |
+| Navegadores con "DNS seguro" (Chrome/Firefox) | DoH 443 | ❌ HTTPS normal, indistinguible |
+| Laptop con `systemd-resolved DNSOverTLS=yes` | DoT 853 | ✅ `DROP` 853 |
+| Cualquier dispositivo con VPN | Túnel completo | ❌ el DNS va encriptado dentro del túnel |
+
+**Límites inherentes al filtrado por DNS:**
+
+- **DoT (853)** se puede bloquear porque es un puerto dedicado. Para eso existe el `DROP -I FORWARD 1` (el orden importa: primero el `ACCEPT` LAN→WAN lo aceptaría y el `DROP` nunca se evaluaría).
+- **DoH (443)** no se puede bloquear por puerto: comparte puerto con el HTTPS. Bloquearlo de verdad exige inspección TLS/SNI (fuera de alcance).
+- **VPN** encapsula el DNS dentro del túnel: ni el DNAT ni el `DROP` 853 lo alcanzan. Única vía: filtrar por IP del servidor VPN.
+- El DNAT al puerto 53 solo captura consultas **en tránsito por el gateway**: si el dispositivo resuelve a través de otra ruta (router con NAT propio que resuelve por su cuenta), Ayanami no ve la consulta.
 
 ### 7.6 `reset_apps_state` y el manejo del JSON de apps
 

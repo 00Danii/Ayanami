@@ -504,8 +504,31 @@ Convierte al equipo en **router/gateway** de la red:
 3. Ayanami hace:
    - Habilita `net.ipv4.ip_forward=1` (y lo persiste en `/etc/sysctl.conf`).
    - Añade la regla `MASQUERADE` en `POSTROUTING` por la WAN.
+   - Permite el reenvío **LAN↔WAN** (reglas `FORWARD` de ida y vuelta, para que los dispositivos detrás de la LAN salgan a internet).
    - Redirige el DNS (puerto 53 TCP/UDP) de toda la LAN hacia la **IP dinámica** de la interfaz LAN (se calcula en vivo en cada configuración).
+   - **Bloquea el DNS cifrado (DoT, puerto 853)** que sale de la LAN: así los teléfonos no se pueden "esconder" de los bloqueos usando un DNS privado. Estas reglas se insertan en la **primera posición** de `FORWARD`, antes del `ACCEPT` de reenvío, para que realmente se apliquen.
    - Guarda los datos de referencia en `firewall_config.json` (`wan_iface`, `lan_iface`, `dns_target`) para poder restaurarlos después.
+
+#### Alcance del bloqueo de DNS (qué cubre y qué no)
+
+El bloqueo de Ayanami es **por DNS**: el dnsmasq local responde `0.0.0.0` para los dominios bloqueados y el gateway redirige las consultas de puerto 53 hacia él. Funciona mientras el dispositivo **consulte el DNS a través de la red**. Cada dispositivo puede intentar "esconder" sus consultas por caminos distintos:
+
+| Dispositivo / configuración | Protocolo DNS | ¿Lo bloquea Ayanami? |
+|---|---|---|
+| Teléfono **Android** sin tocar nada | DNS plano (53) vía gateway | ✅ Sí (DNAT) |
+| **Android** con "DNS privado" (1.1.1.1, dns.google…) | DoT (853) | ✅ Sí (se le corta el 853 y cae al 53) |
+| **Android** — Chrome/Firefox con "DNS seguro" | DoH (443) | ⚠️ No — es HTTPS normal |
+| **iPhone / iPad** sin perfiles de DNS | DNS plano (53) | ✅ Sí (DNAT) |
+| **iPhone / iPad** con perfil de DNS cifrado (Cloudflare, NextDNS…) | DoT (853) o DoH (443) | ✅ solo si usa 853; ⚠️ NO si usa DoH |
+| **Laptop** con 8.8.8.8 / 1.1.1.1 como DNS | DNS plano (53) | ✅ Sí — el DNAT redirige cualquier destino al 53 |
+| **Laptop** con `systemd-resolved` y `DNSOverTLS=yes` | DoT (853) | ✅ Sí (se le corta el 853) |
+| **Cualquier dispositivo con VPN** (WireGuard/OpenVPN) | Encriptado dentro del túnel | ❌ No — el DNS viaja dentro del túnel |
+
+**Aclaraciones:**
+
+- **Poner una IP de DNS a mano (ej: `8.8.8.8`) NO evade el bloqueo**: son consultas planas al puerto 53 y el DNAT las captura igual (no mira el destino, solo `--dport 53`).
+- **DoH (443) es el límite por diseño**: no se puede bloquear con una regla de puerto sin bloquear toda la web, porque comparte el puerto con el HTTPS normal. Los navegadores con "DNS seguro" activado por defecto (Chrome) pueden consultar por ahí.
+- **VPN es bypasseo completo**: el DNS va encriptado dentro del túnel y lo resuelve el servidor VPN, fuera del alcance de Ayanami. Para bloquear ese dispositivo habría que filtrar por **IP del servidor VPN** (o sacar la VPN), no por DNS.
 
 #### Ver Estado
 
@@ -689,6 +712,7 @@ sudo python3 cli/ayanami.py
 | **Cargo un archivo y dice "no es válido"** | El archivo debe ser una configuración de Ayanami exportada (JSON con `version`, `apps`, `whitelist`). Los backups del mes sirven. |
 | **Al desbloquear apps la red se corta** | Es normal: reiniciar NetworkManager es lo que aplica las reglas DNS. |
 | **El hotspot falla ("IP config unavailable")** | Revisar que no haya un `.conf` malformado en `/etc/NetworkManager/dnsmasq-shared.d/`. Consulta `PROBLEMAS.txt` del proyecto. |
+| **Un dispositivo "se escapa" del bloqueo (DNS privado/VPN)** | Los protocolos DoT (853) están bloqueados por el gateway, pero DoH (443) y VPN no se pueden bloquear por puerto. Ver la tabla de **Alcance del bloqueo de DNS** en la sección 6.3. |
 | **La lista de apps no se refresca** | Cambiar de pestaña dentro de Firewall o hacer una acción (la tecla `r` no refresca el panel Firewall). |
 
 ---
