@@ -11,10 +11,11 @@ from views.scanner import ScannerView
 from views.monitor import MonitorView
 from views.sniffer import SnifferView
 from views.firewall import FirewallView
+from views.dhcp import DhcpView
 from views.sistema import SistemaView
 
 
-NAV_ORDER = ["nav-interfaces", "nav-hotspot", "nav-scanner", "nav-monitor", "nav-sniffer", "nav-firewall", "nav-sistema"]
+NAV_ORDER = ["nav-interfaces", "nav-hotspot", "nav-scanner", "nav-monitor", "nav-sniffer", "nav-firewall", "nav-dhcp", "nav-sistema"]
 
 
 class AyanamiApp(App):
@@ -43,6 +44,7 @@ class AyanamiApp(App):
                 yield HotspotView(id="nav-hotspot")
                 yield MonitorView(id="nav-monitor")
                 yield FirewallView(id="nav-firewall")
+                yield DhcpView(id="nav-dhcp")
                 yield SistemaView(id="nav-sistema")
         yield Footer()
 
@@ -69,6 +71,8 @@ class AyanamiApp(App):
             if btn_id == "nav-firewall":
                 # La lista de Apps se dibuja al abrir el Firewall, no al arrancar.
                 self.query_one(FirewallView).ensure_apps_loaded()
+            if btn_id == "nav-dhcp":
+                self.query_one(DhcpView).refresh_data()
 
     def _activate_nav(self, item_id: str):
         for btn in self.query(".nav-btn"):
@@ -87,6 +91,8 @@ class AyanamiApp(App):
             self.query_one(SnifferView).refresh_devices()
         elif current_view == "nav-hotspot":
             self.query_one(HotspotView).refresh_data()
+        elif current_view == "nav-dhcp":
+            self.query_one(DhcpView).refresh_data()
         elif current_view == "nav-sistema":
             self.query_one(SistemaView).refresh_data()
 

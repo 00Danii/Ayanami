@@ -1577,3 +1577,54 @@ SistemaView {
 /********************
  * FIN SISTEMA VIEW *
  ********************/
+
+
+/********************
+ * INICIO DHCP VIEW *
+ ********************/
+
+DhcpView {
+    layout: vertical;
+    padding: 1;
+}
+
+.dhcp-desc-row {
+    height: auto;
+    align-vertical: middle;
+}
+
+/* La descripción ocupa el espacio libre y empuja los botones a la derecha. */
+.dhcp-desc-row > .fw-card-desc {
+    width: 1fr;
+    margin-bottom: 0;
+}
+
+.dhcp-actions {
+    width: auto;
+    height: auto;
+    align-vertical: middle;
+}
+
+#dhcp-status,
+#dhcp-show-config,
+#dhcp-restart {
+    width: auto;
+    min-width: 18;
+    margin-right: 1;
+    margin-bottom: 0;
+}
+
+.dhcp-actions > Button:last-child {
+    margin-right: 0;
+}
+
+#dhcp-log {
+    height: 1fr;
+    margin-top: 1;
+    background: #1a1b26;
+    border: solid #3b4261;
+}
+
+/********************
+ *   FIN DHCP VIEW  *
+ ********************/

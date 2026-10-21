@@ -11,6 +11,7 @@ NAV_ITEMS = [
     ("nav-monitor",    ">  Monitor   "),
     ("nav-sniffer",    ">  Sniffer   "),
     ("nav-firewall",   ">  Firewall  "),
+    ("nav-dhcp",       ">  DHCP      "),
     ("nav-sistema",    ">  Sistema   "),
 ]
 
