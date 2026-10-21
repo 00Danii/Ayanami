@@ -402,7 +402,7 @@
   },
   "Snake.io": {
     "type": "Videojuegos",
-    "domains": ["kooapps.com", "snake.io", "playfabapi.com"],
+    "domains": ["kooapps.com", "snake.io"],
     "blocked": false
   },
   "PUBG Mobile": {
@@ -795,6 +795,158 @@
     "type": "Social",
     "domains": [
       "kick.com"
+    ],
+    "blocked": false
+  },
+  "Left 4 Dead 1 & 2": {
+    "type": "Videojuegos",
+    "domains": [
+      "steampowered.com",
+      "steamcommunity.com",
+      "valvesoftware.com",
+      "steamstatic.com"
+    ],
+    "blocked": false
+  },
+  "No Man's Sky": {
+    "type": "Videojuegos",
+    "domains": [
+      "nomanssky.com",
+      "hellogames.org",
+      "hellogames.co.uk",
+      "nms-discovery.hellogames.co.uk",
+      "nms-discovery.hellogames.org"
+    
+    ],
+    "blocked": false
+  },
+  "Content Warning": {
+    "type": "Videojuegos",
+    "domains": [
+      "landfall.se"
+    ],
+    "blocked": false
+  },
+  "Counter-Strike (CS:GO / CS2)": {
+    "type": "Videojuegos",
+    "domains": [
+      "counter-strike.net",
+      "steampowered.com",
+      "steamcommunity.com",
+      "valvesoftware.com"
+    ],
+    "blocked": false
+  },
+  "Valorant": {
+    "type": "Videojuegos",
+    "domains": [
+      "playvalorant.com",
+      "riotgames.com",
+      "pvp.net",
+      "riotcdn.net"
+    ],
+    "blocked": false
+  },
+  "Dead Frontier": {
+    "type": "Videojuegos",
+    "domains": [
+      "deadfrontier.com",
+      "deadfrontier2.com",
+      "fairviewalt.com"
+    ],
+    "blocked": false
+  },
+  "Overwatch": {
+    "type": "Videojuegos",
+    "domains": [
+      "overwatch.blizzard.com",
+      "playoverwatch.com",
+      "blizzard.com",
+      "battle.net"
+    ],
+    "blocked": false
+  },
+  "PUBG (PC / Consola)": {
+    "type": "Videojuegos",
+    "domains": [
+      "pubg.com",
+      "krafton.com",
+      "pubgbluehole.com"
+    ],
+    "blocked": false
+  },
+  "Terraria": {
+    "type": "Videojuegos",
+    "domains": [
+      "terraria.org",
+      "re-logic.com"
+    ],
+    "blocked": false
+  },
+  "R.E.P.O.": {
+    "type": "Videojuegos",
+    "domains": [
+      "steampowered.com"
+    ],
+    "blocked": false
+  },
+  "Skullgirls": {
+    "type": "Videojuegos",
+    "domains": [
+      "skullgirls.com",
+      "autumngames.com",
+      "hiddenvariable.com"
+    ],
+    "blocked": false
+  },
+  "Saga Halo": {
+    "type": "Videojuegos",
+    "domains": [
+      "halowaypoint.com",
+      "halo.xbox.com",
+      "xboxlive.com",
+      "343industries.com",
+      "msftauth.net"
+    ],
+    "blocked": false
+  },
+  "Saga Gears of War": {
+    "type": "Videojuegos",
+    "domains": [
+      "gearsofwar.com",
+      "thecoalitionstudio.com",
+      "xboxlive.com",
+      "msftauth.net"
+    ],
+    "blocked": false
+  },
+  "Rust": {
+    "type": "Videojuegos",
+    "domains": [
+      "facepunch.com",
+      "rustafied.com",
+      "easy.ac"
+    ],
+    "blocked": false
+  },
+  "Project Zomboid": {
+    "type": "Videojuegos",
+    "domains": [
+      "projectzomboid.com",
+      "theindiestone.com"
+    ],
+    "blocked": false
+  },
+  "Netflix": {
+    "type": "Plataforma",
+    "domains": [
+      "netflix.com",
+      "netflix.net",
+      "nflxext.com",
+      "nflximg.net",
+      "nflxvideo.net",
+      "nflxso.net",
+      "prod.cloud.netflix.com"
     ],
     "blocked": false
   }
