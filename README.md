@@ -1,6 +1,6 @@
 # Ayanami
 
-**Ayanami** es una herramienta de control de red con **Interfaz de Texto (TUI)** y una versión CLI, ambas pensadas para Linux. Permite inspeccionar interfaces, crear un hotspot, detectar dispositivos, monitorear tráfico en tiempo real, esnifar paquetes con Scapy, gestionar un firewall con bloqueo por apps y una lista blanca de IPs, y consultar el estado del sistema.
+**Ayanami** es una herramienta de control de red con **Interfaz de Texto (TUI)** y una versión CLI, ambas pensadas para Linux. Permite inspeccionar interfaces, crear un hotspot, detectar dispositivos, monitorear tráfico en tiempo real, esnifar paquetes con Scapy, gestionar un firewall con bloqueo por apps y una lista blanca de IPs y MACs, y consultar el estado del sistema.
 
 ```text
 ▄████▄ ██  ██ ▄████▄ ███  ██ ▄████▄ ██▄  ▄██ ██
@@ -31,7 +31,7 @@ La TUI está construida con **Textual** y es la forma más completa y amigable d
 ### Pestañas del Firewall
 
 - **Apps** — Registra aplicaciones con sus dominios, activa/desactiva su bloqueo con un switch, filtra y ordena. El bloqueo se aplica vía **dnsmasq** (`address=/{dominio}/0.0.0.0`) más **iptables** para QUIC/NAT.
-- **Lista Blanca** — Exenta IPs, rangos (`10.0.0.1-10.0.0.255`) o subredes CIDR (`192.168.1.0/24`) de todas las reglas de bloqueo. Las IPs listadas resuelven DNS externamente (8.8.8.8) en vez del dnsmasq local, con aplicación automática de las reglas.
+- **Lista Blanca** — Exenta IPs, rangos (`10.0.0.1-10.0.0.255`), subredes CIDR (`192.168.1.0/24`) o **direcciones MAC** (`AA:BB:CC:DD:EE:FF`) de todas las reglas de bloqueo. Las entradas listadas resuelven DNS externamente (8.8.8.8) en vez del dnsmasq local, con aplicación automática de las reglas.
 - **Config** — Configura el gateway/NAT, fuerza DNS local, muestra el estado de las reglas y limpia el firewall completo. Incluye **Guardar/Cargar Config** para exportar e importar toda la configuración del firewall.
 
 ### Archivo de configuración y backups

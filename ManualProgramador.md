@@ -529,16 +529,17 @@ Estos son **flujos completos** con los nombres exactos de archivos y funciones, 
 2. `WhitelistTab.on_button_pressed` (whitelist.py) ve `btn_id == "wl-add"` → llama `self.add_ip()`.
    *(Si en cambio el usuario pulsa `Enter`, es `on_input_submitted` con `event.input.id == "wl-input"` → también `add_ip()`.)*
 3. `add_ip()` valida:
-   - input vacío → `notify("Escribe una IP, CIDR o rango", severity="warning")` y se corta.
-   - `is_valid_whitelist_entry(entry)` comprueba las tres regex de `firewall_ops.py` (`IP_RE`, `CIDR_RE`, `RANGE_RE`). Si no matchea → `notify(... severity="error")` y se corta (no se toca nada).
-4. `add_whitelist_ip(entry)` (firewall_ops.py): lee `whitelist.json`; si la entrada ya existe devuelve `False`; si no, la agrega y la guarda, devolviendo `True`.
+   - input vacío → `notify("Escribe una IP, CIDR, rango o MAC", severity="warning")` y se corta.
+   - si es una MAC válida (`is_valid_mac`), la **normaliza** a `aa:bb:cc:dd:ee:ff` con `normalize_mac` (acepta `:`, `-`, formato Cisco `aabb.ccdd.eeff` o 12 hex). Después `is_valid_whitelist_entry(entry)` comprueba las cuatro regex de `firewall_ops.py` (`IP_RE`, `CIDR_RE`, `RANGE_RE`, `MAC_RE`). Si no matchea → `notify(... severity="error")` y se corta (no se toca nada).
+   - `is_valid_mac` descarta multicast/broadcast (primer octeto impar) y la MAC nula `00:00:00:00:00:00`.
+4. `add_whitelist_ip(entry)` (firewall_ops.py): normaliza la MAC si corresponde, lee `whitelist.json`; si la entrada ya existe devuelve `False`; si no, la agrega y la guarda, devolviendo `True`.
 5. Si `True`: vacía el input, llama `refresh_list()` (vuelve a montar todas las filas `IPRow`, incluida la nueva) y dispara la aplicación de reglas en un hilo: `run_worker(self._apply_and_notify, name="wl-apply", group="firewall", thread=True)`. Además `notify("Agregada: ...")`.
 6. `_apply_and_notify` corre en el hilo:
    - `apply_whitelist()`:
      a. `_remove_all_whitelist_rules()` — consulta `iptables -S FORWARD` y `iptables -t nat -S PREROUTING`, filtra las líneas con el comentario `ayanami-wl` y las borra (convirtiendo `-A` en `-D`).
-     b. Inserta en la **posición 1** las reglas de la nueva lista completa: `ACCEPT` de origen/destino (IP/CIDR) o por rango en `FORWARD`, y el `DNAT --to-destination 8.8.8.8:53` en `PREROUTING` (las IPs exentas resuelven DNS fuera del filtro).
+     b. Inserta en la **posición 1** las reglas de la nueva lista completa: `ACCEPT` de origen/destino (IP/CIDR) o por rango en `FORWARD`, `ACCEPT` por `--mac-source` para las MAC, y el `DNAT --to-destination 8.8.8.8:53` en `PREROUTING` (las entradas exentas resuelven DNS fuera del filtro).
      c. `conntrack -F` para cortar conexiones ya abiertas.
-   - vuelve a la UI con `self.app.call_from_thread(self.app.notify, "Firewall actualizado (N IPs en lista blanca)")`.
+   - vuelve a la UI con `self.app.call_from_thread(self.app.notify, "Firewall actualizado (N entradas en lista blanca)")`.
 
 #### Diagrama de secuencia - Recorrido A — Agregar una IP a la lista blanca
 
@@ -553,7 +554,7 @@ sequenceDiagram
     participant IPT as iptables
     participant CT as conntrack
 
-    U->>UI: Escribe IP/CIDR/rango
+    U->>UI: Escribe IP/CIDR/rango/MAC
     U->>UI: Pulsa "Agregar"
     
     UI->>UI: on_button_pressed()
@@ -562,7 +563,7 @@ sequenceDiagram
     UI->>OPS: is_valid_whitelist_entry(entry)
 
     alt Entrada vacía
-        UI-->>U: notify("Escribe una IP, CIDR o rango")
+        UI-->>U: notify("Escribe una IP, CIDR, rango o MAC")
     else Formato inválido
         OPS-->>UI: False
         UI-->>U: notify("Entrada inválida")
@@ -595,6 +596,7 @@ sequenceDiagram
 
             loop Por cada entrada de whitelist
                 OPS->>IPT: Inserta ACCEPT en FORWARD<br/>posición 1
+                OPS->>IPT: Inserta ACCEPT por MAC<br/>(--mac-source) si aplica
                 OPS->>IPT: Inserta DNAT en PREROUTING<br/>→ 8.8.8.8:53
             end
 
@@ -906,7 +908,7 @@ sequenceDiagram
 
 | Módulo | Responsabilidad | ¿Conoce Textual? |
 |---|---|---|
-| `tui/firewall_ops.py` | Primitivas del firewall: validación de IPs, whitelist (JSON + iptables), bloqueo por dominio (dnsmasq), aplicar cambios | ❌ |
+| `tui/firewall_ops.py` | Primitivas del firewall: validación de IPs/MACs, whitelist (JSON + iptables), bloqueo por dominio (dnsmasq), aplicar cambios | ❌ |
 | `tui/firewall_config.py` | Bundle unificado, guardar/cargar, backups mensuales, CLI de systemd | ❌ |
 | `tui/views/firewall/__init__.py` | `FirewallView` — el contenedor con sus pestañas | ✅ |
 | `tui/views/firewall/apps.py` | `AppsTab` — CRUD de apps + bloqueo por dominio | ✅ |
@@ -933,7 +935,7 @@ sequenceDiagram
 **`whitelist.json`** — lista blanca:
 
 ```json
-{ "whitelist": ["192.168.1.100", "10.0.0.0/24", "10.0.0.1-10.0.0.255"] }
+{ "whitelist": ["192.168.1.100", "10.0.0.0/24", "10.0.0.1-10.0.0.255", "aa:bb:cc:dd:ee:ff"] }
 ```
 
 **`/etc/NetworkManager/dnsmasq-shared.d/ayanami-block.conf`** — los dominios bloqueados "en vivo" que lee dnsmasq:
@@ -972,7 +974,8 @@ Observaciones sobre este flujo:
 1. **`_remove_all_whitelist_rules()`** — barre `iptables -S FORWARD` y `iptables -t nat -S PREROUTING`, busca las líneas con el comentario `ayanami-wl` y las borra convirtiendo `-A` en `-D`. Así, cada aplicación regenera todo desde cero (nunca acumula reglas viejas).
 2. **Insertar con `-I ... 1`** (posición 1):
    - `ACCEPT` para esa IP/CIDR (`-s` y `-d`) o rango (`--src-range`/`--dst-range`) en `FORWARD` **y** en `nat/PREROUTING`;
-   - `DNAT --to-destination 8.8.8.8:53` (puerto 53) con el comentario `ayanami-wl-dns` → el DNS de esa IP sale directo a 8.8.8.8 y **no pasa por el dnsmasq local**.
+   - `ACCEPT` para una **MAC** con `-m mac --mac-source` en `FORWARD` (el módulo `mac` de iptables solo expone el origen; el tráfico de retorno lo cubre conntrack);
+   - `DNAT --to-destination 8.8.8.8:53` (puerto 53) con el comentario `ayanami-wl-dns` → el DNS de esa entrada sale directo a 8.8.8.8 y **no pasa por el dnsmasq local** (para MAC también se usa `--mac-source`).
 
 **Por qué la posición 1**: iptables evalúa en orden la primera coincidencia. Al insertar al principio, el `ACCEPT` de la lista blanca **gana** sobre cualquier `DROP` de bloqueo Ubicado más abajo.
 
@@ -1537,7 +1540,7 @@ sudo venv/bin/python tui.py
 | **Handler** | método `on_<evento>` que reacciona a un evento. |
 | **Evento / mensaje** | lo que se propaga por el árbol de widgets (`Button.Pressed`, etc.). |
 | **`safe_id`** | sanitiza un dato para usarlo como id de widget (`.`→`_`, etc.). |
-| **Whitelist / lista blanca** | IPs exentas de todo bloqueo (y que resuelven DNS externo). |
+| **Whitelist / lista blanca** | IPs, CIDR, rangos o MACs exentos de todo bloqueo (y que resuelven DNS externo). |
 | **App (del firewall)** | entrada del registro con `type`, `domains` y `blocked`. No es un proceso del sistema: es un conjunto de dominios. |
 | **Gateway / NAT** | modo router: `ip_forward` + MASQUERADE + redirección de DNS. |
 | **WAN** | interfaz hacia internet (la elegida en "Configurar Gateway"). |

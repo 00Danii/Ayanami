@@ -2,7 +2,7 @@
 
 > Herramienta de control de red y firewall con **Interfaz de Texto (TUI)** y una versión **CLI** para Linux.
 
-Este manual explica la funcionalidad completa del programa, con **especial énfasis en el módulo de firewall**, que es el corazón de Ayanami: bloqueo por aplicaciones (dominios), lista blanca de IPs, gateway/NAT y backups de configuración.
+Este manual explica la funcionalidad completa del programa, con **especial énfasis en el módulo de firewall**, que es el corazón de Ayanami: bloqueo por aplicaciones (dominios), lista blanca de IPs y MACs, gateway/NAT y backups de configuración.
 
 ```
 ▄████▄ ██  ██ ▄████▄ ███  ██ ▄████▄ ██▄  ▄██ ██
@@ -45,7 +45,7 @@ Funcionalidades principales:
 | **Scanner** | Detecta dispositivos en la red LAN y muestra detalles (MAC, fabricante, puertos). |
 | **Monitor** | Monitorea ancho de banda por host en tiempo real. |
 | **Sniffer** | Captura y analiza paquetes con Scapy (todo el tráfico, por dispositivo o RAW). |
-| **Firewall** | Bloqueo por apps (dominios), lista blanca de IPs, gateway/NAT, backups. |
+| **Firewall** | Bloqueo por apps (dominios), lista blanca de IPs y MACs, gateway/NAT, backups. |
 | **DHCP** | Estado del servicio `dnsmasq`, su configuración y reinicio del servicio. |
 | **Sistema** | Dashboard tipo *fastfetch*: CPU, memoria, disco, procesos, temperatura y red. |
 
@@ -425,7 +425,7 @@ La vista **Firewall** tiene **3 pestañas**: **Apps**, **Lista Blanca** y **Conf
 **Cómo funciona el firewall por dentro:**
 
 - El **bloqueo de aplicaciones** se hace por **dominios** usando el dnsmasq compartido de NetworkManager (y el dnsmasq del sistema si está activo): cada dominio bloqueado se escribe como `address=/{dominio}/0.0.0.0` en `/etc/NetworkManager/dnsmasq-shared.d/ayanami-block.conf`. Al cambiar el estado se **reinician NetworkManager y el servicio dnsmasq** (para que dnsmasq recargue) y se vacían las conexiones con `conntrack -F`.
-- La **lista blanca** se aplica con **iptables** insertando reglas `ACCEPT` en la **primera posición** (`-I ... 1`) de las cadenas `FORWARD` y `PREROUTING` (las reglas blancas ganan a cualquier `DROP`). Además, para las IPs exentas el DNS se **fuerza a 8.8.8.8** (DNAT a puerto 53) para que no pasen por el dnsmasq de Ayanami.
+- La **lista blanca** se aplica con **iptables** insertando reglas `ACCEPT` en la **primera posición** (`-I ... 1`) de las cadenas `FORWARD` y `PREROUTING` (las reglas blancas ganan a cualquier `DROP`). Las entradas por IP/CIDR/rango se exentan por origen y destino; las **MAC** se exentan por `--mac-source`. Además, para las entradas exentas el DNS se **fuerza a 8.8.8.8** (DNAT a puerto 53) para que no pasen por el dnsmasq de Ayanami.
 - El **gateway/NAT** habilita el reenvío de IP (`net.ipv4.ip_forward=1`), hace `MASQUERADE` por la interfaz WAN y redirige el DNS (puerto 53) hacia la IP de la LAN.
 
 > 💡 **Orden de aplicación**: primero se configura el gateway (si se usa Ayanami como router) y luego el bloqueo de apps / lista blanca.
@@ -494,9 +494,9 @@ Abajo de la lista hay una línea con dos cosas:
 
 ---
 
-### 6.2 Pestaña Lista Blanca — exención de IPs
+### 6.2 Pestaña Lista Blanca — exención de dispositivos
 
-Sirve para **exentar** dispositivos (o redes) de todas las reglas de bloqueo.
+Sirve para **exentar** dispositivos (o redes) de todas las reglas de bloqueo. Se pueden identificar por IP, subred, rango o **dirección MAC**.
 
 #### Formatos aceptados
 
@@ -505,16 +505,18 @@ Sirve para **exentar** dispositivos (o redes) de todas las reglas de bloqueo.
 | **IP** | `192.168.1.100` |
 | **CIDR** | `192.168.1.0/24` |
 | **Rango** | `10.0.0.1-10.0.0.255` |
+| **MAC** | `AA:BB:CC:DD:EE:FF` |
 
-El input muestra el placeholder con los tres formatos; se agrega con el botón **Agregar** o con **Enter**.
+El input muestra el placeholder con los cuatro formatos; se agrega con el botón **Agregar** o con **Enter**. Las MAC se aceptan con `:` o `-` (`AA-BB-CC-DD-EE-FF`), en formato Cisco (`AABB.CCDD.EEFF`) o sin separadores (`AABBCCDDEEFF`), y se normalizan a `aa:bb:cc:dd:ee:ff`.
 
 #### Cómo funciona
 
 - La lista se guarda en `whitelist.json` (formato `{"whitelist": [...]}`).
 - Al agregar/quitar una entrada, las reglas **se aplican automáticamente** (no hay botón "Aplicar"): se borran todas las reglas anteriores marcadas con el comentario `ayanami-wl` y se insertan de nuevo las ACCEPT y el DNAT de DNS.
-- Las IPs exentas **resuelven DNS externamente (8.8.8.8)**, saltándose el dnsmasq de Ayanami, de modo que no les afectan los bloqueos por dominio.
+- Las entradas exentas **resuelven DNS externamente (8.8.8.8)**, saltándose el dnsmasq de Ayanami, de modo que no les afectan los bloqueos por dominio.
+- Una **MAC** se exenta con `-m mac --mac-source`, es decir, cubre el tráfico que **sale** del dispositivo (el de retorno lo maneja conntrack). Al ser una dirección de capa 2, solo funciona si el equipo está en la **misma red local**; si está detrás de otro router, hay que usar su IP.
 - Cada entrada tiene un botón **Quitar** (con confirmación).
-- Los formatos se validan y el tag muestra el tipo de entrada (IP azul, CIDR violeta, RANGO ámbar).
+- Los formatos se validan y el tag muestra el tipo de entrada (IP azul, CIDR violeta, RANGO ámbar, MAC verde).
 
 > 💡 El orden de las reglas importa: las reglas de la lista blanca se insertan en la posición 1, por encima de cualquier bloqueo, por eso siempre "ganan".
 
