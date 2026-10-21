@@ -46,6 +46,7 @@ Funcionalidades principales:
 | **Monitor** | Monitorea ancho de banda por host en tiempo real. |
 | **Sniffer** | Captura y analiza paquetes con Scapy (todo el tráfico, por dispositivo o RAW). |
 | **Firewall** | Bloqueo por apps (dominios), lista blanca de IPs, gateway/NAT, backups. |
+| **DHCP** | Estado del servicio `dnsmasq`, su configuración y reinicio del servicio. |
 | **Sistema** | Dashboard tipo *fastfetch*: CPU, memoria, disco, procesos, temperatura y red. |
 
 > ⚠️ **Permisos**: la mayoría de las funciones (firewall, hotspot, sniffer, scanner) requieren ejecutarse con **root** (`sudo`).
@@ -116,7 +117,7 @@ sudo python3 cli/ayanami.py
 La barra lateral contiene:
 
 - **Interfaz Global**: un selector (`Select`) con todas las interfaces de red. La interfaz elegida aquí es la "global" que usan otros módulos (scanner, monitor, sniffer y el gateway como **LAN**). Si se cambia la interfaz aquí, todos los módulos la usan.
-- **Navegación** con 7 botones: Interfaces, Hotspot, Scanner, Monitor, Sniffer, Firewall y Sistema.
+- **Navegación** con 8 botones: Interfaces, Hotspot, Scanner, Monitor, Sniffer, Firewall, DHCP y Sistema.
 
 ### Atajos de teclado
 
@@ -388,6 +389,32 @@ Dashboard tipo *fastfetch* que se **auto-refresca cada 1 segundo** (no tiene bot
 
 ### 5.7 Firewall
 Se explora en detalle en la [sección 6](#6-el-firewall).
+
+---
+
+### 5.8 DHCP
+
+La vista **DHCP** administra el servicio **`dnsmasq`** del sistema, que es el que reparte direcciones DHCP y resuelve el DNS local (y del que depende el bloqueo por dominios de Ayanami). **Ayanami no hace DHCP por sí mismo**: esta vista solo muestra y opera el servicio del sistema.
+
+#### Qué muestra
+
+Un panel de log (`RichLog`) con la salida de los comandos ejecutados. Al abrir la vista se muestra por defecto el estado del servicio:
+
+```bash
+systemctl status dnsmasq
+```
+
+#### Botones
+
+| Botón | Qué hace |
+|---|---|
+| **Estado** | Vuelve a mostrar `systemctl status dnsmasq` (servicio activo/inactivo, PID y últimas líneas del log). |
+| **Ver Config** | Limpia el log y muestra el contenido de `/etc/dnsmasq.conf` (`cat`). |
+| **Reiniciar Servicio** | Ejecuta `systemctl restart dnsmasq`; al terminar limpia el log, muestra el resultado, deja una línea en blanco y vuelve a mostrar el estado. Corre en segundo plano para no congelar la interfaz. |
+
+> ⚠️ El reinicio requiere permisos de root: Ayanami ya se ejecuta con `sudo`, así que el comando no necesita `sudo` dentro de la app. Si se ejecuta sin root, el error de permisos aparece en rojo en el log.
+
+> 💡 La tecla `r` (Actualizar Vista) equivale a pulsar **Estado**: vuelve a consultar el servicio.
 
 ---
 

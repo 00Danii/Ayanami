@@ -239,6 +239,7 @@ Consecuencia práctica: **los archivos nuevos de `tui/` se importan plano, sin p
         ├── scanner.py       # vista "Scanner"
         ├── monitor.py       # vista "Monitor" (tráfico en tiempo real)
         ├── sniffer.py       # vista "Sniffer"
+        ├── dhcp.py          # vista "DHCP" (estado/config/reinicio de dnsmasq)
         ├── sistema.py       # vista "Sistema" (dashboard)
         └── firewall/        # módulo firewall: contiene sus propias sub-pestañas
             ├── __init__.py  # FirewallView: el contenedor con sus tabs
@@ -498,6 +499,21 @@ def update_state(self, blocked: bool):       # en widgets/app_row.py
 **e) Debounce del buscador.** `Input.Changed` llega en cada tecla. Se espera a que el usuario pare (`BUSQUEDA_DELAY = 0.25` s) con el mismo patrón de contador de 5.7, así que al escribir rápido la lista se repinta una sola vez.
 
 > 💡 **Para medir**: `App.run_test()` de Textual corre la app headless y es ideal para cronometrar. Sirve para comparar antes/después sin tocar la red real. Ojo: nunca hay que triggear un `Switch` en una prueba, porque el worker termina reiniciando NetworkManager de verdad.
+
+### 5.9 Vista DHCP (`views/dhcp.py`)
+
+Vista simple de estado y administración del servicio **`dnsmasq` del sistema**. Reutiliza el patrón de `ConfigTab`: card + botones + `RichLog`.
+
+- `compose()`: card (`.fw-card`, reutiliza estilos del Firewall) con tres botones y `RichLog` (`#dhcp-log`).
+- `refresh_data()`: la invoca `AyanamiApp.on_button_pressed` al navegar a `nav-dhcp` (y `action_refresh()` con la tecla `r`). Muestra el estado por defecto.
+- `run(cmd)`: mismo helper que `ConfigTab`: comando en gris, salida en blanco, errores en rojo.
+- Comandos:
+  - **Estado** → `systemctl status dnsmasq --no-pager`.
+  - **Ver Config** → limpia `#dhcp-log` y ejecuta `cat /etc/dnsmasq.conf`.
+  - **Reiniciar Servicio** → `systemctl restart dnsmasq` dentro de un `run_worker(thread=True)` (no congela la UI). Al terminar, `_after_restart` limpia el log, muestra el resultado (éxito o error), escribe una línea en blanco y llama a `show_status(clear=False)` para no borrar ese mensaje. Usa `self.app.call_from_thread(...)` porque los widgets no tienen ese método (es de la `App`).
+- Navegación: registrar el id `nav-dhcp` en `sidebar.NAV_ITEMS`, `tui.NAV_ORDER`, `compose()` y en los branches de `on_button_pressed` / `action_refresh()` (ver sección 12).
+
+> ⚠️ **No confundir**: Ayanami no implementa DHCP. Esta vista opera el `dnsmasq` **del sistema**, que es el mismo que (en la configuración del servidor) lee `ayanami-block.conf` vía `conf-dir`.
 
 ---
 
@@ -1213,7 +1229,7 @@ from views.dns_view import DnsView                     # import plano (ver secci
 
 NAV_ORDER = ["nav-interfaces", "nav-hotspot", "nav-scanner",
              "nav-monitor", "nav-sniffer", "nav-dns",   # insertar en el orden visual
-             "nav-firewall", "nav-sistema"]
+             "nav-firewall", "nav-dhcp", "nav-sistema"]
 
 def compose(self):
     ...
