@@ -511,8 +511,10 @@ El input muestra el placeholder con los cuatro formatos; se agrega con el botón
 
 #### Cómo funciona
 
-- La lista se guarda en `whitelist.json` (formato `{"whitelist": [...]}`).
-- Al agregar/quitar una entrada, las reglas **se aplican automáticamente** (no hay botón "Aplicar"): se borran todas las reglas anteriores marcadas con el comentario `ayanami-wl` y se insertan de nuevo las ACCEPT y el DNAT de DNS.
+- La lista se guarda en `whitelist.json` (formato `{"whitelist": [...], "disabled": [...]}`). La clave `disabled` guarda las entradas que están apagadas.
+- Cada fila tiene un **switch** que activa o desactiva **esa entrada** sin borrarla. Al desactivarla, esa entrada deja de generar reglas `ayanami-wl` (y su DNS vuelve a pasar por el filtro); al reactivarla, se regeneran sus reglas. La fila apagada se muestra atenuada.
+- **Limpiar Firewall** (en Config) apaga **todos** los switches: las entradas se conservan, pero quedan desactivadas hasta que las vuelvas a encender.
+- Al agregar/quitar una entrada, las reglas **se aplican automáticamente** (no hay botón "Aplicar"): se borran todas las reglas anteriores marcadas con el comentario `ayanami-wl` y se insertan de nuevo las ACCEPT y el DNAT de DNS de las entradas activas.
 - Las entradas exentas **resuelven DNS externamente (8.8.8.8)**, saltándose el dnsmasq de Ayanami, de modo que no les afectan los bloqueos por dominio.
 - Una **MAC** se exenta con `-m mac --mac-source`, es decir, cubre el tráfico que **sale** del dispositivo (el de retorno lo maneja conntrack). Al ser una dirección de capa 2, solo funciona si el equipo está en la **misma red local**; si está detrás de otro router, hay que usar su IP.
 - Cada entrada tiene un botón **Quitar** (con confirmación).
@@ -575,9 +577,10 @@ Borra **todo** el estado del firewall:
 - Elimina el archivo de bloqueo de dnsmasq.
 - `iptables -F FORWARD` y `iptables -t nat -F` (flush total).
 - Desbloquea **todas** las apps en `apps_firewall.json`.
+- **Desactiva todas las entradas de la Lista Blanca**: las entradas se conservan, pero sus switches quedan apagados y no se regeneran sus reglas hasta que las vuelvas a activar.
 - `conntrack -F`.
 
-> ⚠️ Pide confirmación explícita. No borra `whitelist.json` ni `firewall_config.json` (la configuración guardada se conserva), pero **sí se borra la configuración del gateway**: se debe configurar de nuevo.
+> ⚠️ Pide confirmación explícita. No borra `whitelist.json` ni `firewall_config.json` (la configuración guardada se conserva; las entradas de la lista blanca quedan apagadas), pero **sí se borra la configuración del gateway**: se debe configurar de nuevo.
 
 #### Copia de Seguridad (Guardar/Cargar)
 
@@ -718,7 +721,7 @@ sudo python3 cli/ayanami.py
 
 | Ruta | Contenido |
 |---|---|
-| `whitelist.json` | Lista blanca: `{"whitelist": ["10.0.0.5", ...]}` |
+| `whitelist.json` | Lista blanca: `{"whitelist": ["10.0.0.5", ...], "disabled": ["10.0.0.9"]}` |
 | `apps_firewall.json` | Apps de la TUI: `{"App": {"type": ..., "domains": [...], "blocked": bool}}` |
 | `firewall_config.json` | Configuración unificada (whitelist + apps + gateway + stats). Es la copia canónica. |
 | `backups/firewall_config-AAAA-MM.json` | Backups mensuales (retención: 3 meses). |

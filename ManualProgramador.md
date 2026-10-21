@@ -935,7 +935,7 @@ sequenceDiagram
 **`whitelist.json`** — lista blanca:
 
 ```json
-{ "whitelist": ["192.168.1.100", "10.0.0.0/24", "10.0.0.1-10.0.0.255", "aa:bb:cc:dd:ee:ff"] }
+{ "whitelist": ["192.168.1.100", "10.0.0.0/24", "10.0.0.1-10.0.0.255", "aa:bb:cc:dd:ee:ff"], "disabled": ["10.0.0.0/24"] }
 ```
 
 **`/etc/NetworkManager/dnsmasq-shared.d/ayanami-block.conf`** — los dominios bloqueados "en vivo" que lee dnsmasq:
@@ -969,7 +969,7 @@ Observaciones sobre este flujo:
 
 ### 7.4 Lista blanca (cómo y por qué las reglas iptables)
 
-`apply_whitelist()` hace dos cosas por cada entrada:
+`apply_whitelist()` hace dos cosas por cada entrada (y **no inserta nada si la lista está desactivada**):
 
 1. **`_remove_all_whitelist_rules()`** — barre `iptables -S FORWARD` y `iptables -t nat -S PREROUTING`, busca las líneas con el comentario `ayanami-wl` y las borra convirtiendo `-A` en `-D`. Así, cada aplicación regenera todo desde cero (nunca acumula reglas viejas).
 2. **Insertar con `-I ... 1`** (posición 1):
@@ -980,6 +980,8 @@ Observaciones sobre este flujo:
 **Por qué la posición 1**: iptables evalúa en orden la primera coincidencia. Al insertar al principio, el `ACCEPT` de la lista blanca **gana** sobre cualquier `DROP` de bloqueo Ubicado más abajo.
 
 **Por qué en dos cadenas**: el `FORWARD` acepta el tráfico *de paso*; el `PREROUTING` (nat) garantiza que el DNS de esa IP se reescriba antes de que las reglas de redirección DNS del gateway (que matchean `--dport 53`) lo capturen. El orden también importa: la regla `ayanami-wl-dns` debe estar **antes** que la DNAT del gateway.
+
+**Switch por entrada**: cada `IPRow` tiene un `Switch` propio (`#wl-switch-<safe_id>`). `is_entry_enabled(entry)` consulta la lista `disabled` de `whitelist.json`; `set_entry_enabled(entry, enabled)` la actualiza sin borrar la entrada. `apply_whitelist()` salta las entradas de `disabled`. Al montar la fila, el `Switch.Changed` se ignora comparando contra `is_entry_enabled(entry)`, así no se reaplican reglas al abrir la pestaña. `save_whitelist(entries, disabled=None)` conserva los estados actuales y limpia los de entradas eliminadas.
 
 ### 7.5 Gateway y el tab Config (`views/firewall/config.py`)
 
@@ -992,7 +994,7 @@ Observaciones sobre este flujo:
   6. **Bloqueo anti-evasión DoT**: `DROP --dport 853` (UDP+TCP, `-i LAN`). **Se inserta en la posición 1 con `-I FORWARD 1`**, antes del `ACCEPT` LAN→WAN del paso 4: si se agregara con `-A`, el `ACCEPT` la aceptaría primero y el `DROP` nunca se evaluaría (los teléfonos con DNS privado eludirían los bloqueos).
   7. `firewall_config.update_gateway(...)` persiste los datos de referencia en el bundle.
 - `show_status()` (botón **Ver Estado**): vuelca al log IP forward, dominios bloqueados, `iptables -L FORWARD -n` y `iptables -t nat -L -n`. Usa el helper `self.run(cmd)` que colorea comando y salida.
-- `flush_all()` (botón **Limpiar Firewall**): borra `ayanami-block.conf`, `iptables -F FORWARD`, `iptables -t nat -F`, `reset_apps_state()` (todas las apps a `blocked: false`) y `conntrack -F`. **No borra** `whitelist.json` ni `firewall_config.json`.
+- `flush_all()` (botón **Limpiar Firewall**): borra `ayanami-block.conf`, `iptables -F FORWARD`, `iptables -t nat -F`, `reset_apps_state()` (todas las apps a `blocked: false`), marca **todas** las entradas de `whitelist.json` como desactivadas (las conserva en la lista, con `disabled = whitelist`), refresca las pestañas de Apps y Lista Blanca, y `conntrack -F`. **No borra** `whitelist.json` ni `firewall_config.json`.
 - `#cfg-log`: un `RichLog` que se usa como "consola" con colores Tokyo Night (ver convenciones).
 
 ### 7.5.1 Alcance y límites del bloqueo de DNS
@@ -1039,6 +1041,7 @@ Formato del bundle:
   "hostname": "host",
   "gateway": { "wan_iface": "...", "lan_iface": "...", "dns_target": "...", "applied_at": "..." },
   "stats": { "whitelist_count": 0, "apps_count": 46, "blocked_count": 0, "domains_count": 346 },
+  "whitelist_disabled": [],
   "whitelist": [...],
   "apps": { "...": { "type": "...", "domains": [...], "blocked": false } }
 }
