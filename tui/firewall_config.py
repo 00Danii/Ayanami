@@ -72,6 +72,7 @@ def build_bundle(
     apps = _read_json(APPS_FILE)
     whitelist_raw = _read_json(WHITELIST_FILE, {"whitelist": []})
     whitelist = whitelist_raw.get("whitelist", [])
+    whitelist_disabled = whitelist_raw.get("disabled", [])
 
     stored = load_config()
     gw = stored.get("gateway", {})
@@ -95,6 +96,7 @@ def build_bundle(
             "domains_count": domain_total,
         },
         "whitelist": whitelist,
+        "whitelist_disabled": whitelist_disabled,
         "apps": apps,
     }
     return bundle
@@ -114,7 +116,7 @@ def validate_config(cfg: dict) -> tuple[bool, str]:
     if not isinstance(cfg.get("apps"), dict):
         return False, "falta el campo 'apps' (dict de aplicaciones)"
     if not isinstance(cfg.get("whitelist"), list):
-        return False, "falta el campo 'whitelist' (lista de IPs)"
+        return False, "falta el campo 'whitelist' (lista de entradas)"
     return True, ""
 
 

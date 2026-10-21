@@ -13,6 +13,7 @@ from firewall_ops import (
     apply_whitelist,
     write_block_domains,
     save_whitelist,
+    load_whitelist,
 )
 from widgets.confirm_screen import ConfirmScreen
 from widgets.path_picker import PathPicker
@@ -68,8 +69,9 @@ class ConfigTab(Vertical):
             self.app.push_screen(
                 ConfirmScreen(
                     "Se limpiarán todas las reglas de firewall,\n"
-                    "se desbloquearán todas las apps y\n"
-                    "se perderá la configuración del gateway.\n\n"
+                    "se desbloquearán todas las apps,\n"
+                    "se desactivará la lista blanca\n"
+                    "y se perderá la configuración del gateway.\n\n"
                     "Tendrás que configurar el gateway nuevamente.\n\n"
                     "¿Continuar?",
                     confirm_text="Limpiar"
@@ -377,10 +379,11 @@ class ConfigTab(Vertical):
 
         # ── Lista blanca ─────────────────────────────────
         whitelist = config.get("whitelist", [])
-        save_whitelist(whitelist)
+        whitelist_disabled = config.get("whitelist_disabled", [])
+        save_whitelist(whitelist, whitelist_disabled)
         self.log(
             f"[#9ece6a]  ✓ Lista blanca restaurada "
-            f"({len(whitelist)} entradas)[/]"
+            f"({len(whitelist)} entradas, {len(whitelist_disabled)} desactivadas)[/]"
         )
 
         # ── Apps ─────────────────────────────────────────
@@ -496,10 +499,22 @@ class ConfigTab(Vertical):
         self.log("[#7dcfff]◆ Sincronizando estado de apps[/]")
         reset_apps_state()
         self.log("[#9ece6a]✓ Apps desbloqueadas en config[/]")
+        self.log("[#7dcfff]◆ Apagando entradas de la lista blanca[/]")
+        whitelist = load_whitelist()
+        if whitelist:
+            # Se conservan las entradas, pero todas quedan desactivadas:
+            # así sus switches aparecen apagados y no se regeneran solas.
+            save_whitelist(whitelist, whitelist)
+            self.log("[#9ece6a]✓ Entradas de la lista blanca desactivadas[/]")
+        else:
+            self.log("[#565f89]Sin entradas en la lista blanca[/]")
         self.log("[#9ece6a]━━━ Firewall limpiado ━━━[/]")
         self.log("[#7dcfff]◆ Cerrando conexiones activas[/]")
         self.run("conntrack -F")
         apps_tab = self.screen.query_one("#fw-panel-apps")
         if hasattr(apps_tab, "refresh_apps"):
             apps_tab.refresh_apps()
+        rules_tab = self.screen.query_one("#fw-panel-rules")
+        if hasattr(rules_tab, "refresh_list"):
+            rules_tab.refresh_list()
         self.app.notify("Firewall limpiado")

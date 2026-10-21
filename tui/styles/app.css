@@ -1435,6 +1435,21 @@ IPRow:hover {
     border: round #7aa2f7;
 }
 
+.wl-row-switch {
+    margin: 0 1;
+    padding: 0;
+}
+
+.wl-row-disabled {
+    background: #1a1d2b;
+    border: round #2a2f45;
+}
+
+.wl-row-disabled .wl-ip-text {
+    color: #565f89;
+    text-style: none;
+}
+
 .wl-type-tag {
     width: auto;
     min-width: 8;

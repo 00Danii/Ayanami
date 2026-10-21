@@ -71,20 +71,49 @@ def is_valid_whitelist_entry(entry: str) -> bool:
     )
 
 
-def load_whitelist() -> list[str]:
+def _load_whitelist_data() -> dict:
     if not os.path.exists(WHITELIST_FILE):
-        return []
+        return {}
     try:
         with open(WHITELIST_FILE) as f:
             data = json.load(f)
-        return data.get("whitelist", [])
+        return data if isinstance(data, dict) else {}
     except (json.JSONDecodeError, UnicodeDecodeError, OSError):
-        return []
+        return {}
 
 
-def save_whitelist(entries: list[str]):
+def load_whitelist() -> list[str]:
+    return _load_whitelist_data().get("whitelist", [])
+
+
+def load_disabled_entries() -> list[str]:
+    """Entradas que siguen en la lista pero no generan reglas."""
+    return _load_whitelist_data().get("disabled", [])
+
+
+def is_entry_enabled(entry: str) -> bool:
+    return entry not in load_disabled_entries()
+
+
+def save_whitelist(entries: list[str], disabled: list[str] | None = None):
+    if disabled is None:
+        disabled = load_disabled_entries()
+    # Limpia estados de entradas que ya no existen.
+    disabled = [e for e in disabled if e in entries]
     with open(WHITELIST_FILE, "w") as f:
-        json.dump({"whitelist": entries}, f, indent=2)
+        json.dump({"whitelist": entries, "disabled": disabled}, f, indent=2)
+
+
+def set_entry_enabled(entry: str, enabled: bool):
+    entries = load_whitelist()
+    if entry not in entries:
+        return
+    disabled = load_disabled_entries()
+    if enabled:
+        disabled = [e for e in disabled if e != entry]
+    elif entry not in disabled:
+        disabled.append(entry)
+    save_whitelist(entries, disabled)
 
 
 def add_whitelist_ip(entry: str) -> bool:
@@ -110,7 +139,10 @@ def remove_whitelist_ip(entry: str) -> bool:
 def apply_whitelist():
     _remove_all_whitelist_rules()
     whitelist = load_whitelist()
+    disabled = set(load_disabled_entries())
     for entry in whitelist:
+        if entry in disabled:
+            continue
         if is_valid_mac(entry):
             mac = normalize_mac(entry)
             # El módulo mac de iptables solo expone --mac-source: se exenta el
