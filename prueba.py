@@ -46,6 +46,10 @@ async def main():
             assert content.current == nav, f"no navegó a {nav} (actual: {content.current})"
             print(f"OK  navega a {nav}")
 
+        assert app.query_one("#bk-list"), "la vista Respaldos no tiene lista de backups"
+        assert app.query_one("#bk-timer-state"), "la vista Respaldos no muestra el timer"
+        print("OK  vista Respaldos compuesta")
+
         fw_content = app.query_one("#fw-content", ContentSwitcher)
         for tab, panel in FW_TABS:
             app.query_one(f"#{tab}", Button).press()
