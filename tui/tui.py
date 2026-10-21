@@ -12,10 +12,11 @@ from views.monitor import MonitorView
 from views.sniffer import SnifferView
 from views.firewall import FirewallView
 from views.dhcp import DhcpView
+from views.backups import BackupsView
 from views.sistema import SistemaView
 
 
-NAV_ORDER = ["nav-interfaces", "nav-hotspot", "nav-scanner", "nav-monitor", "nav-sniffer", "nav-firewall", "nav-dhcp", "nav-sistema"]
+NAV_ORDER = ["nav-interfaces", "nav-hotspot", "nav-scanner", "nav-monitor", "nav-sniffer", "nav-firewall", "nav-dhcp", "nav-backups", "nav-sistema"]
 
 
 class AyanamiApp(App):
@@ -45,6 +46,7 @@ class AyanamiApp(App):
                 yield MonitorView(id="nav-monitor")
                 yield FirewallView(id="nav-firewall")
                 yield DhcpView(id="nav-dhcp")
+                yield BackupsView(id="nav-backups")
                 yield SistemaView(id="nav-sistema")
         yield Footer()
 
@@ -73,6 +75,8 @@ class AyanamiApp(App):
                 self.query_one(FirewallView).ensure_apps_loaded()
             if btn_id == "nav-dhcp":
                 self.query_one(DhcpView).refresh_data()
+            if btn_id == "nav-backups":
+                self.query_one(BackupsView).refresh_data()
 
     def _activate_nav(self, item_id: str):
         for btn in self.query(".nav-btn"):
@@ -93,6 +97,8 @@ class AyanamiApp(App):
             self.query_one(HotspotView).refresh_data()
         elif current_view == "nav-dhcp":
             self.query_one(DhcpView).refresh_data()
+        elif current_view == "nav-backups":
+            self.query_one(BackupsView).refresh_data()
         elif current_view == "nav-sistema":
             self.query_one(SistemaView).refresh_data()
 

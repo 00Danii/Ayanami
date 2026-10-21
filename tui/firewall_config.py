@@ -15,10 +15,12 @@ import socket
 from datetime import datetime
 from pathlib import Path
 
-CONFIG_FILE = str(Path(__file__).resolve().parent.parent / "firewall_config.json")
-BACKUP_DIR = os.path.join(os.path.dirname(CONFIG_FILE), "backups")
-APPS_FILE = os.path.join(os.path.dirname(CONFIG_FILE), "apps_firewall.json")
-WHITELIST_FILE = os.path.join(os.path.dirname(CONFIG_FILE), "whitelist.json")
+REPO_ROOT = Path(__file__).resolve().parent.parent
+CONFIG_FILE = str(REPO_ROOT / "firewall_config.json")
+BACKUP_DIR = str(REPO_ROOT / "backups")
+APPS_FILE = str(REPO_ROOT / "apps_firewall.json")
+WHITELIST_FILE = str(REPO_ROOT / "whitelist.json")
+INSTALL_BACKUP_TIMER = str(REPO_ROOT / "systemd" / "install_backup_timer.sh")
 
 CONFIG_VERSION = 1
 RETENTION_MONTHS = 3
@@ -195,6 +197,51 @@ def prune_backups(keep: int = RETENTION_MONTHS) -> list[str]:
         except OSError:
             pass
     return removed
+
+
+def list_backups() -> list[dict]:
+    """Lista los backups mensuales, del más nuevo al más viejo.
+
+    Cada elemento trae ``bucket`` (YYYY-MM), ``path``, ``size`` (bytes) y
+    ``mtime`` (timestamp). Ignora archivos con nombres que no sean un mes.
+    """
+    pattern = os.path.join(BACKUP_DIR, "firewall_config-*.json")
+    backups = []
+    for path in glob.glob(pattern):
+        name = os.path.basename(path)
+        bucket = name.replace("firewall_config-", "").replace(".json", "")
+        try:
+            datetime.strptime(bucket, "%Y-%m")
+            stat = os.stat(path)
+        except (ValueError, OSError):
+            continue
+        backups.append({
+            "bucket": bucket,
+            "path": path,
+            "size": stat.st_size,
+            "mtime": stat.st_mtime,
+        })
+    return sorted(backups, key=lambda item: item["bucket"], reverse=True)
+
+
+def delete_backup(path: str) -> bool:
+    """Borra un backup mensual, solo si está dentro de BACKUP_DIR.
+
+    La comprobación evita que un id manipulado desde la UI pueda borrar
+    archivos fuera de la carpeta de respaldos.
+    """
+    target = os.path.realpath(path)
+    root = os.path.realpath(BACKUP_DIR)
+    if os.path.dirname(target) != root:
+        return False
+    name = os.path.basename(target)
+    if not (name.startswith("firewall_config-") and name.endswith(".json")):
+        return False
+    try:
+        os.remove(target)
+        return True
+    except OSError:
+        return False
 
 
 def run_monthly_backup() -> list[str]:

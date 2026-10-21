@@ -1047,12 +1047,6 @@ FirewallView {
     margin-bottom: 0;
 }
 
-#cfg-backup {
-    width: 26;
-    margin-right: 0;
-    margin-bottom: 0;
-}
-
 .fw-apps-toolbar > Button {
     margin-bottom: 0;
     margin-right: 1;
@@ -1647,4 +1641,130 @@ DhcpView {
 
 /********************
  *   FIN DHCP VIEW  *
+ ********************/
+
+
+/********************
+ * BACKUPS VIEW     *
+ ********************/
+
+BackupsView {
+    layout: vertical;
+    padding: 1;
+}
+
+.bk-actions {
+    height: auto;
+    align: center middle;
+    margin-top: 1;
+}
+
+.bk-actions > Button {
+    width: auto;
+    min-width: 18;
+    margin-right: 1;
+    margin-bottom: 0;
+}
+
+.bk-actions > Button:last-child {
+    margin-right: 0;
+}
+
+#bk-refresh {
+    min-width: 12;
+}
+
+#bk-run {
+    min-width: 14;
+}
+
+#bk-install,
+#bk-uninstall {
+    min-width: 18;
+}
+
+/* Hasta que se consulta systemd, se muestra "Instalar". */
+#bk-uninstall {
+    display: none;
+}
+
+.bk-status-row {
+    height: auto;
+    align: center middle;
+}
+
+.bk-status-key {
+    width: 20;
+    color: #565f89;
+    text-style: bold;
+}
+
+.bk-status-value {
+    width: 1fr;
+    color: #a9b1d6;
+}
+
+.bk-ok {
+    color: #9ece6a;
+}
+
+.bk-warn {
+    color: #e0af68;
+}
+
+.bk-error {
+    color: #f7768e;
+}
+
+#bk-list {
+    height: 12;
+    background: #1a1b26;
+    border: solid #3b4261;
+    padding: 0 1;
+}
+
+.bk-row {
+    height: 3;
+    align: center middle;
+    margin-bottom: 1;
+}
+
+.bk-month {
+    width: 10;
+    color: #7dcfff;
+    text-style: bold;
+}
+
+.bk-size {
+    width: 10;
+    color: #565f89;
+}
+
+.bk-date {
+    width: 1fr;
+    color: #a9b1d6;
+}
+
+.bk-row-btn {
+    width: auto;
+    min-width: 12;
+    margin-left: 1;
+    margin-bottom: 0;
+}
+
+.bk-empty {
+    color: #565f89;
+    padding: 1;
+}
+
+#bk-log {
+    height: 1fr;
+    min-height: 8;
+    margin-top: 1;
+    background: #1a1b26;
+    border: solid #3b4261;
+}
+
+/********************
+ * FIN BACKUPS VIEW *
  ********************/
