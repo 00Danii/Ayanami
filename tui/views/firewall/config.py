@@ -335,7 +335,7 @@ class ConfigTab(Vertical):
 
         stats = bundle.get("stats", {})
         self.log(
-            f"[#565f89]  → {stats.get('whitelist_count', 0)} IPs en lista blanca, "
+            f"[#565f89]  → {stats.get('whitelist_count', 0)} entradas en lista blanca, "
             f"{stats.get('apps_count', 0)} apps, "
             f"{stats.get('blocked_count', 0)} bloqueadas[/]"
         )

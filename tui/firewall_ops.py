@@ -11,6 +11,11 @@ WHITELIST_FILE = str(Path(__file__).resolve().parent.parent / "whitelist.json")
 IP_RE = re.compile(r"^(\d{1,3}\.){3}\d{1,3}$")
 CIDR_RE = re.compile(r"^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$")
 RANGE_RE = re.compile(r"^(\d{1,3}\.){3}\d{1,3}-(\d{1,3}\.){3}\d{1,3}$")
+MAC_RE = re.compile(
+    r"^(?:[0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}$"      # AA:BB:CC:DD:EE:FF / AA-BB-...
+    r"|^(?:[0-9a-fA-F]{4}\.){2}[0-9a-fA-F]{4}$"       # AABB.CCDD.EEFF
+    r"|^[0-9a-fA-F]{12}$"                              # AABBCCDDEEFF
+)
 
 
 def _run(cmd: str):
@@ -41,8 +46,29 @@ def is_valid_range(r: str) -> bool:
     return is_valid_ip(start) and is_valid_ip(end)
 
 
+def is_valid_mac(mac: str) -> bool:
+    """Acepta AA:BB:CC:DD:EE:FF, AA-BB-..., AABB.CCDD.EEFF o AABBCCDDEEFF."""
+    mac = mac.strip()
+    if not MAC_RE.match(mac):
+        return False
+    raw = re.sub(r"[^0-9a-fA-F]", "", mac)
+    # Descartar multicast/broadcast y la MAC nula: no identifican un equipo.
+    first_octet = int(raw[:2], 16)
+    return first_octet % 2 == 0 and raw != "0" * 12
+
+
+def normalize_mac(mac: str) -> str:
+    raw = re.sub(r"[^0-9a-fA-F]", "", mac).lower()
+    return ":".join(raw[i:i + 2] for i in range(0, 12, 2))
+
+
 def is_valid_whitelist_entry(entry: str) -> bool:
-    return is_valid_ip(entry) or is_valid_cidr(entry) or is_valid_range(entry)
+    return (
+        is_valid_ip(entry)
+        or is_valid_cidr(entry)
+        or is_valid_range(entry)
+        or is_valid_mac(entry)
+    )
 
 
 def load_whitelist() -> list[str]:
@@ -62,6 +88,8 @@ def save_whitelist(entries: list[str]):
 
 
 def add_whitelist_ip(entry: str) -> bool:
+    if is_valid_mac(entry):
+        entry = normalize_mac(entry)
     whitelist = load_whitelist()
     if entry in whitelist:
         return False
@@ -83,7 +111,21 @@ def apply_whitelist():
     _remove_all_whitelist_rules()
     whitelist = load_whitelist()
     for entry in whitelist:
-        if is_valid_range(entry):
+        if is_valid_mac(entry):
+            mac = normalize_mac(entry)
+            # El módulo mac de iptables solo expone --mac-source: se exenta el
+            # tráfico que SALE del dispositivo (el de retorno lo cubre conntrack).
+            _run(
+                f"iptables -I FORWARD 1 -m mac --mac-source {mac} "
+                f"-m comment --comment 'ayanami-wl' -j ACCEPT 2>/dev/null"
+            )
+            for proto in ("udp", "tcp"):
+                _run(
+                    f"iptables -t nat -I PREROUTING 1 -m mac --mac-source {mac} "
+                    f"-p {proto} --dport 53 -m comment --comment 'ayanami-wl-dns' "
+                    f"-j DNAT --to-destination 8.8.8.8:53 2>/dev/null"
+                )
+        elif is_valid_range(entry):
             for chain, table_flag in [("FORWARD", ""), ("PREROUTING", "-t nat")]:
                 _run(
                     f"iptables {table_flag} -I {chain} 1 -m iprange "

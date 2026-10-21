@@ -11,6 +11,8 @@ from firewall_ops import (
     is_valid_ip,
     is_valid_cidr,
     is_valid_range,
+    is_valid_mac,
+    normalize_mac,
 )
 
 
@@ -19,6 +21,8 @@ def safe_id(entry: str) -> str:
 
 
 def _entry_type(entry: str) -> str:
+    if is_valid_mac(entry):
+        return "MAC"
     if is_valid_ip(entry):
         return "IP"
     if is_valid_cidr(entry):
@@ -36,9 +40,12 @@ class IPRow(Horizontal):
 
     def compose(self):
         entry_type = _entry_type(self.ip_entry)
-        tag_cls = "wl-tag-ip" if entry_type == "IP" else (
-            "wl-tag-cidr" if entry_type == "CIDR" else "wl-tag-range"
-        )
+        tag_cls = {
+            "IP": "wl-tag-ip",
+            "CIDR": "wl-tag-cidr",
+            "RANGE": "wl-tag-range",
+            "MAC": "wl-tag-mac",
+        }.get(entry_type, "wl-tag-range")
         yield Label(entry_type, classes=f"wl-type-tag {tag_cls}")
         yield Static(self.ip_entry, classes="wl-ip-text")
         yield Button("Quitar", id=f"wl-del-{self._safe}", variant="error", classes="wl-remove-btn")
@@ -47,15 +54,15 @@ class IPRow(Horizontal):
 class WhitelistTab(Vertical):
     def compose(self):
         with Vertical(classes="fw-card"):
-            yield Label("Lista Blanca de IPs", classes="fw-card-title")
+            yield Label("Lista Blanca de IPs y MACs", classes="fw-card-title")
             yield Label(
-                "Estas IPs ignoran todas las reglas de bloqueo del firewall. "
-                "El DNS de estas IPs se resuelve externamente (sin filtros).",
+                "Estas IPs y MACs ignoran todas las reglas de bloqueo del firewall. "
+                "El DNS de estas entradas se resuelve externamente (sin filtros).",
                 classes="fw-card-desc"
             )
             with Horizontal(classes="wl-input-row"):
                 yield Input(
-                    placeholder="10.0.0.2  |  10.0.0.1/21  |  10.0.0.1-10.0.7.254",
+                    placeholder="10.0.0.2  |  10.0.0.1/21  |  10.0.0.1-10.0.7.254  |  AA:BB:CC:DD:EE:FF",
                     id="wl-input",
                     classes="wl-input"
                 )
@@ -86,14 +93,17 @@ class WhitelistTab(Vertical):
         inp = self.query_one("#wl-input", Input)
         entry = inp.value.strip()
         if not entry:
-            self.notify("Escribe una IP, CIDR o rango", severity="warning")
+            self.notify("Escribe una IP, CIDR, rango o MAC", severity="warning")
             return
+        if is_valid_mac(entry):
+            entry = normalize_mac(entry)
         if not is_valid_whitelist_entry(entry):
             self.notify(
                 "Formato invalido.\n"
-                "  IP:  192.168.1.100\n"
+                "  IP:   192.168.1.100\n"
                 "  CIDR: 192.168.1.0/24\n"
-                "  Rango: 10.0.0.1-10.0.0.255",
+                "  Rango: 10.0.0.1-10.0.0.255\n"
+                "  MAC:  AA:BB:CC:DD:EE:FF",
                 severity="error",
                 timeout=6
             )
@@ -124,7 +134,7 @@ class WhitelistTab(Vertical):
         count = len(load_whitelist())
         self.app.call_from_thread(
             self.app.notify,
-            f"Firewall actualizado ({count} IPs en lista blanca)"
+            f"Firewall actualizado ({count} entradas en lista blanca)"
         )
 
     def refresh_list(self):
@@ -132,7 +142,7 @@ class WhitelistTab(Vertical):
         container.remove_children()
         whitelist = load_whitelist()
         if not whitelist:
-            container.mount(Label("  No hay IPs en la lista blanca", classes="wl-empty"))
+            container.mount(Label("  No hay entradas en la lista blanca", classes="wl-empty"))
             return
         for ip in whitelist:
             container.mount(IPRow(ip))
