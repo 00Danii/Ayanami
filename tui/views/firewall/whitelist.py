@@ -55,7 +55,7 @@ class WhitelistTab(Vertical):
             )
             with Horizontal(classes="wl-input-row"):
                 yield Input(
-                    placeholder="192.168.1.100  |  192.168.1.0/24  |  10.0.0.1-10.0.0.255",
+                    placeholder="10.0.0.2  |  10.0.0.1/21  |  10.0.0.1-10.0.7.254",
                     id="wl-input",
                     classes="wl-input"
                 )
