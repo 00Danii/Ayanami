@@ -1670,6 +1670,63 @@ BackupsView {
     margin-right: 0;
 }
 
+.bk-copy-row {
+    height: auto;
+    align-vertical: top;
+}
+
+/* La descripción ocupa el espacio libre y empuja los botones a la derecha. */
+.bk-copy-row > .fw-card-desc {
+    width: 1fr;
+    margin-bottom: 0;
+}
+
+.bk-copy-actions {
+    width: auto;
+    height: auto;
+    align-vertical: top;
+    margin-top: 0;
+}
+
+.bk-action-link {
+    width: auto;
+    height: 1;
+    margin-right: 2;
+    color: #7aa2f7;
+    text-style: bold;
+}
+
+.bk-action-save {
+    color: #9ece6a;
+}
+
+.bk-action-load {
+    color: #7aa2f7;
+}
+
+.bk-action-link:last-child {
+    margin-right: 0;
+}
+
+.bk-action-link:hover {
+    color: #7dcfff;
+}
+
+.bk-action-link:focus {
+    color: #7dcfff;
+    background: #2f3549;
+}
+
+.bk-action-save:hover,
+.bk-action-save:focus {
+    color: #2df94f;
+}
+
+.bk-action-load:hover,
+.bk-action-load:focus {
+    color: #7dcfff;
+}
+
 #bk-refresh {
     min-width: 12;
 }

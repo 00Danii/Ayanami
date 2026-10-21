@@ -16,6 +16,7 @@ from firewall_ops import (
     write_block_domains,
     save_whitelist,
 )
+from widgets.clickable_label import ClickableLabel
 from widgets.confirm_screen import ConfirmScreen
 from widgets.path_picker import PathPicker
 
@@ -64,16 +65,24 @@ class BackupsView(Vertical):
     def compose(self):
         with Vertical(classes="fw-card"):
             yield Label("Copia de Seguridad", classes="fw-card-title")
-            yield Label(
-                "Guardá o restaurá la lista blanca, las apps y los datos de "
-                "referencia del gateway en un único archivo JSON.",
-                classes="fw-card-desc",
-            )
-            with Horizontal(classes="bk-actions"):
-                yield Button(
-                    "Guardar Copia", id="bk-export", variant="primary"
+            with Horizontal(classes="bk-copy-row"):
+                yield Label(
+                    "Lista blanca, Apps y los datos de referencia del gateway en un único archivo JSON.",
+                    classes="fw-card-desc",
                 )
-                yield Button("Cargar Copia", id="bk-import")
+                with Horizontal(classes="bk-actions bk-copy-actions"):
+                    yield ClickableLabel(
+                        "[Guardar Copia]",
+                        id="bk-export",
+                        classes="bk-action-link bk-action-save",
+                        markup=False,
+                    )
+                    yield ClickableLabel(
+                        "[Cargar Copia]",
+                        id="bk-import",
+                        classes="bk-action-link bk-action-load",
+                        markup=False,
+                    )
 
         with Vertical(classes="fw-card"):
             yield Label("Respaldos automáticos", classes="fw-card-title")
@@ -193,13 +202,15 @@ class BackupsView(Vertical):
 
     # ── Botones ──────────────────────────────────────────
 
+    def on_clickable_label_pressed(self, event: ClickableLabel.Pressed):
+        if event.label.id == "bk-export":
+            self._request_export()
+        elif event.label.id == "bk-import":
+            self._request_import()
+
     def on_button_pressed(self, event: Button.Pressed):
         bid = event.button.id
-        if bid == "bk-export":
-            self._request_export()
-        elif bid == "bk-import":
-            self._request_import()
-        elif bid == "bk-refresh":
+        if bid == "bk-refresh":
             self.refresh_data()
         elif bid == "bk-run":
             self.create_backup_now()
