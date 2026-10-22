@@ -23,6 +23,7 @@ from textual.widgets import Button, ContentSwitcher, TextArea
 from tui import AyanamiApp, NAV_ORDER
 from views.firewall.apps import PAGINADO_FILAS
 from widgets.clickable_label import ClickableLabel
+from widgets.dnsmasq_text_area import DnsmasqTextArea
 
 FW_TABS = [
     ("fw-tab-rules", "fw-panel-rules"),
@@ -58,7 +59,28 @@ async def main():
         assert app.query_one("#dhcp-config", TextArea), "el editor DHCP no tiene TextArea"
         assert app.query_one("#dhcp-save-config", ClickableLabel), "el editor DHCP no tiene Guardar"
         assert app.query_one("#dhcp-cancel-config", ClickableLabel), "el editor DHCP no tiene Cancelar"
-        print("OK  vista DHCP con editor en el mismo espacio del log")
+        syntax_probe = DnsmasqTextArea(
+            "# comentario\n"
+            "interface=eno2\n"
+            "dhcp-option=option:router,192.168.1.1\n"
+        )
+        highlight_styles = {
+            name
+            for line_highlights in syntax_probe._highlights.values()
+            for _start, _end, name in line_highlights
+        }
+        expected_styles = {
+            "comment",
+            "keyword",
+            "operator",
+            "string",
+            "number",
+            "type",
+        }
+        assert expected_styles <= highlight_styles, (
+            f"el editor DHCP no resalta la sintaxis: {highlight_styles}"
+        )
+        print("OK  vista DHCP con editor, resaltado y acciones")
 
         assert app.query_one("#bk-list"), "la vista Respaldos no tiene lista de backups"
         assert app.query_one("#bk-log"), "la vista Respaldos no tiene log de salida"
