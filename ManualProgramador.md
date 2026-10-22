@@ -534,8 +534,8 @@ Concentra la copia manual y la gestión de los backups automáticos. Reutiliza e
 - `compose()`: tres cards (copia manual, respaldos automáticos y backups disponibles) y un `RichLog`. La tarjeta de backups automáticos y el log comparten una fila de dos columnas (`2fr`/`3fr`): la lista a la izquierda y el log a la derecha. La lista usa `BackupTableHeader` y `BackupRow` para mostrar las columnas Año/Mes/Día/Hora/Tam/Acciones; las columnas de datos usan `1fr` con `min-width` para repartirse el ancho de la tarjeta, y `Restaurar`/`Eliminar` comparten una fila de acciones.
 - `refresh_data()`: la llama `tui.py` al navegar a `nav-backups` y con la tecla `r`. Lanza un worker (`thread=True`) que lee `firewall_config.list_backups()` y consulta `systemctl` (`is-enabled`, `is-active`, `show --property=NextElapseUSecRealtime` y `cat`); pinta con `call_from_thread` en `_render_data()`.
 - `_render_data()`: actualiza estado, próxima ejecución y programación (`OnCalendar` + `Persistent`), alterna la visibilidad de **Instalar Timer**, **Desinstalar Timer**, **Ver estado** y **Editar** según si el timer está instalado, guarda el estado en `_timer_status` y monta una `BackupRow` por cada backup.
-- **Guardar/Cargar Copia**: `_request_export()` / `_request_import()` usan `PathPicker`; `_do_export()` y `_import_config()` conservan la lógica que antes vivía en `ConfigTab`.
-- **Backup** (`#bk-run`): `_do_backup_now()` arma el bundle, actualiza el canónico, crea un backup con marca de tiempo y poda los antiguos.
+- **Guardar/Cargar Copia**: `_request_export()` / `_request_import()` usan `PathPicker`; `_do_export()` y `_import_config()` conservan la lógica que antes vivía en `ConfigTab`. El bundle incluye `dnsmasq` con el contenido de `/etc/dnsmasq.conf`; al restaurar, `_import_config()` llama a `firewall_config.restore_dnsmasq()` antes de tocar la lista blanca y las apps.
+- **Backup** (`#bk-run`): `_do_backup_now()` arma el bundle, actualiza el canónico, crea un backup con marca de tiempo y poda los antiguos. `save_backup()` refresca el bloque `dnsmasq` desde el archivo vivo aunque el canónico sea antiguo.
 - **Timer**: `_run_timer_action()` ejecuta `systemd/install_backup_timer.sh` (o `--uninstall`) en un worker, con confirmación previa. Acepta `calendar` y `persistent` y los pasa como `--calendar` / `--persistent`.
 - **Ver estado** (`#bk-status`): `show_timer_status()` consulta `systemd` en un worker y escribe en `#bk-log` el estado, la próxima ejecución, la programación, `Persistent` y la salida de `systemctl status`.
 - **Editar** (`#bk-edit`): `edit_timer_config()` abre `BackupTimerModal` con el estado actual; `_configure_timer()` confirma y aplica los valores elegidos. **Instalar Timer** usa el mismo modal para elegir la configuración antes de instalar. `#bk-status`, `#bk-edit` y **Desinstalar Timer** solo se muestran si el timer está instalado; si no, solo aparece **Instalar Timer**.
@@ -719,9 +719,10 @@ sequenceDiagram
 4. De vuelta en `_do_export(path)` (backups.py):
    - **Normaliza la ruta**: carpeta → `carpeta/firewall_config.json`; vacía → archivo canónico.
    - `_gateway_values()` lee WAN, LAN y `dns_target` desde `firewall_config.get_saved_gateway()`: es el gateway que se aplicó y persistió, no el que esté seleccionado en la UI.
-   - `firewall_config.build_bundle(wan_iface, lan_iface, dns_target)` (firewall_config.py): lee los archivos **vivos** (`apps_firewall.json` y `whitelist.json`), arma `stats` y fusiona el gateway persistido.
+   - `firewall_config.build_bundle(wan_iface, lan_iface, dns_target)` (firewall_config.py): lee los archivos **vivos** (`apps_firewall.json`, `whitelist.json` y `/etc/dnsmasq.conf`), arma `stats` y fusiona el gateway persistido.
+   - `read_dnsmasq_config()` guarda `path`, `available`, `encoding`, `size` y `content`. Intenta UTF-8 y, si falla, conserva los bytes con latin-1.
    - `save_config(bundle, path)`: escribe el archivo. Si `path` no es el canónico, **también guarda la copia canónica** para que el timer programado respalde lo más reciente.
-   - `save_backup()` + `prune_backups()`: crea un backup nuevo con fecha/hora y conserva las 5 copias más recientes.
+   - `save_backup()` + `prune_backups()`: crea un backup nuevo con fecha/hora y conserva las 5 copias más recientes. `save_backup()` vuelve a leer `/etc/dnsmasq.conf`, así que una copia canónica antigua no impide incluir el contenido actual.
    - `refresh_data()` actualiza el estado del timer y la lista de backups; `notify("Configuración guardada")`.
 
 #### Diagrama de secuencia - Recorrido C — Guardar una copia (vista Respaldos)
@@ -779,6 +780,9 @@ sequenceDiagram
         FC->>JSON: Lee whitelist.json
         JSON-->>FC: Lista blanca actual
 
+        FC->>FS: Lee /etc/dnsmasq.conf
+        FS-->>FC: Bytes del archivo (UTF-8 o latin-1)
+
         FC->>FC: Genera stats
         FC->>FC: Fusiona configuración del gateway
 
@@ -814,15 +818,16 @@ sequenceDiagram
    - `Restaurar` → `_confirm_import(path)` directamente con la ruta del backup.
 2. `_pick_import_path` hace la **validación temprana**:
    - ruta vacía → cortar; no existe → `notify("El archivo seleccionado no existe", severity="error")`; es una carpeta → `notify("Seleccionaste una carpeta: elige el archivo de configuración")`.
-   - `load_config(path)` + `validate_config(candidate)`: si el archivo no tiene la estructura esperada (`version`, `apps`, `whitelist`), se rechaza **antes de pedir confirmación**.
-3. `ConfirmScreen` ("Se cargará... ¿Continuar?") → `_import_config(confirmed, path)`.
+   - `load_config(path)` + `validate_config(candidate)`: si el archivo no tiene la estructura esperada (`version`, `apps`, `whitelist`) o el bloque `dnsmasq` tiene un contenido/codificación inválidos, se rechaza **antes de pedir confirmación**.
+3. `ConfirmScreen` ("Se cargará... ¿Continuar?") → `_import_config(confirmed, path)`. El mensaje avisa si la copia incluye `dnsmasq` o si solo se restaurará el firewall.
 4. `_import_config` **re-valida** (guarda de seguridad) y aplica en orden:
-   1. `save_whitelist(whitelist, whitelist_disabled)` escribe `whitelist.json` conservando los switches por entrada;
-   2. escribe `apps_firewall.json` completo;
-   3. recomputa los dominios de apps bloqueadas → `apply_whitelist()` (regenera iptables) y regenera `ayanami-block.conf` (borra + `write_block_domains`);
-   4. gateway: si había `wan_iface`, reactiva `ip_forward`, MASQUERADE y DNAT 53. **El `dns_target` guardado es solo referencia**: se recalcula con `network.get_iface_ip(lan)` y se usa el guardado solo si falla;
-   5. `systemctl restart NetworkManager`;
-   6. refresca las listas de las pestañas Apps y Lista Blanca y notifica.
+   1. `dnsmasq`: si la copia incluye `content`, `firewall_config.restore_dnsmasq()` escribe un temporal, ejecuta `dnsmasq --test`, copia el archivo actual a `/etc/dnsmasq.conf.ayanami.bak`, hace `os.replace()` y reinicia `dnsmasq`. Si el test falla, aborta sin tocar el resto;
+   2. `save_whitelist(whitelist, whitelist_disabled)` escribe `whitelist.json` conservando los switches por entrada;
+   3. escribe `apps_firewall.json` completo;
+   4. recomputa los dominios de apps bloqueadas → `apply_whitelist()` (regenera iptables) y regenera `ayanami-block.conf` (borra + `write_block_domains`);
+   5. gateway: si había `wan_iface`, reactiva `ip_forward`, MASQUERADE y DNAT 53. **El `dns_target` guardado es solo referencia**: se recalcula con `network.get_iface_ip(lan)` y se usa el guardado solo si falla;
+   6. `systemctl restart NetworkManager`;
+   7. refresca las listas de las pestañas Apps y Lista Blanca y notifica.
 
 #### Diagrama de secuencia - Recorrido D — Cargar una configuración
 
@@ -888,13 +893,27 @@ sequenceDiagram
 
                 CFG-->>UI: Configuración válida
 
-                Note over UI,JSON: 1. Restaurar lista blanca
+                alt La copia incluye dnsmasq
+                    Note over UI,SYS: 1. Restaurar /etc/dnsmasq.conf
+                    UI->>CFG: restore_dnsmasq(payload)
+                    CFG->>SYS: dnsmasq --test (temporal)
+                    alt Test OK
+                        CFG->>SYS: Copia actual a .ayanami.bak
+                        CFG->>SYS: os.replace(temporal, dnsmasq.conf)
+                        CFG->>SYS: systemctl restart dnsmasq
+                    else Test falla
+                        CFG-->>UI: (False, error)
+                        UI-->>U: Abortar sin tocar el resto
+                    end
+                end
+
+                Note over UI,JSON: 2. Restaurar lista blanca
                 UI->>JSON: save_whitelist(entries, disabled)
 
-                Note over UI,JSON: 2. Restaurar aplicaciones
+                Note over UI,JSON: 3. Restaurar aplicaciones
                 UI->>JSON: Escribir apps_firewall.json
 
-                Note over UI,FW: 3. Regenerar reglas del firewall
+                Note over UI,FW: 4. Regenerar reglas del firewall
                 UI->>FW: apply_whitelist()
                 FW->>FW: Regenera reglas iptables
 
@@ -902,7 +921,7 @@ sequenceDiagram
                 FW->>FW: Borra configuración anterior
                 FW->>FW: write_block_domains()
 
-                Note over UI,NET: 4. Restaurar configuración del gateway
+                Note over UI,NET: 5. Restaurar configuración del gateway
 
                 alt Existe wan_iface
                     UI->>SYS: Activar ip_forward
@@ -915,10 +934,10 @@ sequenceDiagram
                     Note over UI,NET: El dns_target guardado es referencia.<br/>Se usa solo si falla el cálculo actual.
                 end
 
-                Note over UI,SYS: 5. Recargar servicios
+                Note over UI,SYS: 6. Recargar servicios
                 UI->>SYS: systemctl restart NetworkManager
 
-                Note over UI: 6. Actualizar interfaz
+                Note over UI: 7. Actualizar interfaz
 
                 UI->>UI: refresh_apps()
                 UI->>UI: refresh_whitelist()
@@ -1070,9 +1089,9 @@ El bloqueo *funciona* porque todos los clientes que consultan DNS **plano (puert
 
 `build_bundle(wan_iface, lan_iface, dns_target, applied_at)`:
 
-- lee los archivos **vivos** `apps_firewall.json` y `whitelist.json`;
+- lee los archivos **vivos** `apps_firewall.json`, `whitelist.json` y `/etc/dnsmasq.conf`;
 - fusiona el gateway con lo guardado previamente (`load_config()`): **los parámetros tienen prioridad**; lo que no se pasa se conserva;
-- arma `stats` (conteos), `exported_at` (ISO), `hostname` y `version`.
+- arma `dnsmasq` con el contenido del archivo (`path`, `included_at`, `available`, `encoding`, `size`, `content`) y `stats` (conteos), `exported_at` (ISO), `hostname` y `version`.
 
 `get_saved_gateway()` es la fuente de verdad para los backups: devuelve únicamente el gateway que se persistió al aplicar la configuración. Nunca usa `app.selected_interface` ni recalcula la IP de la LAN al hacer una copia; el selector global solo indica qué interfaz se usará al **aplicar** un gateway nuevo.
 
@@ -1084,6 +1103,14 @@ Formato del bundle:
   "exported_at": "2026-09-25T12:00:00",
   "hostname": "host",
   "gateway": { "wan_iface": "...", "lan_iface": "...", "dns_target": "...", "applied_at": "..." },
+  "dnsmasq": {
+    "path": "/etc/dnsmasq.conf",
+    "included_at": "...",
+    "available": true,
+    "encoding": "utf-8",
+    "size": 482,
+    "content": "interface=wlan0\ndhcp-range=10.42.0.10,10.42.0.200,12h\n"
+  },
   "stats": { "whitelist_count": 0, "apps_count": 46, "blocked_count": 0, "domains_count": 346 },
   "whitelist_disabled": [],
   "whitelist": [...],
@@ -1097,11 +1124,14 @@ Funciones importantes:
 |---|---|---|
 | `load_config(path=None)` | lee el JSON (o `{}` si no existe/inválido) | import |
 | `load_config_checked(path=None) -> (cfg, error)` | como `load_config`, pero distingue archivo inexistente, JSON truncado/corrupto o raíz que no es un objeto | import (aviso exacto en la UI) |
-| `validate_config(cfg) -> (ok, razón)` | exige `version`, `apps` (dict) y `whitelist` (list) | import (validación temprana + guarda de seguridad en `_import_config`) |
+| `validate_config(cfg) -> (ok, razón)` | exige `version`, `apps` (dict) y `whitelist` (list); si existe `dnsmasq`, valida que sea un objeto con `content` de texto y codificación `utf-8`/`latin-1` | import (validación temprana + guarda de seguridad en `_import_config`) |
 | `get_saved_gateway()` | devuelve solo el gateway persistido en `firewall_config.json`; no infiere nada de la UI ni de la red actual | `BackupsView._gateway_values()` |
+| `read_dnsmasq_config(path=None)` | lee `/etc/dnsmasq.conf` en bytes y lo guarda como texto con `encoding`; si no puede leerlo, agrega `available: false` y `error` | `build_bundle()` / `save_backup()` / `update_gateway()` |
+| `dnsmasq_payload_bytes(payload)` | convierte el bloque `dnsmasq` a bytes; rechaza codificaciones no soportadas. Nunca usa `path` para decidir el destino | `restore_dnsmasq()` |
+| `restore_dnsmasq(payload, target=None)` | escribe un temporal, valida con `dnsmasq --test`, respalda el actual en `.ayanami.bak`, reemplaza con `os.replace()` y reinicia `dnsmasq`. Devuelve `(restaurado, aviso)` | `_import_config()` |
 | `save_config(bundle, path=None)` | escribe de forma atómica (`.tmp` + `os.replace`) | export / backup inmediato / update_gateway |
-| `update_gateway(wan, lan, dns_target)` | guarda `gateway` y `applied_at`; si el canónico falta o no valida, primero reconstruye un bundle completo desde los archivos vivos | `setup_gateway` |
-| `save_backup()` | crea `backups/firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json` desde el canónico; si falta o no valida, lo reconstruye desde los archivos vivos. Escribe a un `.tmp` y hace `os.replace` para no dejar copias parciales | vista Respaldos + timer systemd |
+| `update_gateway(wan, lan, dns_target)` | guarda `gateway`, `applied_at` y refresca `dnsmasq`; si el canónico falta o no valida, primero reconstruye un bundle completo desde los archivos vivos | `setup_gateway` |
+| `save_backup()` | crea `backups/firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json` desde el canónico; si falta o no valida, lo reconstruye desde los archivos vivos. Siempre refresca `dnsmasq` desde `/etc/dnsmasq.conf`. Escribe a un `.tmp` y hace `os.replace` para no dejar copias parciales | vista Respaldos + timer systemd |
 | `prune_backups(keep=5)` | conserva los `keep` backups más recientes y borra el resto | vista Respaldos + timer systemd |
 | `list_backups()` | devuelve `bucket`, `path`, `size` y `mtime` de cada backup válido, del más nuevo al más viejo | `BackupsView.refresh_data()` |
 | `delete_backup(path)` | borra un backup solo si está dentro de `BACKUP_DIR` y tiene nombre válido | botón **Eliminar** de la vista |
@@ -1111,6 +1141,8 @@ Funciones importantes:
 ### 8.2 El timer de systemd
 
 - `firewall_config.py` como script (`python tui/firewall_config.py`) corre `save_backup()` + `prune_backups()` e imprime `[ayanami-backup] ...`. Ese es el `ExecStart` del servicio. Si el `firewall_config.json` canónico está incompleto o corrupto, `save_backup()` arma un bundle válido desde `apps_firewall.json` y `whitelist.json`; además la escritura es atómica (`.tmp` + `os.replace`), así que un fallo de disco no deja un backup a medio escribir.
+- `save_backup()` siempre vuelve a leer `/etc/dnsmasq.conf`, incluso cuando el canónico ya es válido. El servicio corre como root, de modo que el timer puede incluir el contenido sin depender de la TUI. Si el archivo no se puede leer, el backup se crea igual con `dnsmasq.available: false` y un `error`, y la restauración omite ese bloque.
+- Al restaurar, `restore_dnsmasq()` no escribe directamente sobre el archivo real: usa un temporal en `/etc`, valida con `dnsmasq --test`, conserva la versión actual en `/etc/dnsmasq.conf.ayanami.bak`, hace `os.replace()` y reinicia `dnsmasq`. Si el test falla, el archivo actual queda intacto y `_import_config()` aborta antes de restaurar whitelist/apps. El campo `dnsmasq.path` es informativo y no se usa como destino.
 - `systemd/install_backup_timer.sh` **genera los units en el momento de instalar** con la ruta real del repo (detecta su propia ubicación; podés forzar con `AYANAMI_DIR` y `AYANAMI_VENV`). Es `Type=oneshot`; por defecto usa `OnCalendar=monthly` y `Persistent=true`.
 - Acepta `--calendar "EXPRESIÓN"` y `--persistent true|false` (o `--calendar=...` / `--persistent=...`). Valida la expresión con `systemd-analyze calendar` si está disponible y reinicia el timer al aplicar cambios.
 - `--uninstall` elimina ambos units y hace `daemon-reload`.
@@ -1569,7 +1601,8 @@ asyncio.run(main())
 - `validate_config(...)` contra bundles válidos/inválidos;
 - `is_valid_whitelist_entry` / regex;
 - `prune_backups(keep=5)` creando archivos falsos en `backups/` con nombres `firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json`;
-- `save_config`/`load_config` con rutas temporales.
+- `save_config`/`load_config` con rutas temporales;
+- `save_backup`/`restore_dnsmasq` con `DNSMASQ_CONF` apuntando a un temporal y `subprocess.run` simulado (así lo hace `check_backup_dnsmasq()` en `prueba.py`).
 
 ### Verificación de sintaxis
 

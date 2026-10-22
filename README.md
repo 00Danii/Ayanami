@@ -38,7 +38,7 @@ La TUI está construida con **Textual** y es la forma más completa y amigable d
 
 ### Vista Respaldos
 
-- **Guardar/Cargar Copia** — Exporta o restaura lista blanca, apps y el gateway aplicado y persistido (no el seleccionado en la UI).
+- **Guardar/Cargar Copia** — Exporta o restaura lista blanca, apps, el gateway aplicado y persistido (no el seleccionado en la UI) y el contenido de `/etc/dnsmasq.conf`.
 - **Backups automáticos** — Muestra el estado del timer de systemd, su programación (`OnCalendar`), el modo `Persistent` y la próxima ejecución. Permite ver el estado en el log, cambiar la frecuencia (mensual, semanal o diaria), instalar/desinstalar el timer y crear un backup inmediato.
 - **Lista de backups** — Muestra las copias como tabla (año, mes, día, hora y tamaño), con acciones clicables **Restaurar** y **Eliminar**.
 
@@ -57,6 +57,14 @@ Toda la configuración del firewall se resume en un solo archivo, `firewall_conf
     "dns_target": "10.42.0.1",
     "applied_at": "2026-09-25T12:00:00"
   },
+  "dnsmasq": {
+    "path": "/etc/dnsmasq.conf",
+    "included_at": "2026-09-25T12:00:00",
+    "available": true,
+    "encoding": "utf-8",
+    "size": 482,
+    "content": "interface=wlan0\ndhcp-range=10.42.0.10,10.42.0.200,12h\n"
+  },
   "stats": {
     "whitelist_count": 3,
     "apps_count": 22,
@@ -69,13 +77,16 @@ Toda la configuración del firewall se resume en un solo archivo, `firewall_conf
 }
 ```
 
-- **Guardar Copia** (vista Respaldos) — abre un **selector de rutas** (o escribe la ruta a mano) para exportar lista blanca, apps y datos de referencia del gateway. También crea un backup inmediato.
-- **Cargar Copia** — igual que Guardar: selecciona el archivo y se **reaplica** todo: escribe `whitelist.json` y `apps_firewall.json`, regenera las reglas de lista blanca y el bloqueo DNS, y reconfigura el gateway/NAT si está guardado.
+- **Guardar Copia** (vista Respaldos) — abre un **selector de rutas** (o escribe la ruta a mano) para exportar lista blanca, apps, datos de referencia del gateway y el contenido actual de `/etc/dnsmasq.conf`. También crea un backup inmediato.
+- **Cargar Copia** — igual que Guardar: selecciona el archivo y se **reaplica** todo: escribe `whitelist.json` y `apps_firewall.json`, regenera las reglas de lista blanca y el bloqueo DNS, reconfigura el gateway/NAT si está guardado y, si la copia incluye `dnsmasq`, restaura `/etc/dnsmasq.conf` y reinicia el servicio. Las copias antiguas sin ese campo siguen funcionando y solo restauran el firewall.
 - El gateway se guarda automáticamente cada vez que se configura con "Configurar Gateway". `dns_target` es solo información de referencia: al restaurar se recalcula con `network.get_iface_ip()`.
+- En el bloque `dnsmasq`, `content` es el texto del archivo y `encoding` indica cómo decodificarlo (`utf-8` o `latin-1`, para no corromper bytes no UTF-8). El campo `path` es informativo: la restauración siempre escribe en `/etc/dnsmasq.conf`.
 
 #### Backups automáticos (systemd timer)
 
-Los backups se guardan en `backups/firewall_config-YYYY-MM-DD_HHMMSS_ffffff.json` (la copia canónica siempre es la raíz del repo) y se conservan las **últimas 5 copias**; al crear una nueva se elimina la más antigua. La vista **Respaldos** permite crear uno ahora, actualizar el estado del timer, editarlo, instalarlo/desinstalarlo y restaurar o eliminar cada copia. El gateway se toma del último aplicado y guardado en `firewall_config.json`, no de la interfaz seleccionada en la UI; cerrar Ayanami no cambia lo que respalda el timer. Si la copia canónica falta o está corrupta, el backup se reconstruye desde los archivos vivos y se escribe de forma atómica, sin dejar archivos parciales.
+Los backups se guardan en `backups/firewall_config-YYYY-MM-DD_HHMMSS_ffffff.json` (la copia canónica siempre es la raíz del repo) y se conservan las **últimas 5 copias**; al crear una nueva se elimina la más antigua. Cada copia incluye el contenido actual de `/etc/dnsmasq.conf` aunque la copia canónica sea antigua. La vista **Respaldos** permite crear uno ahora, actualizar el estado del timer, editarlo, instalarlo/desinstalarlo y restaurar o eliminar cada copia. El gateway se toma del último aplicado y guardado en `firewall_config.json`, no de la interfaz seleccionada en la UI; cerrar Ayanami no cambia lo que respalda el timer. Si la copia canónica falta o está corrupta, el backup se reconstruye desde los archivos vivos y se escribe de forma atómica, sin dejar archivos parciales.
+
+Al restaurar una copia con `dnsmasq`, Ayanami escribe primero un temporal, lo valida con `dnsmasq --test`, guarda la versión actual en `/etc/dnsmasq.conf.ayanami.bak` y solo entonces reemplaza el archivo y reinicia `dnsmasq`. Si la validación falla, el archivo real no se modifica. El servicio de backup corre como root, por lo que el timer también puede leer el contenido.
 
 El timer usa por defecto `OnCalendar=monthly` y `Persistent=true`, pero **se ejecuta según la programación configurada**: mensual, semanal, diaria o una expresión `OnCalendar` personalizada. La vista muestra siempre el `OnCalendar` real del timer instalado. Cada ejecución crea un archivo nuevo con fecha y hora; no se agrupan por mes. Los backups antiguos con nombre `YYYY-MM` siguen apareciendo en la lista y se pueden restaurar o eliminar.
 
