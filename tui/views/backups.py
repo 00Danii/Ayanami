@@ -16,6 +16,7 @@ from firewall_ops import (
     write_block_domains,
     save_whitelist,
 )
+from widgets.backup_timer_modal import BackupTimerModal
 from widgets.clickable_label import ClickableLabel
 from widgets.confirm_screen import ConfirmScreen
 from widgets.path_picker import PathPicker
@@ -87,22 +88,39 @@ class BackupsView(Vertical):
         with Vertical(classes="fw-card"):
             yield Label("Respaldos automáticos", classes="fw-card-title")
             yield Label(
-                f"Timer mensual de systemd con retención de los últimos "
-                f"{firewall_config.RETENTION_MONTHS} meses. "
-                "Instalar o desinstalar el timer requiere permisos de administrador.",
+                f"Timer de systemd para editar la frecuencia y el modo persistente.",
                 classes="fw-card-desc",
             )
-            with Horizontal(classes="bk-status-row"):
-                yield Label("Timer:", classes="bk-status-key")
-                yield Label("consultando…", id="bk-timer-state", classes="bk-status-value")
-            with Horizontal(classes="bk-status-row"):
-                yield Label("Próxima ejecución:", classes="bk-status-key")
-                yield Label("—", id="bk-timer-next", classes="bk-status-value")
-            with Horizontal(classes="bk-actions"):
-                yield Button("Actualizar", id="bk-refresh", variant="default")
-                yield Button("Backup Ahora", id="bk-run", variant="success")
-                yield Button("Instalar Timer", id="bk-install", variant="success")
-                yield Button("Desinstalar Timer", id="bk-uninstall", variant="error")
+            with Horizontal(classes="bk-auto-row"):
+                with Vertical(classes="bk-status-col"):
+                    with Horizontal(classes="bk-status-row"):
+                        yield Label("Timer:", classes="bk-status-key")
+                        yield Label("consultando…", id="bk-timer-state", classes="bk-status-value")
+                    with Horizontal(classes="bk-status-row"):
+                        yield Label("Próxima ejecución:", classes="bk-status-key")
+                        yield Label("—", id="bk-timer-next", classes="bk-status-value")
+                    with Horizontal(classes="bk-status-row"):
+                        yield Label("Programación:", classes="bk-status-key")
+                        yield Label("—", id="bk-timer-calendar", classes="bk-status-value")
+                with Horizontal(classes="bk-actions"):
+                    yield Button(
+                        "Editar",
+                        id="bk-edit",
+                        variant="primary",
+                        tooltip="Editar la configuración del timer",
+                    )
+                    yield Button(
+                        "Instalar Timer",
+                        id="bk-install",
+                        variant="success",
+                        tooltip="Instalar el timer de backups",
+                    )
+                    yield Button(
+                        "Desinstalar Timer",
+                        id="bk-uninstall",
+                        variant="error",
+                        tooltip="Desinstalar el timer de backups",
+                    )
 
         with Vertical(classes="fw-card"):
             yield Label("Backups mensuales disponibles", classes="fw-card-title")
@@ -141,6 +159,7 @@ class BackupsView(Vertical):
             "--property=NextElapseUSecRealtime",
             "--value",
         )
+        unit_text = self._systemctl("cat", TIMER_UNIT)
 
         # `systemctl is-enabled` devuelve un estado conocido si el unit
         # existe; cualquier error (systemd ausente, unit inexistente) se
@@ -156,12 +175,27 @@ class BackupsView(Vertical):
                 or next_run.startswith("Failed") or "not be found" in next_run):
             next_run = "sin programar"
 
+        calendar = "monthly"
+        persistent = True
+        for line in unit_text.splitlines():
+            key, sep, value = line.partition("=")
+            if not sep:
+                continue
+            key = key.strip()
+            value = value.strip()
+            if key == "OnCalendar" and value:
+                calendar = value
+            elif key == "Persistent":
+                persistent = value.lower() in ("1", "true", "yes", "on")
+
         installed = enabled != "not-found"
         return {
             "enabled": enabled,
             "active": active or "desconocido",
             "next": next_run,
             "installed": installed,
+            "calendar": calendar,
+            "persistent": persistent,
         }
 
     def _set_status(self, label: Label, text: str, kind: str):
@@ -170,7 +204,19 @@ class BackupsView(Vertical):
             label.remove_class(cls)
         label.add_class(kind)
 
+    @staticmethod
+    def _short_next_run(value: str) -> str:
+        """Convierte 'Sun 2026-11-01 00:00:00 CST' en '2026-11-01 00:00'."""
+        parts = value.split()
+        for index, part in enumerate(parts):
+            if len(part) == 10 and part[4] == "-" and part[7] == "-":
+                if index + 1 < len(parts):
+                    return f"{part} {parts[index + 1][:5]}"
+                return part
+        return value
+
     def _render_data(self, backups: list[dict], status: dict):
+        self._timer_status = status
         state = self.query_one("#bk-timer-state", Label)
         enabled = status["enabled"]
         active = status["active"]
@@ -185,7 +231,11 @@ class BackupsView(Vertical):
             self._set_status(state, f"instalado · {enabled}", "bk-warn")
 
         self.query_one("#bk-timer-next", Label).update(
-            status["next"] if status["installed"] else "—"
+            self._short_next_run(status["next"]) if status["installed"] else "—"
+        )
+        self.query_one("#bk-timer-calendar", Label).update(
+            f"{status['calendar']} · "
+            f"{'persistente' if status['persistent'] else 'no persistente'}"
         )
         self.query_one("#bk-install", Button).display = not status["installed"]
         self.query_one("#bk-uninstall", Button).display = status["installed"]
@@ -214,6 +264,8 @@ class BackupsView(Vertical):
             self.refresh_data()
         elif bid == "bk-run":
             self.create_backup_now()
+        elif bid == "bk-edit":
+            self.edit_timer_config()
         elif bid == "bk-install":
             self.install_timer()
         elif bid == "bk-uninstall":
@@ -498,11 +550,44 @@ class BackupsView(Vertical):
         else:
             self.app.notify("No se pudo crear el backup", severity="error")
 
+    def edit_timer_config(self):
+        status = getattr(self, "_timer_status", {})
+        self.app.push_screen(
+            BackupTimerModal(
+                calendar=status.get("calendar", "monthly"),
+                persistent=status.get("persistent", True),
+            ),
+            self._configure_timer,
+        )
+
+    def _configure_timer(self, config: dict | None):
+        if not config:
+            return
+
+        calendar = config["calendar"]
+        persistent = config["persistent"]
+        self.app.push_screen(
+            ConfirmScreen(
+                "Se aplicará la configuración del timer:\n\n"
+                f"OnCalendar: {calendar}\n"
+                f"Persistent: {'sí' if persistent else 'no'}\n\n"
+                "Se instalará o reiniciará el timer.\n\n"
+                "¿Continuar?",
+                confirm_text="Aplicar",
+                confirm_variant="success",
+            ),
+            lambda confirmed: confirmed and self._run_timer_action(
+                "install",
+                calendar=calendar,
+                persistent=persistent,
+            ),
+        )
+
     def install_timer(self):
         self.app.push_screen(
             ConfirmScreen(
-                "Se instalará y activará el timer mensual de systemd.\n\n"
-                "El backup se ejecutará el primer día de cada mes.\n\n"
+                "Se instalará y activará el timer systemd.\n\n"
+                "El backup se ejecutará según la programación \nseleccionada.\n\n"
                 "¿Continuar?",
                 confirm_text="Instalar",
                 confirm_variant="success",
@@ -521,7 +606,12 @@ class BackupsView(Vertical):
             lambda confirmed: confirmed and self._run_timer_action("uninstall"),
         )
 
-    def _run_timer_action(self, action: str):
+    def _run_timer_action(
+        self,
+        action: str,
+        calendar: str | None = None,
+        persistent: bool | None = None,
+    ):
         script = firewall_config.INSTALL_BACKUP_TIMER
         self.query_one("#bk-log", RichLog).clear()
         self.log("\n[#e0af68]━━━ Timer de backups ━━━[/]")
@@ -533,6 +623,11 @@ class BackupsView(Vertical):
         cmd = f"bash {shlex.quote(script)}"
         if action == "uninstall":
             cmd += " --uninstall"
+        else:
+            if calendar is not None:
+                cmd += f" --calendar {shlex.quote(str(calendar))}"
+            if persistent is not None:
+                cmd += f" --persistent {'true' if persistent else 'false'}"
         self.log(f"[#565f89]$ {cmd}[/]")
         self.run_worker(
             lambda: self._do_timer_cmd(cmd),
