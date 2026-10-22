@@ -84,6 +84,8 @@ def build_bundle(
 
     stored = load_config()
     gw = stored.get("gateway", {})
+    if not isinstance(gw, dict):
+        gw = {}
 
     domain_total = sum(len(info.get("domains", [])) for info in apps.values())
 
@@ -140,6 +142,13 @@ def load_config_checked(path: str | None = None) -> tuple[dict, str]:
     return data, ""
 
 
+def get_saved_gateway(path: str | None = None) -> dict:
+    """Devuelve el gateway persistido, nunca valores inferidos de la UI."""
+    stored = load_config(path)
+    gateway = stored.get("gateway", {})
+    return gateway if isinstance(gateway, dict) else {}
+
+
 def validate_config(cfg: dict) -> tuple[bool, str]:
     """Comprueba que un bundle cargado sea realmente una configuración
     de Ayanami. Devuelve (ok, razón). No debe aplicarse nada si no es ok."""
@@ -155,8 +164,18 @@ def validate_config(cfg: dict) -> tuple[bool, str]:
 
 
 def save_config(bundle: dict, path: str | None = None) -> str:
+    """Escribe un bundle de forma atómica (``.tmp`` + ``os.replace``)."""
     target = path or CONFIG_FILE
-    _write_json(target, bundle)
+    tmp = f"{target}.tmp"
+    try:
+        _write_json(tmp, bundle)
+        os.replace(tmp, target)
+    except OSError:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
     return target
 
 
@@ -164,12 +183,18 @@ def update_gateway(wan_iface: str, lan_iface: str, dns_target: str) -> str:
     """Persiste la configuración del gateway recién aplicada.
 
     Guarda también applied_at para saber cuándo se configuró por última vez.
+    Si el canónico falta o está incompleto, se reconstruye antes de escribir
+    para no dejar un JSON sin ``version``/``apps``/``whitelist``.
     """
     config = load_config()
+    ok, _ = validate_config(config)
+    if not ok:
+        config = build_bundle()
+
     config["gateway"] = {
-        "wan_iface": wan_iface,
-        "lan_iface": lan_iface,
-        "dns_target": dns_target,
+        "wan_iface": wan_iface or "",
+        "lan_iface": lan_iface or "",
+        "dns_target": dns_target or "",
         "applied_at": _now_iso(),
     }
     return save_config(config)
@@ -222,16 +247,9 @@ def save_backup(stamp: str | None = None) -> str | None:
             save_config(config)
 
     target = _backup_path(stamp)
-    tmp = f"{target}.tmp"
     try:
-        _write_json(tmp, config)
-        os.replace(tmp, target)
-        return target
+        return save_config(config, target)
     except OSError:
-        try:
-            os.remove(tmp)
-        except OSError:
-            pass
         return None
 
 

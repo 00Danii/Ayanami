@@ -708,8 +708,8 @@ sequenceDiagram
    - confirmar (`#pp-ok`) → `self.dismiss(ruta)`; cancelar/escape → `dismiss(None)`.
 4. De vuelta en `_do_export(path)` (backups.py):
    - **Normaliza la ruta**: carpeta → `carpeta/firewall_config.json`; vacía → archivo canónico.
-   - `_gateway_values()` obtiene WAN del gateway guardado, LAN de `app.selected_interface` (o de la guardada) y calcula `dns_target = network.get_iface_ip(lan)`, usando el valor guardado como respaldo.
-   - `firewall_config.build_bundle(wan_iface, lan_iface, dns_target)` (firewall_config.py): lee los archivos **vivos** (`apps_firewall.json` y `whitelist.json`), arma `stats` y fusiona el gateway.
+   - `_gateway_values()` lee WAN, LAN y `dns_target` desde `firewall_config.get_saved_gateway()`: es el gateway que se aplicó y persistió, no el que esté seleccionado en la UI.
+   - `firewall_config.build_bundle(wan_iface, lan_iface, dns_target)` (firewall_config.py): lee los archivos **vivos** (`apps_firewall.json` y `whitelist.json`), arma `stats` y fusiona el gateway persistido.
    - `save_config(bundle, path)`: escribe el archivo. Si `path` no es el canónico, **también guarda la copia canónica** para que el timer programado respalde lo más reciente.
    - `save_backup()` + `prune_backups()`: crea un backup nuevo con fecha/hora y conserva las 5 copias más recientes.
    - `refresh_data()` actualiza el estado del timer y la lista de backups; `notify("Configuración guardada")`.
@@ -758,12 +758,8 @@ sequenceDiagram
 
         Note over UI: Carpeta → carpeta/firewall_config.json<br/>Vacía → archivo canónico
 
-        UI->>FC: load_config()
-        FC-->>UI: gateway guardado
-
-        UI->>UI: _gateway_values()
-        UI->>NET: get_iface_ip(lan)
-        NET-->>UI: IP dinámica de LAN
+        UI->>FC: get_saved_gateway()
+        FC-->>UI: WAN/LAN/DNS aplicados y persistidos
 
         UI->>FC: build_bundle(wan_iface, lan_iface, dns_target)
 
@@ -1068,6 +1064,8 @@ El bloqueo *funciona* porque todos los clientes que consultan DNS **plano (puert
 - fusiona el gateway con lo guardado previamente (`load_config()`): **los parámetros tienen prioridad**; lo que no se pasa se conserva;
 - arma `stats` (conteos), `exported_at` (ISO), `hostname` y `version`.
 
+`get_saved_gateway()` es la fuente de verdad para los backups: devuelve únicamente el gateway que se persistió al aplicar la configuración. Nunca usa `app.selected_interface` ni recalcula la IP de la LAN al hacer una copia; el selector global solo indica qué interfaz se usará al **aplicar** un gateway nuevo.
+
 Formato del bundle:
 
 ```json
@@ -1090,8 +1088,9 @@ Funciones importantes:
 | `load_config(path=None)` | lee el JSON (o `{}` si no existe/inválido) | import |
 | `load_config_checked(path=None) -> (cfg, error)` | como `load_config`, pero distingue archivo inexistente, JSON truncado/corrupto o raíz que no es un objeto | import (aviso exacto en la UI) |
 | `validate_config(cfg) -> (ok, razón)` | exige `version`, `apps` (dict) y `whitelist` (list) | import (validación temprana + guarda de seguridad en `_import_config`) |
-| `save_config(bundle, path=None)` | escribe (con `makedirs` del dir contenedor) | export / backup inmediato / update_gateway |
-| `update_gateway(wan, lan, dns_target)` | actualiza solo `gateway` del canónico y guarda `applied_at` | `setup_gateway` |
+| `get_saved_gateway()` | devuelve solo el gateway persistido en `firewall_config.json`; no infiere nada de la UI ni de la red actual | `BackupsView._gateway_values()` |
+| `save_config(bundle, path=None)` | escribe de forma atómica (`.tmp` + `os.replace`) | export / backup inmediato / update_gateway |
+| `update_gateway(wan, lan, dns_target)` | guarda `gateway` y `applied_at`; si el canónico falta o no valida, primero reconstruye un bundle completo desde los archivos vivos | `setup_gateway` |
 | `save_backup()` | crea `backups/firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json` desde el canónico; si falta o no valida, lo reconstruye desde los archivos vivos. Escribe a un `.tmp` y hace `os.replace` para no dejar copias parciales | vista Respaldos + timer systemd |
 | `prune_backups(keep=5)` | conserva los `keep` backups más recientes y borra el resto | vista Respaldos + timer systemd |
 | `list_backups()` | devuelve `bucket`, `path`, `size` y `mtime` de cada backup válido, del más nuevo al más viejo | `BackupsView.refresh_data()` |
@@ -1108,6 +1107,7 @@ Funciones importantes:
 - `Persistent=true` hace que systemd guarde el último disparo en `/var/lib/systemd/timers/` y recupere **una sola vez** la ejecución si el equipo estaba apagado cuando correspondía. No se rellenan ejecuciones perdidas: el script crea un backup con la fecha y hora reales. Con `Persistent=false`, la ejecución perdida se descarta.
 - **Desde la vista Respaldos** se puede consultar el estado (`systemctl is-enabled`, `is-active`, `cat` y próxima ejecución), editar la frecuencia (`BackupTimerModal`), instalar/desinstalar el timer, crear un backup inmediato y restaurar o eliminar copias. Las operaciones sobre systemd requieren que Ayanami corra con `sudo`.
 - Cada ejecución crea un archivo nuevo (`firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json`). La retención conserva las **5 copias más recientes**; los archivos antiguos `YYYY-MM` se siguen listando y se eliminan cuando quedan fuera de la retención.
+- El timer y el backup manual leen el gateway persistido con `get_saved_gateway()`; no dependen de que la TUI esté abierta ni de la interfaz seleccionada en ese momento. Cerrar Ayanami no cambia los datos del gateway que se van a respaldar.
 
 ---
 

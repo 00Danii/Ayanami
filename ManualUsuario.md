@@ -429,8 +429,10 @@ En la parte inferior, la lista de **backups automáticos** y el **log de salida*
 
 | Botón | Qué hace |
 |---|---|
-| **Guardar Copia** | Abre el selector de rutas y exporta lista blanca, apps y datos de referencia del gateway. También actualiza la copia canónica y crea un backup automático. |
+| **Guardar Copia** | Abre el selector de rutas y exporta lista blanca, apps y el gateway **aplicado y guardado**. También actualiza la copia canónica y crea un backup automático. |
 | **Cargar Copia** | Selecciona un archivo, lo valida y, tras confirmar, reaplica lista blanca, apps, reglas DNS/iptables y gateway/NAT. |
+
+> El gateway de una copia se toma de `firewall_config.json` (el último que se aplicó con **Configurar Gateway**), **no** de la interfaz seleccionada en la barra lateral. Puedes cerrar la UI: el timer seguirá respaldando el gateway real.
 
 #### Respaldos automáticos
 
@@ -440,7 +442,7 @@ La tarjeta muestra si el timer de systemd está **instalado/activo**, su program
 |---|---|
 | **Actualizar** | Vuelve a consultar el estado del timer y la lista de backups. |
 | **Ver estado** | Consulta systemd y muestra en el log el estado, la próxima ejecución, la programación y el modo `Persistent`. |
-| **Backup** | Genera la copia canónica con el estado actual, crea un backup con fecha y hora y limpia los que superan la retención de 5 copias. |
+| **Backup** | Genera la copia canónica con el estado actual (incluido el gateway persistido), crea un backup con fecha y hora y limpia los que superan la retención de 5 copias. |
 | **Editar** | Abre un formulario para elegir la frecuencia (mensual, semanal o diaria) y el modo `Persistent`; al guardar, reinstala/reinicia el timer. |
 | **Instalar Timer** | Abre el formulario de frecuencia y `Persistent`; al confirmar, instala y activa `ayanami-backup.timer` con la programación elegida. |
 | **Desinstalar Timer** | Desactiva y elimina el timer; los backups existentes se conservan. |
@@ -591,7 +593,9 @@ Convierte al equipo en **router/gateway** de la red:
    - Permite el reenvío **LAN↔WAN** (reglas `FORWARD` de ida y vuelta, para que los dispositivos detrás de la LAN salgan a internet).
    - Redirige el DNS (puerto 53 TCP/UDP) de toda la LAN hacia la **IP dinámica** de la interfaz LAN (se calcula en vivo en cada configuración).
    - **Bloquea el DNS cifrado (DoT, puerto 853)** que sale de la LAN: así los teléfonos no se pueden "esconder" de los bloqueos usando un DNS privado. Estas reglas se insertan en la **primera posición** de `FORWARD`, antes del `ACCEPT` de reenvío, para que realmente se apliquen.
-   - Guarda los datos de referencia en `firewall_config.json` (`wan_iface`, `lan_iface`, `dns_target`) para poder restaurarlos después.
+   - Guarda los datos de referencia en `firewall_config.json` (`wan_iface`, `lan_iface`, `dns_target`) para poder restaurarlos después. Los backups usan ese valor guardado, no la interfaz que esté seleccionada en la barra lateral.
+
+> Si la LAN no tiene IP y no se puede completar la redirección DNS, Ayanami guarda igual la WAN/LAN y las reglas NAT/FORWARD que sí aplicó, con `dns_target` vacío.
 
 #### Alcance del bloqueo de DNS (qué cubre y qué no)
 

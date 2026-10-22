@@ -84,6 +84,22 @@ class ConfigTab(Vertical):
                 self.log(f"[#f7768e]{line}[/]")
         return result
 
+    def _save_gateway_config(self, wan_iface, lan_iface, dns_target) -> bool:
+        """Persiste exactamente el gateway que se acaba de aplicar."""
+        try:
+            firewall_config.update_gateway(wan_iface, lan_iface, dns_target)
+            self.log(
+                "[#9ece6a]  ✓ Gateway guardado en firewall_config.json[/]"
+            )
+            return True
+        except Exception as e:
+            self.log(f"[#f7768e]  ✗ No se pudo guardar config: {e}[/]")
+            self.app.notify(
+                "No se pudo guardar la configuración del gateway",
+                severity="error",
+            )
+            return False
+
     def setup_gateway(self):
         select = self.query_one("#cfg-nat-iface", Select)
         iface = select.value  # WAN
@@ -164,6 +180,9 @@ class ConfigTab(Vertical):
                 severity="error"
             )
 
+            # WAN/NAT/FORWARD ya se aplicaron; guardamos lo que sí quedó
+            # configurado aunque no se haya podido completar el DNS.
+            self._save_gateway_config(iface, lan_iface, "")
             return
 
         self.log(f"[#565f89]  → Interfaz DNS: {lan_iface}[/]")
@@ -205,15 +224,8 @@ class ConfigTab(Vertical):
 
         self.log("[#565f89]   DNS → Redirección e interceptación local activa[/]")
 
-        try:
-            firewall_config.update_gateway(iface, lan_iface, dns_target)
-            self.log(
-                "[#9ece6a]  ✓ Gateway guardado en firewall_config.json[/]"
-            )
-        except Exception as e:
-            self.log(f"[#f7768e]  ✗ No se pudo guardar config: {e}[/]")
-
-        self.app.notify(f"Gateway configurado en {iface}")
+        if self._save_gateway_config(iface, lan_iface, dns_target):
+            self.app.notify(f"Gateway configurado en {iface}")
 
     def show_status(self):
         dns_conf = get_dns_block_file()

@@ -448,15 +448,13 @@ class BackupsView(Vertical):
         self.app.notify("Configuración guardada")
 
     def _gateway_values(self) -> tuple[str, str, str]:
-        stored = firewall_config.load_config().get("gateway", {})
-        lan = self._get_selected_interface() or stored.get("lan_iface", "")
-        dns_target = ""
-        if lan:
-            dns_target = network.get_iface_ip(lan) or stored.get("dns_target", "")
-        return stored.get("wan_iface", ""), lan, dns_target
-
-    def _get_selected_interface(self):
-        return getattr(self.app, "selected_interface", None)
+        """Devuelve el gateway aplicado y persistido, no el de la UI."""
+        gateway = firewall_config.get_saved_gateway()
+        return (
+            gateway.get("wan_iface") or "",
+            gateway.get("lan_iface") or "",
+            gateway.get("dns_target") or "",
+        )
 
     def _import_config(self, confirmed: bool | None = None, path: str | None = None):
         if not confirmed:
