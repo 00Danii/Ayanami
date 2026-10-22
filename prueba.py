@@ -48,6 +48,8 @@ async def main():
 
         assert app.query_one("#bk-list"), "la vista Respaldos no tiene lista de backups"
         assert app.query_one("#bk-timer-state"), "la vista Respaldos no muestra el timer"
+        assert app.query_one("#bk-timer-calendar"), "la vista Respaldos no muestra la programación"
+        assert app.query_one("#bk-edit"), "la vista Respaldos no permite editar el timer"
         print("OK  vista Respaldos compuesta")
 
         fw_content = app.query_one("#fw-content", ContentSwitcher)
