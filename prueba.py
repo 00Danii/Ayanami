@@ -52,6 +52,7 @@ async def main():
         assert app.query_one("#bk-timer-state"), "la vista Respaldos no muestra el timer"
         assert app.query_one("#bk-timer-calendar"), "la vista Respaldos no muestra la programación"
         assert app.query_one("#bk-edit"), "la vista Respaldos no permite editar el timer"
+        assert app.query_one("#bk-status"), "la vista Respaldos no permite ver el estado del timer"
         if app.query(".bk-row"):
             assert app.query_one(".bk-table-head"), "la lista de backups no tiene encabezado de tabla"
             row = app.query_one(".bk-row")
