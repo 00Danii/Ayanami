@@ -1602,13 +1602,18 @@ DhcpView {
     padding: 1;
 }
 
-.dhcp-desc-row {
+/* Dos columnas: información a la izquierda y acciones a la derecha. */
+.dhcp-header-row {
     height: auto;
-    align-vertical: middle;
+    align-vertical: top;
 }
 
-/* La descripción ocupa el espacio libre y empuja los botones a la derecha. */
-.dhcp-desc-row > .fw-card-desc {
+.dhcp-info-col {
+    width: 1fr;
+    height: auto;
+}
+
+.dhcp-info-col > .fw-card-desc {
     width: 1fr;
     margin-bottom: 0;
 }
@@ -1616,7 +1621,8 @@ DhcpView {
 .dhcp-actions {
     width: auto;
     height: auto;
-    align-vertical: middle;
+    align-vertical: top;
+    margin-top: 0;
 }
 
 #dhcp-status,

@@ -9,12 +9,13 @@ class DhcpView(Vertical):
 
     def compose(self):
         with Vertical(classes="fw-card"):
-            yield Label("DHCP / dnsmasq", classes="fw-card-title")
-            with Horizontal(classes="dhcp-desc-row"):
-                yield Label(
-                    "Estado del servicio que reparte DHCP y resuelve el DNS local.",
-                    classes="fw-card-desc"
-                )
+            with Horizontal(classes="dhcp-header-row"):
+                with Vertical(classes="dhcp-info-col"):
+                    yield Label("DHCP / dnsmasq", classes="fw-card-title")
+                    yield Label(
+                        "Estado del servicio que reparte DHCP y resuelve el DNS local.",
+                        classes="fw-card-desc"
+                    )
                 with Horizontal(classes="dhcp-actions"):
                     yield Button("Estado", id="dhcp-status", variant="primary")
                     yield Button("Ver Config", id="dhcp-show-config")
