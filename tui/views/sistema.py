@@ -34,6 +34,13 @@ def fmt_bytes(b):
 
 class SistemaView(Vertical):
 
+    _ready = False
+
+    def on_mount(self):
+        # El timer de la app puede refrescar la vista antes de que termine
+        # compose(); hasta que los hijos estén montados no hay nada que pintar.
+        self._ready = True
+
     def compose(self):
         yield Static("", id="sys-header", classes="sys-header")
 
@@ -56,6 +63,8 @@ class SistemaView(Vertical):
                     yield Static("", id="sys-proc-content")
 
     def refresh_data(self):
+        if not self._ready:
+            return
         self._render_header()
         self._render_sys()
         self._render_cpu()
