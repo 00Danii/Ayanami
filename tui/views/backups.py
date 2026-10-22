@@ -26,12 +26,28 @@ TIMER_UNIT = "ayanami-backup.timer"
 
 
 def _human_size(size: int) -> str:
+    """Tamaño compacto para que la tabla entre en el ancho de la tarjeta."""
     value = float(size)
-    for unit in ("B", "KB", "MB"):
-        if value < 1024 or unit == "MB":
-            return f"{value:.0f} {unit}" if unit == "B" else f"{value:.1f} {unit}"
-        value /= 1024
-    return f"{value:.1f} MB"
+    if value >= 1024 * 1024:
+        return f"{value / (1024 * 1024):.1f}M"
+    if value >= 1024:
+        return f"{value / 1024:.0f}K"
+    return f"{value:.0f}B"
+
+
+class BackupTableHeader(Horizontal):
+    """Encabezado de la tabla de backups."""
+
+    def __init__(self):
+        super().__init__(classes="bk-table-head")
+
+    def compose(self):
+        yield Label("Año", classes="bk-col bk-col-year")
+        yield Label("Mes", classes="bk-col bk-col-month")
+        yield Label("Día", classes="bk-col bk-col-day")
+        yield Label("Hora", classes="bk-col bk-col-hour")
+        yield Label("Tam", classes="bk-col bk-col-size")
+        yield Label("Acciones", classes="bk-col bk-col-actions")
 
 
 class BackupRow(Horizontal):
@@ -42,22 +58,25 @@ class BackupRow(Horizontal):
         self.info = info
 
     def compose(self):
-        date = datetime.fromtimestamp(self.info["mtime"]).strftime("%d/%m/%Y %H:%M")
-        yield Label(self.info["bucket"], classes="bk-month")
-        yield Label(_human_size(self.info["size"]), classes="bk-size")
-        yield Label(date, classes="bk-date")
-        yield Button(
-            "Restaurar",
-            id=f"bk-restore-{self.info['bucket']}",
-            variant="primary",
-            classes="bk-row-btn",
-        )
-        yield Button(
-            "Eliminar",
-            id=f"bk-del-{self.info['bucket']}",
-            variant="error",
-            classes="bk-row-btn",
-        )
+        moment = datetime.fromtimestamp(self.info["mtime"])
+        yield Label(moment.strftime("%Y"), classes="bk-col bk-col-year")
+        yield Label(moment.strftime("%m"), classes="bk-col bk-col-month")
+        yield Label(moment.strftime("%d"), classes="bk-col bk-col-day")
+        yield Label(moment.strftime("%H:%M"), classes="bk-col bk-col-hour")
+        yield Label(_human_size(self.info["size"]), classes="bk-col bk-col-size")
+        with Horizontal(classes="bk-row-actions"):
+            yield ClickableLabel(
+                "Restaurar",
+                id=f"bk-restore-{self.info['bucket']}",
+                classes="bk-row-link",
+                markup=False,
+            )
+            yield ClickableLabel(
+                "Eliminar",
+                id=f"bk-del-{self.info['bucket']}",
+                classes="bk-row-link bk-row-link-delete",
+                markup=False,
+            )
 
 
 class BackupsView(Vertical):
@@ -122,12 +141,15 @@ class BackupsView(Vertical):
                         tooltip="Desinstalar el timer de backups",
                     )
 
-        with Vertical(classes="fw-card"):
-            yield Label("Backups mensuales disponibles", classes="fw-card-title")
-            with ScrollableContainer(id="bk-list"):
-                yield Label("  Abrí la vista para cargar la lista", classes="bk-empty")
+        with Horizontal(classes="bk-bottom-row"):
+            with Vertical(classes="fw-card bk-list-card"):
+                yield Label("Backups disponibles\n", classes="fw-card-title")
+                with ScrollableContainer(id="bk-list"):
+                    yield Label("  Abrir para cargar la lista", classes="bk-empty")
 
-        yield RichLog(id="bk-log", markup=True, highlight=True)
+            with Vertical(classes="fw-card bk-log-card"):
+                yield Label("Log de salida", classes="fw-card-title")
+                yield RichLog(id="bk-log", markup=True, highlight=True)
 
     # ── Datos y estado ───────────────────────────────────
 
@@ -244,19 +266,29 @@ class BackupsView(Vertical):
         container.remove_children()
         if not backups:
             container.mount(
-                Label("  No hay backups mensuales todavía", classes="bk-empty")
+                Label("  No hay backups", classes="bk-empty")
             )
             return
+        container.mount(BackupTableHeader())
         for info in backups:
             container.mount(BackupRow(info))
 
     # ── Botones ──────────────────────────────────────────
 
     def on_clickable_label_pressed(self, event: ClickableLabel.Pressed):
-        if event.label.id == "bk-export":
+        bid = event.label.id or ""
+        if bid == "bk-export":
             self._request_export()
-        elif event.label.id == "bk-import":
+        elif bid == "bk-import":
             self._request_import()
+        elif bid.startswith("bk-restore-"):
+            row = self._row_for_widget(event.label)
+            if row is not None:
+                self._confirm_import(row.info["path"])
+        elif bid.startswith("bk-del-"):
+            row = self._row_for_widget(event.label)
+            if row is not None:
+                self.delete_backup(row.info)
 
     def on_button_pressed(self, event: Button.Pressed):
         bid = event.button.id
@@ -270,17 +302,9 @@ class BackupsView(Vertical):
             self.install_timer()
         elif bid == "bk-uninstall":
             self.uninstall_timer()
-        elif bid and bid.startswith("bk-restore-"):
-            row = self._row_for_button(event.button)
-            if row is not None:
-                self._confirm_import(row.info["path"])
-        elif bid and bid.startswith("bk-del-"):
-            row = self._row_for_button(event.button)
-            if row is not None:
-                self.delete_backup(row.info)
 
-    def _row_for_button(self, button: Button) -> BackupRow | None:
-        node = button.parent
+    def _row_for_widget(self, widget) -> BackupRow | None:
+        node = widget.parent
         while node is not None and not isinstance(node, BackupRow):
             node = node.parent
         return node
@@ -344,7 +368,7 @@ class BackupsView(Vertical):
         )
 
     def _do_export(self, path):
-        """Guarda el estado actual y crea el backup mensual inmediato."""
+        """Guarda el estado actual y crea el backup de inmediato."""
         if not path:
             return
 
