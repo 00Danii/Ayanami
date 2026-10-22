@@ -162,6 +162,11 @@ class BackupsView(Vertical):
 
     # ── Datos y estado ───────────────────────────────────
 
+    def on_mount(self):
+        # Hasta conocer el estado real, solo dejamos visible "Instalar Timer".
+        for widget_id in ("bk-status", "bk-edit", "bk-uninstall"):
+            self.query_one(f"#{widget_id}", Button).display = False
+
     def refresh_data(self):
         self.run_worker(self._refresh_worker, name="bk-refresh", group="backups", thread=True)
 
@@ -270,6 +275,8 @@ class BackupsView(Vertical):
         )
         self.query_one("#bk-install", Button).display = not status["installed"]
         self.query_one("#bk-uninstall", Button).display = status["installed"]
+        self.query_one("#bk-status", Button).display = status["installed"]
+        self.query_one("#bk-edit", Button).display = status["installed"]
 
         container = self.query_one("#bk-list", ScrollableContainer)
         container.remove_children()
@@ -657,16 +664,8 @@ class BackupsView(Vertical):
         )
 
     def install_timer(self):
-        self.app.push_screen(
-            ConfirmScreen(
-                "Se instalará y activará el timer systemd.\n\n"
-                "El backup se ejecutará según la programación \nseleccionada.\n\n"
-                "¿Continuar?",
-                confirm_text="Instalar",
-                confirm_variant="success",
-            ),
-            lambda confirmed: confirmed and self._run_timer_action("install"),
-        )
+        """Antes de instalar, abre el editor para elegir la programación."""
+        self.edit_timer_config()
 
     def uninstall_timer(self):
         self.app.push_screen(
