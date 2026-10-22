@@ -26,7 +26,7 @@ La TUI está construida con **Textual** y es la forma más completa y amigable d
 | **Monitor** | Monitorea ancho de banda por host en tiempo real. |
 | **Sniffer** | Captura paquetes con Scapy (todo el tráfico, por dispositivo, RAW). |
 | **Firewall** | Control total del firewall con 3 pestañas (ver abajo). |
-| **DHCP** | Estado, configuración y reinicio del servicio `dnsmasq` del sistema. |
+| **DHCP** | Estado, edición de `dnsmasq.conf` con validación y confirmación antes de reiniciar `dnsmasq`; avisa si no hay cambios. |
 | **Respaldos** | Copias manuales de la configuración y gestión de los backups automáticos: estado del timer, backup inmediato, restaurar y eliminar. |
 | **Sistema** | Dashboard tipo *fastfetch*: CPU, memoria, disco, procesos, temperatura y red. |
 

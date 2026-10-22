@@ -407,17 +407,23 @@ Un panel de log (`RichLog`) con la salida de los comandos ejecutados. Al abrir l
 systemctl status dnsmasq
 ```
 
+También incluye un editor para `/etc/dnsmasq.conf` que ocupa **el mismo espacio del log**: al pulsar **Editar Config** el log se reemplaza por un `TextArea` con números de línea. Mientras se edita, los botones de la cabecera quedan deshabilitados para no perder cambios; hay que usar **`[Guardar]`** o **`[Cancelar]`**, alineados a la derecha.
+
 #### Botones
 
 | Botón | Qué hace |
 |---|---|
 | **Estado** | Vuelve a mostrar `systemctl status dnsmasq` (servicio activo/inactivo, PID y últimas líneas del log). |
-| **Ver Config** | Limpia el log y muestra el contenido de `/etc/dnsmasq.conf` (`cat`). |
+| **Editar Config** | Carga `/etc/dnsmasq.conf` en el editor, en el mismo espacio donde estaba el log. |
+| **`[Guardar]`** | Primero comprueba si el texto cambió. Si no cambió, avisa que nada se modificó y no valida ni reinicia. Si cambió, valida con `dnsmasq --test` y muestra una confirmación con la salida del test y el aviso de que se reiniciará `dnsmasq`. Al confirmar, guarda una copia de la versión anterior en `/etc/dnsmasq.conf.ayanami.bak`, reemplaza el archivo de forma atómica y reinicia el servicio. Si la validación falla, el editor sigue abierto con el error y el archivo original no se toca. |
+| **`[Cancelar]`** | Cierra el editor sin guardar y vuelve al log. |
 | **Reiniciar Servicio** | Ejecuta `systemctl restart dnsmasq`; al terminar limpia el log, muestra el resultado, deja una línea en blanco y vuelve a mostrar el estado. Corre en segundo plano para no congelar la interfaz. |
 
-> ⚠️ El reinicio requiere permisos de root: Ayanami ya se ejecuta con `sudo`, así que el comando no necesita `sudo` dentro de la app. Si se ejecuta sin root, el error de permisos aparece en rojo en el log.
+> 💡 **Guardar no aplica nada de inmediato**: si hay cambios, primero se ejecuta `dnsmasq --test` y el diálogo de confirmación muestra ese resultado junto con el aviso de reinicio. Allí puedes cancelar y volver al editor sin tocar el archivo. Si no hay cambios, Ayanami lo notifica y no reinicia el servicio.
 
-> 💡 La tecla `r` (Actualizar Vista) equivale a pulsar **Estado**: vuelve a consultar el servicio.
+> ⚠️ El reinicio y la escritura de `/etc/dnsmasq.conf` requieren permisos de root: Ayanami ya se ejecuta con `sudo`, así que no hace falta escribir `sudo` dentro de la app. Si se ejecuta sin root, el error de permisos aparece en rojo en el log o en el editor.
+
+> 💡 La tecla `r` (Actualizar Vista) equivale a pulsar **Estado**: vuelve a consultar el servicio. Si hay una edición abierta, Ayanami avisa y no descarta los cambios.
 
 ---
 

@@ -1645,6 +1645,76 @@ DhcpView {
     border: solid #3b4261;
 }
 
+/* El editor reemplaza al log en el mismo espacio. */
+#dhcp-editor {
+    height: 1fr;
+    margin-top: 1;
+    display: none;
+}
+
+.dhcp-edit-actions {
+    height: auto;
+    align-vertical: middle;
+    margin-bottom: 1;
+}
+
+.dhcp-edit-status {
+    width: 1fr;
+    height: auto;
+    max-height: 6;
+    color: #a9b1d6;
+    margin-bottom: 0;
+}
+
+/* Guardar y Cancelar son ClickableLabel, alineados a la derecha. */
+.dhcp-edit-links {
+    width: auto;
+    height: 1;
+    align: right middle;
+}
+
+.dhcp-edit-link {
+    width: auto;
+    height: 1;
+    margin-right: 2;
+    color: #7aa2f7;
+    text-style: bold;
+}
+
+.dhcp-edit-links > .dhcp-edit-link:last-child {
+    margin-right: 0;
+}
+
+.dhcp-edit-save {
+    color: #9ece6a;
+}
+
+.dhcp-edit-cancel {
+    color: #f7768e;
+}
+
+.dhcp-edit-link:hover,
+.dhcp-edit-link:focus {
+    color: #7dcfff;
+    background: #2f3549;
+}
+
+.dhcp-edit-save:hover,
+.dhcp-edit-save:focus {
+    color: #2df94f;
+}
+
+.dhcp-edit-cancel:hover,
+.dhcp-edit-cancel:focus {
+    color: #ff9e64;
+}
+
+#dhcp-config {
+    height: 1fr;
+    background: #1a1b26;
+    border: solid #3b4261;
+}
+
 /********************
  *   FIN DHCP VIEW  *
  ********************/

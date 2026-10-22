@@ -511,12 +511,15 @@ def update_state(self, blocked: bool):       # en widgets/app_row.py
 
 Vista simple de estado y administración del servicio **`dnsmasq` del sistema**. Reutiliza el patrón de `ConfigTab`: card + botones + `RichLog`.
 
-- `compose()`: card (`.fw-card`, reutiliza estilos del Firewall) con tres botones y `RichLog` (`#dhcp-log`).
-- `refresh_data()`: la invoca `AyanamiApp.on_button_pressed` al navegar a `nav-dhcp` (y `action_refresh()` con la tecla `r`). Muestra el estado por defecto.
+- `compose()`: card (`.fw-card`, reutiliza estilos del Firewall) con tres botones de cabecera, `RichLog` (`#dhcp-log`) y un editor oculto (`#dhcp-editor`) que ocupa el mismo espacio que el log.
+- `refresh_data()`: la invoca `AyanamiApp.on_button_pressed` al navegar a `nav-dhcp` (y `action_refresh()` con la tecla `r`). Muestra el estado por defecto. Si hay una edición abierta, avisa y no descarta los cambios.
 - `run(cmd)`: mismo helper que `ConfigTab`: comando en gris, salida en blanco, errores en rojo.
 - Comandos:
   - **Estado** → `systemctl status dnsmasq --no-pager`.
-  - **Ver Config** → limpia `#dhcp-log` y ejecuta `cat /etc/dnsmasq.conf`.
+  - **Editar Config** → `show_config()` lee `/etc/dnsmasq.conf` en bytes; intenta UTF-8 y, si falla, usa `latin-1` para no corromper el archivo. Carga el texto en `#dhcp-config` (`TextArea` con números de línea), oculta el log y deshabilita los botones de cabecera.
+  - **Guardar** → `save_config()` compara `TextArea.text` con `_original_text` (guardado al abrir). Si son iguales, notifica que no hubo cambios y no ejecuta nada. Si difieren, `_do_prepare_save()` corre en un worker: `_prepare_config_file()` escribe un temporal en el mismo directorio, conserva modo/propietario y lo valida con `dnsmasq --test -C <temporal>`. Si falla, elimina el temporal y mantiene el editor con el error. Si pasa, `_after_prepare_save()` abre `ConfirmScreen` con la salida del test y el aviso de reinicio. Al confirmar, `_commit_config_file()` copia la versión anterior a `<archivo>.ayanami.bak`, reemplaza con `os.replace()` y reinicia `dnsmasq`; al cancelar, `_discard_pending_save()` elimina el temporal y no toca el archivo. `_pending_save` conserva el temporal validado mientras el diálogo está abierto y `on_unmount()` lo limpia si se cierra la app.
+  - **Cancelar** → cierra el editor, descarta el texto y vuelve al log.
+  - **Guardar/Cancelar** usan `ClickableLabel` (`#dhcp-save-config` y `#dhcp-cancel-config`), no `Button`, y se alinean a la derecha en `.dhcp-edit-links`. El evento se atiende en `on_clickable_label_pressed()`.
   - **Reiniciar Servicio** → `systemctl restart dnsmasq` dentro de un `run_worker(thread=True)` (no congela la UI). Al terminar, `_after_restart` limpia el log, muestra el resultado (éxito o error), escribe una línea en blanco y llama a `show_status(clear=False)` para no borrar ese mensaje. Usa `self.app.call_from_thread(...)` porque los widgets no tienen ese método (es de la `App`).
 - Navegación: registrar el id `nav-dhcp` en `sidebar.NAV_ITEMS`, `tui.NAV_ORDER`, `compose()` y en los branches de `on_button_pressed` / `action_refresh()` (ver sección 12).
 
