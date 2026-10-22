@@ -4,7 +4,8 @@ Uso:   venv/bin/python prueba.py
 
 Arranca la app en modo test, recorre todos los botones de navegación y
 comprueba que cada vista se muestre, que las pestañas del Firewall cambien
-de panel y que la lista de Apps se cargue diferida y paginada. Dura un par
+de panel y que la lista de Apps se cargue diferida y paginada. También
+verifica que los backups incluyan y restauren dnsmasq.conf. Dura un par
 de segundos.
 
 Nota: el mensaje "sudo: se requiere una contraseña" que puede aparecer
@@ -13,13 +14,16 @@ para esta prueba.
 """
 
 import asyncio
+import json
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "tui"))
 
 from textual.widgets import Button, ContentSwitcher, TextArea
 
+import firewall_config
 from tui import AyanamiApp, NAV_ORDER
 from views.firewall.apps import PAGINADO_FILAS
 from widgets.clickable_label import ClickableLabel
@@ -30,6 +34,90 @@ FW_TABS = [
     ("fw-tab-config", "fw-panel-config"),
     ("fw-tab-apps", "fw-panel-apps"),
 ]
+
+
+def check_backup_dnsmasq():
+    """Comprueba que los backups incluyan y restauren dnsmasq.conf."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        dnsmasq = root / "dnsmasq.conf"
+        dnsmasq.write_text("# original\ninterface=eno2\n")
+        old = {
+            name: getattr(firewall_config, name)
+            for name in (
+                "CONFIG_FILE",
+                "BACKUP_DIR",
+                "APPS_FILE",
+                "WHITELIST_FILE",
+                "DNSMASQ_CONF",
+            )
+        }
+        firewall_config.CONFIG_FILE = str(root / "firewall_config.json")
+        firewall_config.BACKUP_DIR = str(root / "backups")
+        firewall_config.APPS_FILE = str(root / "apps_firewall.json")
+        firewall_config.WHITELIST_FILE = str(root / "whitelist.json")
+        firewall_config.DNSMASQ_CONF = str(dnsmasq)
+        original_run = firewall_config.subprocess.run
+        try:
+            Path(firewall_config.CONFIG_FILE).write_text(json.dumps({
+                "version": 1,
+                "whitelist": [],
+                "apps": {},
+                "gateway": {},
+            }))
+            Path(firewall_config.APPS_FILE).write_text("{}")
+            Path(firewall_config.WHITELIST_FILE).write_text("[]")
+
+            assert firewall_config.validate_config({
+                "version": 1, "whitelist": [], "apps": {},
+            })[0], "una copia antigua sin dnsmasq ya no es válida"
+            assert not firewall_config.validate_config({
+                "version": 1,
+                "whitelist": [],
+                "apps": {},
+                "dnsmasq": {"content": "x", "encoding": "ascii"},
+            })[0], "se aceptó una codificación no soportada"
+
+            target = firewall_config.save_backup("2026-10-22_120000_000000")
+            assert target, "no se pudo crear el backup de prueba"
+            bundle = json.loads(Path(target).read_text())
+            assert bundle["dnsmasq"]["content"] == "# original\ninterface=eno2\n", (
+                "el backup no incluye el contenido de dnsmasq.conf"
+            )
+
+            class Result:
+                returncode = 0
+                stdout = ""
+                stderr = ""
+
+            calls = []
+
+            def fake_run(cmd, **kwargs):
+                calls.append(cmd)
+                return Result()
+
+            firewall_config.subprocess.run = fake_run
+            ok, warning = firewall_config.restore_dnsmasq(
+                bundle["dnsmasq"], target=str(dnsmasq)
+            )
+            assert ok, warning
+            assert calls[0][:3] == ["dnsmasq", "--test", "-C"], (
+                "no se valida dnsmasq.conf antes de restaurarlo"
+            )
+            assert calls[1] == ["systemctl", "restart", "dnsmasq"], (
+                "no se reinicia dnsmasq tras restaurar"
+            )
+            assert dnsmasq.read_text() == bundle["dnsmasq"]["content"], (
+                "la restauración no escribió el contenido del backup"
+            )
+            assert Path(str(dnsmasq) + ".ayanami.bak").exists(), (
+                "no se conservó el dnsmasq.conf anterior"
+            )
+        finally:
+            firewall_config.subprocess.run = original_run
+            for name, value in old.items():
+                setattr(firewall_config, name, value)
+    print("OK  backups con dnsmasq.conf y restauración validada")
 
 
 async def main():
@@ -136,4 +224,5 @@ async def main():
     print("\nTODO OK")
 
 
+check_backup_dnsmasq()
 asyncio.run(main())
