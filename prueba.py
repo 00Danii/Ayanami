@@ -47,10 +47,23 @@ async def main():
             print(f"OK  navega a {nav}")
 
         assert app.query_one("#bk-list"), "la vista Respaldos no tiene lista de backups"
+        assert app.query_one("#bk-log"), "la vista Respaldos no tiene log de salida"
+        assert app.query_one(".bk-bottom-row"), "la lista y el log no están en dos columnas"
         assert app.query_one("#bk-timer-state"), "la vista Respaldos no muestra el timer"
         assert app.query_one("#bk-timer-calendar"), "la vista Respaldos no muestra la programación"
         assert app.query_one("#bk-edit"), "la vista Respaldos no permite editar el timer"
-        print("OK  vista Respaldos compuesta")
+        if app.query(".bk-row"):
+            assert app.query_one(".bk-table-head"), "la lista de backups no tiene encabezado de tabla"
+            row = app.query_one(".bk-row")
+            assert row.region.width == app.query_one("#bk-list").region.width, (
+                "la tabla de backups no ocupa el ancho de la lista"
+            )
+            links = list(app.query(".bk-row-link"))
+            assert len(links) >= 2, "la lista de backups no tiene acciones clicables"
+            assert links[0].region.y == links[1].region.y, (
+                "Restaurar y Eliminar no están en la misma fila"
+            )
+        print("OK  vista Respaldos compuesta (tabla + log en dos columnas)")
 
         fw_content = app.query_one("#fw-content", ContentSwitcher)
         for tab, panel in FW_TABS:
