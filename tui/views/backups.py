@@ -364,7 +364,14 @@ class BackupsView(Vertical):
         self._confirm_import(path)
 
     def _confirm_import(self, path):
-        candidate = firewall_config.load_config(path)
+        candidate, read_error = firewall_config.load_config_checked(path)
+        if read_error:
+            self.app.notify(
+                f"No se pudo leer la copia: {read_error}",
+                severity="error",
+            )
+            return
+
         ok, reason = firewall_config.validate_config(candidate)
         if not ok:
             self.app.notify(
@@ -459,7 +466,13 @@ class BackupsView(Vertical):
         self.log("\n[#e0af68]━━━ Cargar Configuración ━━━[/]")
         self.log(f"[#565f89]  → Origen: {source}[/]")
 
-        config = firewall_config.load_config(source)
+        config, read_error = firewall_config.load_config_checked(source)
+        if read_error:
+            self.log(
+                f"[#f7768e]  ✗ No se pudo leer {source}: {read_error}[/]"
+            )
+            self.app.notify("No se pudo leer el archivo", severity="error")
+            return
 
         ok, reason = firewall_config.validate_config(config)
         if not ok:

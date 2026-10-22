@@ -75,7 +75,7 @@ Toda la configuración del firewall se resume en un solo archivo, `firewall_conf
 
 #### Backups automáticos (systemd timer)
 
-Los backups se guardan en `backups/firewall_config-YYYY-MM-DD_HHMMSS_ffffff.json` (la copia canónica siempre es la raíz del repo) y se conservan las **últimas 5 copias**; al crear una nueva se elimina la más antigua. La vista **Respaldos** permite crear uno ahora, actualizar el estado del timer, editarlo, instalarlo/desinstalarlo y restaurar o eliminar cada copia.
+Los backups se guardan en `backups/firewall_config-YYYY-MM-DD_HHMMSS_ffffff.json` (la copia canónica siempre es la raíz del repo) y se conservan las **últimas 5 copias**; al crear una nueva se elimina la más antigua. La vista **Respaldos** permite crear uno ahora, actualizar el estado del timer, editarlo, instalarlo/desinstalarlo y restaurar o eliminar cada copia. Si la copia canónica falta o está corrupta, el backup se reconstruye desde los archivos vivos y se escribe de forma atómica, sin dejar archivos parciales.
 
 El timer usa por defecto `OnCalendar=monthly` y `Persistent=true`, pero **se ejecuta según la programación configurada**: mensual, semanal, diaria o una expresión `OnCalendar` personalizada. La vista muestra siempre el `OnCalendar` real del timer instalado. Cada ejecución crea un archivo nuevo con fecha y hora; no se agrupan por mes. Los backups antiguos con nombre `YYYY-MM` siguen apareciendo en la lista y se pueden restaurar o eliminar.
 

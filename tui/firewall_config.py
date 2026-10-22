@@ -69,10 +69,18 @@ def build_bundle(
     se fusiona con lo que ya esté guardado (los valores pasados por
     parámetro tienen prioridad, y solo son datos de referencia).
     """
-    apps = _read_json(APPS_FILE)
+    apps_raw = _read_json(APPS_FILE)
+    apps = {
+        name: info for name, info in apps_raw.items()
+        if isinstance(info, dict)
+    }
     whitelist_raw = _read_json(WHITELIST_FILE, {"whitelist": []})
     whitelist = whitelist_raw.get("whitelist", [])
+    if not isinstance(whitelist, list):
+        whitelist = []
     whitelist_disabled = whitelist_raw.get("disabled", [])
+    if not isinstance(whitelist_disabled, list):
+        whitelist_disabled = []
 
     stored = load_config()
     gw = stored.get("gateway", {})
@@ -104,6 +112,32 @@ def build_bundle(
 
 def load_config(path: str | None = None) -> dict:
     return _read_json(path or CONFIG_FILE)
+
+
+def load_config_checked(path: str | None = None) -> tuple[dict, str]:
+    """Lee un bundle y devuelve ``(config, error)``.
+
+    A diferencia de ``load_config``, no oculta un JSON inválido: permite
+    mostrar en la UI si el problema es un archivo truncado o corrupto en
+    vez de informar simplemente que falta ``version``.
+    """
+    target = path or CONFIG_FILE
+    if not os.path.exists(target):
+        return {}, f"no existe el archivo {target}"
+    try:
+        with open(target) as f:
+            data = json.load(f)
+    except json.JSONDecodeError as exc:
+        return {}, (
+            f"JSON inválido en la línea {exc.lineno}, columna {exc.colno}: "
+            f"{exc.msg}"
+        )
+    except (UnicodeDecodeError, OSError) as exc:
+        return {}, f"no se pudo leer el archivo: {exc}"
+
+    if not isinstance(data, dict):
+        return {}, "el JSON no es un objeto"
+    return data, ""
 
 
 def validate_config(cfg: dict) -> tuple[bool, str]:
@@ -174,22 +208,30 @@ def _valid_backup_stem(stem: str) -> bool:
 
 
 def save_backup(stamp: str | None = None) -> str | None:
-    """Crea una copia con marca de tiempo en ``BACKUP_DIR``.
+    """Crea una copia válida con marca de tiempo en ``BACKUP_DIR``.
 
-    Cada ejecución del timer (o backup manual) genera un archivo nuevo.
-    Si el archivo de configuración no existe todavía, primero lo genera
-    con el estado actual. Devuelve la ruta del backup o None si no pudo.
+    Si el bundle canónico está incompleto o corrupto, genera uno nuevo
+    desde los archivos vivos. La escritura es atómica: nunca deja una
+    copia a medio escribir si falla el disco o los permisos.
     """
-    if not os.path.exists(CONFIG_FILE):
-        save_config(build_bundle())
+    config = load_config(CONFIG_FILE)
+    ok, _ = validate_config(config)
+    if not ok:
+        config = build_bundle()
+        if not os.path.exists(CONFIG_FILE):
+            save_config(config)
 
     target = _backup_path(stamp)
+    tmp = f"{target}.tmp"
     try:
-        os.makedirs(os.path.dirname(target), exist_ok=True)
-        with open(CONFIG_FILE) as src, open(target, "w") as dst:
-            dst.write(src.read())
+        _write_json(tmp, config)
+        os.replace(tmp, target)
         return target
     except OSError:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
         return None
 
 

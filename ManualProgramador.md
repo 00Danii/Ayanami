@@ -1088,10 +1088,11 @@ Funciones importantes:
 | Función | Qué hace | Puertas de entrada |
 |---|---|---|
 | `load_config(path=None)` | lee el JSON (o `{}` si no existe/inválido) | import |
+| `load_config_checked(path=None) -> (cfg, error)` | como `load_config`, pero distingue archivo inexistente, JSON truncado/corrupto o raíz que no es un objeto | import (aviso exacto en la UI) |
 | `validate_config(cfg) -> (ok, razón)` | exige `version`, `apps` (dict) y `whitelist` (list) | import (validación temprana + guarda de seguridad en `_import_config`) |
 | `save_config(bundle, path=None)` | escribe (con `makedirs` del dir contenedor) | export / backup inmediato / update_gateway |
 | `update_gateway(wan, lan, dns_target)` | actualiza solo `gateway` del canónico y guarda `applied_at` | `setup_gateway` |
-| `save_backup()` | copia el canónico a `backups/firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json`; si no existe el canónico, lo genera | vista Respaldos + timer systemd |
+| `save_backup()` | crea `backups/firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json` desde el canónico; si falta o no valida, lo reconstruye desde los archivos vivos. Escribe a un `.tmp` y hace `os.replace` para no dejar copias parciales | vista Respaldos + timer systemd |
 | `prune_backups(keep=5)` | conserva los `keep` backups más recientes y borra el resto | vista Respaldos + timer systemd |
 | `list_backups()` | devuelve `bucket`, `path`, `size` y `mtime` de cada backup válido, del más nuevo al más viejo | `BackupsView.refresh_data()` |
 | `delete_backup(path)` | borra un backup solo si está dentro de `BACKUP_DIR` y tiene nombre válido | botón **Eliminar** de la vista |
@@ -1100,7 +1101,7 @@ Funciones importantes:
 
 ### 8.2 El timer de systemd
 
-- `firewall_config.py` como script (`python tui/firewall_config.py`) corre `save_backup()` + `prune_backups()` e imprime `[ayanami-backup] ...`. Ese es el `ExecStart` del servicio.
+- `firewall_config.py` como script (`python tui/firewall_config.py`) corre `save_backup()` + `prune_backups()` e imprime `[ayanami-backup] ...`. Ese es el `ExecStart` del servicio. Si el `firewall_config.json` canónico está incompleto o corrupto, `save_backup()` arma un bundle válido desde `apps_firewall.json` y `whitelist.json`; además la escritura es atómica (`.tmp` + `os.replace`), así que un fallo de disco no deja un backup a medio escribir.
 - `systemd/install_backup_timer.sh` **genera los units en el momento de instalar** con la ruta real del repo (detecta su propia ubicación; podés forzar con `AYANAMI_DIR` y `AYANAMI_VENV`). Es `Type=oneshot`; por defecto usa `OnCalendar=monthly` y `Persistent=true`.
 - Acepta `--calendar "EXPRESIÓN"` y `--persistent true|false` (o `--calendar=...` / `--persistent=...`). Valida la expresión con `systemd-analyze calendar` si está disponible y reinicia el timer al aplicar cambios.
 - `--uninstall` elimina ambos units y hace `daemon-reload`.

@@ -692,8 +692,9 @@ Ayanami conserva **backups automáticos** con una retención de **5 copias**: al
 
 - **Dónde**: `backups/firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json`. Los backups antiguos con nombre `AAAA-MM` siguen siendo válidos y aparecen en la lista.
 - **Cuándo**: según el **timer de systemd**. Por defecto se ejecuta una vez al mes, pero la programación real puede ser mensual, semanal, diaria o una expresión `OnCalendar` personalizada. La vista muestra el `OnCalendar` configurado.
-- **Cómo**: copia el `firewall_config.json` a un archivo nuevo con la fecha y hora de la ejecución. Si el archivo canónico aún no existe, lo genera con el estado actual antes de respaldarlo.
+- **Cómo**: copia el `firewall_config.json` a un archivo nuevo con la fecha y hora de la ejecución. Si el archivo canónico no existe, está incompleto o está corrupto, genera un bundle válido desde `apps_firewall.json` y `whitelist.json`. La escritura es atómica: un fallo de disco no deja una copia a medio escribir.
 - La copia canónica siempre se mantiene al día (al exportar a otra ruta y al configurar el gateway se actualiza automáticamente).
+- Si al restaurar aparece un error, el log ahora distingue entre **archivo inexistente**, **JSON inválido/truncado** y **campo faltante**.
 
 La vista **Respaldos** muestra el estado del timer, permite editarlo, instalarlo/desinstalarlo, crear un backup inmediato y restaurar o eliminar cada copia. Las mismas operaciones se pueden hacer por consola:
 
