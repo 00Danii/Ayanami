@@ -39,7 +39,7 @@ La TUI está construida con **Textual** y es la forma más completa y amigable d
 ### Vista Respaldos
 
 - **Guardar/Cargar Copia** — Exporta o restaura lista blanca, apps y datos de referencia del gateway.
-- **Backups automáticos** — Muestra el estado del timer de systemd, su programación (`OnCalendar`), el modo `Persistent` y la próxima ejecución. Permite cambiar la frecuencia (mensual, semanal o diaria), instalar/desinstalar el timer y crear un backup inmediato.
+- **Backups automáticos** — Muestra el estado del timer de systemd, su programación (`OnCalendar`), el modo `Persistent` y la próxima ejecución. Permite ver el estado en el log, cambiar la frecuencia (mensual, semanal o diaria), instalar/desinstalar el timer y crear un backup inmediato.
 - **Lista de backups** — Muestra las copias como tabla (año, mes, día, hora y tamaño), con acciones clicables **Restaurar** y **Eliminar**.
 
 ### Archivo de configuración y backups

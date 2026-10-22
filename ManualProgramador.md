@@ -527,6 +527,7 @@ Concentra la copia manual y la gestión de los backups automáticos. Reutiliza e
 - **Guardar/Cargar Copia**: `_request_export()` / `_request_import()` usan `PathPicker`; `_do_export()` y `_import_config()` conservan la lógica que antes vivía en `ConfigTab`.
 - **Backup** (`#bk-run`): `_do_backup_now()` arma el bundle, actualiza el canónico, crea un backup con marca de tiempo y poda los antiguos.
 - **Timer**: `_run_timer_action()` ejecuta `systemd/install_backup_timer.sh` (o `--uninstall`) en un worker, con confirmación previa. Acepta `calendar` y `persistent` y los pasa como `--calendar` / `--persistent`.
+- **Ver estado** (`#bk-status`): `show_timer_status()` consulta `systemd` en un worker y escribe en `#bk-log` el estado, la próxima ejecución, la programación, `Persistent` y la salida de `systemctl status`.
 - **Editar** (`#bk-edit`): `edit_timer_config()` abre `BackupTimerModal` con el estado actual; `_configure_timer()` confirma y aplica los valores elegidos.
 - **Lista**: `BackupRow` usa `ClickableLabel` para `Restaurar` (`#bk-restore-<bucket>`) y `Eliminar` (`#bk-del-<bucket>`), donde `<bucket>` es el identificador del archivo (`AAAA-MM-DD_HHMMSS_ffffff`). `on_clickable_label_pressed()` resuelve la fila con `_row_for_widget()`; restaurar reutiliza `_confirm_import()` y eliminar usa `firewall_config.delete_backup()` (solo acepta rutas dentro de `BACKUP_DIR`).
 

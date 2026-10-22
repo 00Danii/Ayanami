@@ -439,6 +439,7 @@ La tarjeta muestra si el timer de systemd está **instalado/activo**, su program
 | Botón | Qué hace |
 |---|---|
 | **Actualizar** | Vuelve a consultar el estado del timer y la lista de backups. |
+| **Ver estado** | Consulta systemd y muestra en el log el estado, la próxima ejecución, la programación y el modo `Persistent`. |
 | **Backup** | Genera la copia canónica con el estado actual, crea un backup con fecha y hora y limpia los que superan la retención de 5 copias. |
 | **Editar** | Abre un formulario para elegir la frecuencia (mensual, semanal o diaria) y el modo `Persistent`; al guardar, reinstala/reinicia el timer. |
 | **Instalar Timer** | Instala y activa `ayanami-backup.timer` con la programación por defecto (mensual). |
