@@ -127,6 +127,11 @@ class BackupsView(Vertical):
                         yield Label("—", id="bk-timer-calendar", classes="bk-status-value")
                 with Horizontal(classes="bk-actions"):
                     yield Button(
+                        "Ver estado",
+                        id="bk-status",
+                        tooltip="Mostrar el estado del timer en el log",
+                    )
+                    yield Button(
                         "Editar",
                         id="bk-edit",
                         variant="primary",
@@ -300,6 +305,8 @@ class BackupsView(Vertical):
             self.refresh_data()
         elif bid == "bk-run":
             self.create_backup_now()
+        elif bid == "bk-status":
+            self.show_timer_status()
         elif bid == "bk-edit":
             self.edit_timer_config()
         elif bid == "bk-install":
@@ -577,6 +584,44 @@ class BackupsView(Vertical):
             self.app.notify("Backup creado")
         else:
             self.app.notify("No se pudo crear el backup", severity="error")
+
+    def show_timer_status(self):
+        """Consulta systemd y escribe el estado completo en el log."""
+        self.query_one("#bk-log", RichLog).clear()
+        self.log("\n[#e0af68]━━━ Estado del timer ━━━[/]")
+        self.log("[#7dcfff]◆ Consultando systemd…[/]")
+        self.run_worker(
+            self._do_show_timer_status,
+            name="bk-status",
+            group="backups",
+            thread=True,
+        )
+
+    def _do_show_timer_status(self):
+        status = self._read_timer_status()
+        detail = self._systemctl("status", TIMER_UNIT, "--no-pager", "--full")
+        self.app.call_from_thread(self._after_show_timer_status, status, detail)
+
+    def _after_show_timer_status(self, status: dict, detail: str):
+        if status["installed"]:
+            state = f"{status['enabled']} · {status['active']}"
+            next_run = self._short_next_run(status["next"])
+        else:
+            state = "no instalado"
+            next_run = "—"
+
+        self.log(f"[#a9b1d6]Timer:[/] {state}")
+        self.log(f"[#a9b1d6]Próxima ejecución:[/] {next_run}")
+        self.log(f"[#a9b1d6]Programación:[/] {status['calendar']}")
+        self.log(
+            f"[#a9b1d6]Persistent:[/] "
+            f"{'sí' if status['persistent'] else 'no'}"
+        )
+        if detail:
+            self.log("[#565f89]── systemctl status ──[/]")
+            for line in detail.splitlines():
+                self.log(f"[#a9b1d6]  {line}[/]")
+        self.log("[#9ece6a]  ✓ Estado consultado[/]")
 
     def edit_timer_config(self):
         status = getattr(self, "_timer_status", {})

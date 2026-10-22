@@ -1664,7 +1664,7 @@ BackupsView {
 }
 
 .bk-actions {
-    width: 54;
+    width: auto;
     height: auto;
     align: right middle;
     margin-top: 0;
