@@ -407,7 +407,7 @@ Un panel de log (`RichLog`) con la salida de los comandos ejecutados. Al abrir l
 systemctl status dnsmasq
 ```
 
-También incluye un editor para `/etc/dnsmasq.conf` que ocupa **el mismo espacio del log**: al pulsar **Editar Config** el log se reemplaza por un `TextArea` con números de línea. Mientras se edita, los botones de la cabecera quedan deshabilitados para no perder cambios; hay que usar **`[Guardar]`** o **`[Cancelar]`**, alineados a la derecha.
+También incluye un editor para `/etc/dnsmasq.conf` que ocupa **el mismo espacio del log**: al pulsar **Editar Config** el log se reemplaza por un `TextArea` con números de línea y **resaltado de sintaxis** para claves, valores, `=` y comentarios. Mientras se edita, los botones de la cabecera quedan deshabilitados para no perder cambios; hay que usar **`[Guardar]`** o **`[Cancelar]`**, alineados a la derecha.
 
 #### Botones
 
