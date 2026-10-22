@@ -2,8 +2,9 @@
 Configuración unificada del firewall de Ayanami.
 
 Reúne en un solo archivo (firewall_config.json) la lista blanca, el
-registro de apps y los datos de referencia del gateway, y mantiene
-backups automáticos con retención de las últimas 5 copias.
+registro de apps, los datos de referencia del gateway y el contenido de
+/etc/dnsmasq.conf, y mantiene backups automáticos con retención de las
+últimas 5 copias.
 
 Uso desde systemd (timer programado):
     python firewall_config.py
@@ -11,7 +12,11 @@ Uso desde systemd (timer programado):
 import glob
 import json
 import os
+import shutil
 import socket
+import stat
+import subprocess
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -20,6 +25,7 @@ CONFIG_FILE = str(REPO_ROOT / "firewall_config.json")
 BACKUP_DIR = str(REPO_ROOT / "backups")
 APPS_FILE = str(REPO_ROOT / "apps_firewall.json")
 WHITELIST_FILE = str(REPO_ROOT / "whitelist.json")
+DNSMASQ_CONF = "/etc/dnsmasq.conf"
 INSTALL_BACKUP_TIMER = str(REPO_ROOT / "systemd" / "install_backup_timer.sh")
 
 CONFIG_VERSION = 1
@@ -51,6 +57,202 @@ def _write_json(path: str, data: dict):
 
 def _now_iso() -> str:
     return datetime.now().isoformat(timespec="seconds")
+
+
+# ─────────────────────────────────────────────────────────────
+# dnsmasq.conf dentro del bundle
+# ─────────────────────────────────────────────────────────────
+
+def read_dnsmasq_config(path: str | None = None) -> dict:
+    """Lee ``/etc/dnsmasq.conf`` para incluirlo en un backup.
+
+    El contenido se guarda como texto con su codificación para que el JSON sea
+    legible. UTF-8 es el caso normal; si falla, latin-1 conserva cualquier byte
+    y permite reconstruir el archivo exactamente al restaurar.
+    """
+    target = path or DNSMASQ_CONF
+    payload = {
+        "path": target,
+        "included_at": _now_iso(),
+    }
+
+    try:
+        with open(target, "rb") as handle:
+            raw = handle.read()
+    except FileNotFoundError:
+        payload.update({
+            "available": False,
+            "error": f"no existe {target}",
+        })
+        return payload
+    except OSError as exc:
+        payload.update({
+            "available": False,
+            "error": f"no se pudo leer {target}: {exc}",
+        })
+        return payload
+
+    try:
+        content = raw.decode("utf-8")
+        encoding = "utf-8"
+    except UnicodeDecodeError:
+        content = raw.decode("latin-1")
+        encoding = "latin-1"
+
+    payload.update({
+        "available": True,
+        "encoding": encoding,
+        "size": len(raw),
+        "content": content,
+    })
+    return payload
+
+
+def dnsmasq_payload_bytes(payload: dict) -> tuple[bytes | None, str]:
+    """Convierte el bloque ``dnsmasq`` de un bundle a bytes.
+
+    Devuelve ``(bytes, "")`` o ``(None, error)``. El campo ``path`` del JSON
+    es solo informativo: la restauración siempre usa ``DNSMASQ_CONF``.
+    """
+    if not isinstance(payload, dict):
+        return None, "el campo 'dnsmasq' no es un objeto"
+
+    content = payload.get("content")
+    if not isinstance(content, str):
+        reason = payload.get("error")
+        return None, str(reason or "la copia no incluye el contenido de dnsmasq.conf")
+
+    encoding = payload.get("encoding") or "utf-8"
+    if encoding not in ("utf-8", "latin-1"):
+        return None, f"codificación no soportada para dnsmasq.conf: {encoding}"
+
+    try:
+        return content.encode(encoding), ""
+    except UnicodeEncodeError as exc:
+        return None, (
+            f"el contenido de dnsmasq.conf no se puede codificar en "
+            f"{encoding}: {exc}"
+        )
+
+
+def restore_dnsmasq(
+    payload: dict,
+    target: str | None = None,
+) -> tuple[bool, str]:
+    """Restaura ``dnsmasq.conf`` de forma validada y atómica.
+
+    Escribe un temporal, ejecuta ``dnsmasq --test``, conserva la versión actual
+    en ``<target>.ayanami.bak`` y solo entonces reemplaza el archivo. Si la
+    validación falla, el archivo real no se toca.
+
+    Devuelve ``(restaurado, aviso)``. ``restaurado`` es ``True`` si el archivo
+    quedó escrito; ``aviso`` describe un problema no fatal (por ejemplo, que
+    systemd no pudo reiniciar dnsmasq) o un error fatal si ``restaurado`` es
+    ``False``.
+    """
+    raw, error = dnsmasq_payload_bytes(payload)
+    if error:
+        return False, error
+
+    target = os.path.realpath(target or DNSMASQ_CONF)
+    directory = os.path.dirname(target) or "."
+    tmp_path = None
+    written = False
+    warning = ""
+
+    try:
+        fd, tmp_path = tempfile.mkstemp(
+            prefix=".dnsmasq.conf.ayanami-restore-",
+            dir=directory,
+        )
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(raw)
+            handle.flush()
+            os.fsync(handle.fileno())
+
+        try:
+            original_stat = os.stat(target)
+        except FileNotFoundError:
+            original_stat = None
+        except OSError as exc:
+            return False, f"no se pudo leer {target}: {exc}"
+
+        if original_stat is not None:
+            os.chmod(tmp_path, stat.S_IMODE(original_stat.st_mode))
+            try:
+                os.chown(tmp_path, original_stat.st_uid, original_stat.st_gid)
+            except (AttributeError, PermissionError):
+                pass
+        else:
+            os.chmod(tmp_path, 0o644)
+
+        try:
+            test = subprocess.run(
+                ["dnsmasq", "--test", "-C", tmp_path],
+                capture_output=True,
+                text=True,
+                errors="replace",
+                timeout=10,
+            )
+        except FileNotFoundError:
+            return False, "no se encontró el comando dnsmasq"
+        except subprocess.TimeoutExpired:
+            return False, "dnsmasq --test agotó el tiempo de espera"
+        except OSError as exc:
+            return False, f"no se pudo ejecutar dnsmasq --test: {exc}"
+
+        test_output = (test.stdout + test.stderr).strip()
+        if test.returncode != 0:
+            return False, (
+                test_output
+                or f"dnsmasq --test salió con código {test.returncode}"
+            )
+
+        if original_stat is not None:
+            try:
+                shutil.copy2(target, target + ".ayanami.bak")
+            except OSError as exc:
+                warning = f"no se pudo crear {target}.ayanami.bak: {exc}"
+
+        os.replace(tmp_path, target)
+        written = True
+
+        try:
+            restart = subprocess.run(
+                ["systemctl", "restart", "dnsmasq"],
+                capture_output=True,
+                text=True,
+                errors="replace",
+                timeout=30,
+            )
+        except FileNotFoundError:
+            return True, "archivo restaurado, pero no se encontró systemctl"
+        except subprocess.TimeoutExpired:
+            return True, (
+                "archivo restaurado, pero systemctl restart agotó el tiempo "
+                "de espera"
+            )
+        except OSError as exc:
+            return True, (
+                f"archivo restaurado, pero no se pudo reiniciar dnsmasq: {exc}"
+            )
+
+        restart_output = (restart.stdout + restart.stderr).strip()
+        if restart.returncode != 0:
+            detail = restart_output or (
+                f"systemctl restart salió con código {restart.returncode}"
+            )
+            return True, f"archivo restaurado, pero dnsmasq no se reinició: {detail}"
+
+        return True, warning
+    except OSError as exc:
+        return False, f"no se pudo restaurar {target}: {exc}"
+    finally:
+        if not written and tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
 
 # ─────────────────────────────────────────────────────────────
@@ -99,6 +301,7 @@ def build_bundle(
             "dns_target": dns_target or gw.get("dns_target", ""),
             "applied_at": applied_at or gw.get("applied_at", ""),
         },
+        "dnsmasq": read_dnsmasq_config(),
         "stats": {
             "whitelist_count": len(whitelist),
             "apps_count": len(apps),
@@ -160,6 +363,19 @@ def validate_config(cfg: dict) -> tuple[bool, str]:
         return False, "falta el campo 'apps' (dict de aplicaciones)"
     if not isinstance(cfg.get("whitelist"), list):
         return False, "falta el campo 'whitelist' (lista de entradas)"
+    if "dnsmasq" in cfg:
+        dnsmasq = cfg.get("dnsmasq")
+        if not isinstance(dnsmasq, dict):
+            return False, "el campo 'dnsmasq' debe ser un objeto"
+        if "content" in dnsmasq and not isinstance(dnsmasq.get("content"), str):
+            return False, "el contenido de 'dnsmasq' debe ser texto"
+        encoding = dnsmasq.get("encoding", "utf-8")
+        if encoding not in ("utf-8", "latin-1"):
+            return False, f"codificación de 'dnsmasq' no soportada: {encoding!r}"
+        if isinstance(dnsmasq.get("content"), str):
+            _raw, content_error = dnsmasq_payload_bytes(dnsmasq)
+            if content_error:
+                return False, content_error
     return True, ""
 
 
@@ -197,6 +413,7 @@ def update_gateway(wan_iface: str, lan_iface: str, dns_target: str) -> str:
         "dns_target": dns_target or "",
         "applied_at": _now_iso(),
     }
+    config["dnsmasq"] = read_dnsmasq_config()
     return save_config(config)
 
 
@@ -236,8 +453,10 @@ def save_backup(stamp: str | None = None) -> str | None:
     """Crea una copia válida con marca de tiempo en ``BACKUP_DIR``.
 
     Si el bundle canónico está incompleto o corrupto, genera uno nuevo
-    desde los archivos vivos. La escritura es atómica: nunca deja una
-    copia a medio escribir si falla el disco o los permisos.
+    desde los archivos vivos. En cualquier caso refresca el bloque
+    ``dnsmasq`` desde ``/etc/dnsmasq.conf`` para que la copia incluya su
+    contenido actual. La escritura es atómica: nunca deja una copia a medio
+    escribir si falla el disco o los permisos.
     """
     config = load_config(CONFIG_FILE)
     ok, _ = validate_config(config)
@@ -245,6 +464,8 @@ def save_backup(stamp: str | None = None) -> str | None:
         config = build_bundle()
         if not os.path.exists(CONFIG_FILE):
             save_config(config)
+    else:
+        config["dnsmasq"] = read_dnsmasq_config()
 
     target = _backup_path(stamp)
     try:

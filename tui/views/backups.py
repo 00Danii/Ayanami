@@ -91,7 +91,7 @@ class BackupsView(Vertical):
             yield Label("Copia de Seguridad", classes="fw-card-title")
             with Horizontal(classes="bk-copy-row"):
                 yield Label(
-                    "Lista blanca, Apps y los datos de referencia del gateway en un único archivo JSON.",
+                    "Lista blanca, Apps, gateway y dnsmasq.conf en un único archivo JSON.",
                     classes="fw-card-desc",
                 )
                 with Horizontal(classes="bk-actions bk-copy-actions"):
@@ -380,10 +380,23 @@ class BackupsView(Vertical):
             )
             return
 
+        dnsmasq = candidate.get("dnsmasq")
+        if isinstance(dnsmasq, dict) and isinstance(dnsmasq.get("content"), str):
+            dnsmasq_note = (
+                "También se restaurará /etc/dnsmasq.conf y se reiniciará "
+                "dnsmasq.\n"
+            )
+        else:
+            dnsmasq_note = (
+                "La copia no incluye dnsmasq.conf; se restaurará solo el "
+                "firewall.\n"
+            )
+
         self.app.push_screen(
             ConfirmScreen(
                 f"Se cargará:\n\n{path}\n\n"
                 "Se reaplicarán lista blanca, apps y gateway/NAT.\n"
+                f"{dnsmasq_note}"
                 "Se sobrescribirá el estado actual.\n\n"
                 "¿Continuar?",
                 confirm_text="Cargar",
@@ -435,6 +448,20 @@ class BackupsView(Vertical):
             f"{stats.get('blocked_count', 0)} bloqueadas[/]"
         )
 
+        dnsmasq = bundle.get("dnsmasq", {})
+        if isinstance(dnsmasq, dict) and isinstance(dnsmasq.get("content"), str):
+            self.log(
+                f"[#565f89]  → dnsmasq.conf incluido "
+                f"({dnsmasq.get('size', 0)} bytes, "
+                f"{dnsmasq.get('encoding', 'utf-8')})[/]"
+            )
+        else:
+            reason = ""
+            if isinstance(dnsmasq, dict):
+                reason = str(dnsmasq.get("error") or "").strip()
+            detail = f": {reason}" if reason else ""
+            self.log(f"[#e0af68]  ⚠ dnsmasq.conf no incluido{detail}[/]")
+
         backup = firewall_config.save_backup()
         removed = firewall_config.prune_backups()
         if backup:
@@ -480,6 +507,38 @@ class BackupsView(Vertical):
             )
             self.app.notify("El archivo no es válido", severity="error")
             return
+
+        # ── dnsmasq.conf ─────────────────────────────────
+        dnsmasq = config.get("dnsmasq")
+        if isinstance(dnsmasq, dict) and isinstance(dnsmasq.get("content"), str):
+            self.log("[#7dcfff]◆ Restaurando /etc/dnsmasq.conf[/]")
+            dns_ok, dns_message = firewall_config.restore_dnsmasq(dnsmasq)
+            if not dns_ok:
+                self.log(
+                    f"[#f7768e]  ✗ No se restauró dnsmasq.conf: "
+                    f"{dns_message}[/]"
+                )
+                self.app.notify(
+                    "No se pudo restaurar dnsmasq.conf",
+                    severity="error",
+                )
+                return
+            self.log("[#9ece6a]  ✓ dnsmasq.conf restaurado[/]")
+            if dns_message:
+                self.log(f"[#e0af68]  ⚠ {dns_message}[/]")
+                self.app.notify(
+                    "dnsmasq.conf restaurado con avisos; revisa el log",
+                    severity="warning",
+                )
+        else:
+            reason = ""
+            if isinstance(dnsmasq, dict):
+                reason = str(dnsmasq.get("error") or "").strip()
+            detail = f" ({reason})" if reason else ""
+            self.log(
+                "[#565f89]  → La copia no incluye dnsmasq.conf; "
+                f"se omite{detail}[/]"
+            )
 
         # ── Lista blanca ─────────────────────────────────
         whitelist = config.get("whitelist", [])
@@ -561,12 +620,14 @@ class BackupsView(Vertical):
         self.log("[#9ece6a]  ✓ Cambios aplicados[/]")
         self.log("[#9ece6a]━━━ Configuración cargada ━━━[/]")
 
-        apps_tab = self.screen.query_one("#fw-panel-apps")
-        if hasattr(apps_tab, "refresh_apps"):
-            apps_tab.refresh_apps()
-        rules_tab = self.screen.query_one("#fw-panel-rules")
-        if hasattr(rules_tab, "refresh_list"):
-            rules_tab.refresh_list()
+        # La vista Firewall puede no estar montada si el usuario restauró
+        # desde Respaldos sin haberla abierto: refrescar solo si existe.
+        for apps_tab in self.app.query("#fw-panel-apps"):
+            if hasattr(apps_tab, "refresh_apps"):
+                apps_tab.refresh_apps()
+        for rules_tab in self.app.query("#fw-panel-rules"):
+            if hasattr(rules_tab, "refresh_list"):
+                rules_tab.refresh_list()
 
         self.app.notify("Configuración cargada y aplicada")
 
