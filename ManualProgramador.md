@@ -261,11 +261,12 @@ Consecuencia práctica: **los archivos nuevos de `tui/` se importan plano, sin p
 
 1. `tui/tui.py` ejecuta `AyanamiApp().run()`.
 2. Textual instancia la app y llama `compose()`, que declara: `Header` (arriba), `Horizontal(Sidebar, ContentSwitcher)` (el cuerpo) y `Footer` (abajo, muestra las teclas).
-3. El `ContentSwitcher` con `initial="nav-interfaces"` muestra la primera vista; todas las vistas existen montadas **en paralelo** (el switcher solo decide cuál se ve).
+3. El `ContentSwitcher` con `initial="nav-interfaces"` muestra la primera vista. **Al arrancar solo se monta `InterfacesView`**; el resto no se importa ni se construye todavía.
 4. `on_mount()` de la app activa la navegación a Interfaces y programa el auto-refresco de Sistema (1 segundo).
-5. Cada vista, en su propio `on_mount()`, carga sus datos iniciales. **La lista de Apps y los datos de Sistema son la excepción**: se cargan al abrir esas vistas (`ensure_loaded()` / `refresh_data()`), porque pintarlos al arrancar hacía que la app tardara 27 s (ver 5.8).
+5. Al pulsar otra vista, `AyanamiApp._show_view()` importa su módulo con `importlib`, la monta con `ContentSwitcher.add_content(..., set_current=True)` y la deja visible. Las siguientes visitas solo cambian `ContentSwitcher.current`.
+6. Al montarse por primera vez, el `on_mount()` de la vista carga sus datos iniciales. **La lista de Apps y los datos de Sistema siguen cargándose al abrir esas vistas** (`ensure_loaded()` / `refresh_data()`), porque pintarlos al arrancar hacía que la app tardara 27 s (ver 5.8).
 
-**Punto clave del diseño**: cambiar de pestaña es solo `ContentSwitcher.current = id`. No se destruyen ni recrean las vistas: **los datos de una vista viven mientras la app corre**. Por eso "montada" no es lo mismo que "pintada": una vista puede estar en el DOM sin haber construido sus listas.
+**Punto clave del diseño**: la primera vez que se abre una vista se importa y se monta; después no se destruye ni se recrea. **Los datos de una vista viven mientras la app corre**, y volver a ella no repite la importación ni el `on_mount()`. Por eso "montada" no es lo mismo que "pintada": una vista puede estar en el DOM sin haber construido sus listas.
 
 ### 5.2 `AyanamiApp` (`tui/tui.py`)
 
@@ -285,7 +286,7 @@ class AyanamiApp(App):
 ```
 
 - **`selected_interface` es el "estado global"**: lo escribe la barra lateral (`Sidebar`) y la vista Interfaces (botón "Global"); lo leen Hotspot, Scanner, Monitor, Sniffer y el gateway (como **LAN**). Si se agreaga una vista que necesita saber "qué interfaz estoy usando", leer `self.app.selected_interface`.
-- `NAV_ORDER` es la lista de ids de navegación. `on_button_pressed` recibe el clic de cualquier botón de la app con id en esa lista y hace `ContentSwitcher.current = btn_id`. **Por eso los botones del sidebar tienen el mismo id que las vistas** (`nav-firewall` → `FirewallView(id="nav-firewall")`).
+- `NAV_ORDER` es la lista de ids de navegación. `on_button_pressed` recibe el clic de cualquier botón de la app con id en esa lista y llama a `_show_view(btn_id)`. Si la vista no existe, `_show_view` la importa y la monta; si ya existe, solo cambia `ContentSwitcher.current`. **Por eso los botones del sidebar tienen el mismo id que las vistas** (`nav-firewall` → `FirewallView(id="nav-firewall")`). `VIEW_IMPORTS` define el módulo y la clase de cada vista para no importarlas todas al arrancar.
 - `action_refresh()` (tecla `r`) refresca varias vistas **menos el firewall** (las listas del firewall se refrescan solas con cada acción).
 
 ### 5.3 El patrón de una vista 
@@ -454,7 +455,7 @@ Con muchas apps registradas, pintar la lista entera en cada interacción **conge
 
 | Situación | Antes | Después |
 |---|---|---|
-| Arranque de la app | 27,5 s | 0,9 s |
+| Arranque de la app | 27,5 s | ~0,5 s |
 | Refresco completo de la lista | 22 s | ~0,5 s |
 | Cada tecla del buscador | 1,7 s | ~0,06 s |
 | Cada fila: 13 widgets → 97 apps | 1.261 widgets | 325 (solo 25 filas) |
@@ -477,7 +478,9 @@ def refresh_apps(self):
     self._update_footer(len(filas), len(items))
 ```
 
-**c) Carga diferida (`ensure_loaded`).** El `ContentSwitcher` monta **todas** las vistas aunque no se vean, así que un `on_mount()` que pinte 1.000 widgets se paga al arrancar. La lista se dibuja la primera vez que se abre la pestaña:
+**c) Carga diferida de vistas y datos.** Al arrancar, `AyanamiApp.compose()` solo monta `InterfacesView`; las demás vistas se importan y montan con `_show_view()` la primera vez que se abren. Esto evita pagar al inicio el montaje de DHCP, Respaldos, Monitor, Sniffer, etc., y también evita importar `scapy` hasta que se necesita.
+
+Dentro del Firewall, la pestaña Apps conserva su propia carga diferida porque es la pestaña inicial y puede tener cientos de filas:
 
 ```python
 def ensure_loaded(self):                # en AppsTab
@@ -487,6 +490,8 @@ def ensure_loaded(self):                # en AppsTab
 ```
 
 Se llama desde dos lugares: `AyanamiApp.on_button_pressed` (al navegar a `nav-firewall`, porque la pestaña Apps es la inicial del Firewall) y `FirewallView.on_button_pressed` (al hacer clic en la pestaña Apps). `SistemaView` usa el mismo patrón con `refresh_data()`.
+
+> La primera apertura de una vista paga su importación y su `on_mount()`. Monitor y Sniffer importan `scapy` (~1 s); por eso conviene que esa demora ocurra al abrirlos y no al arrancar la app.
 
 > ⚠️ **Advertencia**: los widgets `Select` disparan `Select.Changed` **al montarse** (Textual les asigna el valor inicial). Si ese handler refresca la lista, la carga diferida no sirve de nada. Por eso el handler filtra con `if self._loaded:`.
 

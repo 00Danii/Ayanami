@@ -16,7 +16,7 @@ Herramienta en Python 3, diseñada para ejecutarse con permisos de root para la 
 
 ## TUI — Interfaz de Texto (recomendada)
 
-La TUI está construida con **Textual** y es la forma más completa y amigable de usar Ayanami. Incluye una barra lateral de navegación y **7 vistas**:
+La TUI está construida con **Textual** y es la forma más completa y amigable de usar Ayanami. Incluye una barra lateral de navegación y **9 vistas**. Las vistas se importan y montan bajo demanda: el arranque solo construye **Interfaces** y las demás aparecen la primera vez que se abren.
 
 | Vista | Descripción |
 |---|---|

@@ -140,6 +140,8 @@ Dentro del programa también puedes usar el **ratón** (Textual lo soporta): cli
 
 > En esta sección, para cada vista se explica **qué muestra** (cada columna, panel y contador) y **qué hace cada botón**. Todas las vistas usan la **interfaz global** elegida en la barra lateral, así que si ves datos vacíos o de la interfaz equivocada, revisa primero ese selector.
 
+> Las vistas se cargan la primera vez que las abres. Por eso el arranque es más rápido y la primera visita a una vista pesada (por ejemplo Monitor o Sniffer) puede tardar un poco más.
+
 ---
 
 ### 5.1 Interfaces
