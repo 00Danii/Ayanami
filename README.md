@@ -26,13 +26,21 @@ La TUI está construida con **Textual** y es la forma más completa y amigable d
 | **Monitor** | Monitorea ancho de banda por host en tiempo real. |
 | **Sniffer** | Captura paquetes con Scapy (todo el tráfico, por dispositivo, RAW). |
 | **Firewall** | Control total del firewall con 3 pestañas (ver abajo). |
+| **DHCP** | Estado, configuración y reinicio del servicio `dnsmasq` del sistema. |
+| **Respaldos** | Copias manuales de la configuración y gestión de los backups automáticos: estado del timer, backup inmediato, restaurar y eliminar. |
 | **Sistema** | Dashboard tipo *fastfetch*: CPU, memoria, disco, procesos, temperatura y red. |
 
 ### Pestañas del Firewall
 
 - **Apps** — Registra aplicaciones con sus dominios, activa/desactiva su bloqueo con un switch, filtra y ordena. El bloqueo se aplica vía **dnsmasq** (`address=/{dominio}/0.0.0.0`) más **iptables** para QUIC/NAT.
 - **Lista Blanca** — Exenta IPs, rangos (`10.0.0.1-10.0.0.255`), subredes CIDR (`192.168.1.0/24`) o **direcciones MAC** (`AA:BB:CC:DD:EE:FF`) de todas las reglas de bloqueo. Cada entrada tiene su propio **switch para activarla o desactivarla** sin borrarla; **Limpiar Firewall** apaga todos los switches y conserva las entradas. Las entradas activas resuelven DNS externamente (8.8.8.8) en vez del dnsmasq local, con aplicación automática de las reglas.
-- **Config** — Configura el gateway/NAT, fuerza DNS local, muestra el estado de las reglas y limpia el firewall completo. Incluye **Guardar/Cargar Config** para exportar e importar toda la configuración del firewall.
+- **Config** — Configura el gateway/NAT, fuerza DNS local, muestra el estado de las reglas y limpia el firewall completo.
+
+### Vista Respaldos
+
+- **Guardar/Cargar Copia** — Exporta o restaura lista blanca, apps y datos de referencia del gateway.
+- **Backups automáticos** — Muestra el estado del timer de systemd, su programación (`OnCalendar`), el modo `Persistent` y la próxima ejecución. Permite cambiar la frecuencia (mensual, semanal o diaria), instalar/desinstalar el timer y crear un backup inmediato.
+- **Lista de backups** — Muestra las copias como tabla (año, mes, día, hora y tamaño), con acciones clicables **Restaurar** y **Eliminar**.
 
 ### Archivo de configuración y backups
 
@@ -61,18 +69,25 @@ Toda la configuración del firewall se resume en un solo archivo, `firewall_conf
 }
 ```
 
-- **Guardar Config** (tab Config) — abre un **selector de rutas** (o escribe la ruta a mano) para exportar lista blanca, apps y datos de referencia del gateway. También crea un backup inmediato.
-- **Cargar Config** — igual que Guardar: selecciona el archivo y se **reaplica** todo: escribe `whitelist.json` y `apps_firewall.json`, regenera las reglas de lista blanca y el bloqueo DNS, y reconfigura el gateway/NAT si está guardado.
+- **Guardar Copia** (vista Respaldos) — abre un **selector de rutas** (o escribe la ruta a mano) para exportar lista blanca, apps y datos de referencia del gateway. También crea un backup inmediato.
+- **Cargar Copia** — igual que Guardar: selecciona el archivo y se **reaplica** todo: escribe `whitelist.json` y `apps_firewall.json`, regenera las reglas de lista blanca y el bloqueo DNS, y reconfigura el gateway/NAT si está guardado.
 - El gateway se guarda automáticamente cada vez que se configura con "Configurar Gateway". `dns_target` es solo información de referencia: al restaurar se recalcula con `network.get_iface_ip()`.
 
-#### Backups mensuales (systemd timer)
+#### Backups automáticos (systemd timer)
 
-Los backups se guardan en `backups/firewall_config-YYYY-MM.json` (la copia canónica siempre es la raíz del repo) y se conservan los **últimos 3 meses** (el resto se borra solo). En el tab Config también se puede disparar un backup manual con **Guardar Config**.
+Los backups se guardan en `backups/firewall_config-YYYY-MM-DD_HHMMSS_ffffff.json` (la copia canónica siempre es la raíz del repo) y se conservan las **últimas 5 copias**; al crear una nueva se elimina la más antigua. La vista **Respaldos** permite crear uno ahora, actualizar el estado del timer, editarlo, instalarlo/desinstalarlo y restaurar o eliminar cada copia.
 
-Instalación del timer — **las rutas se detectan automáticamante**, (usa `AYANAMI_DIR=/ruta` si el repo no está junto al script):
+El timer usa por defecto `OnCalendar=monthly` y `Persistent=true`, pero **se ejecuta según la programación configurada**: mensual, semanal, diaria o una expresión `OnCalendar` personalizada. La vista muestra siempre el `OnCalendar` real del timer instalado. Cada ejecución crea un archivo nuevo con fecha y hora; no se agrupan por mes. Los backups antiguos con nombre `YYYY-MM` siguen apareciendo en la lista y se pueden restaurar o eliminar.
+
+Con `Persistent=true`, si el equipo estaba apagado cuando tocaba ejecutar, systemd recupera **una vez** la ejecución atrasada al volver a encenderse. Con `Persistent=false`, la ejecución perdida se descarta y se espera a la próxima fecha programada.
+
+Instalación del timer — **las rutas se detectan automáticamente** (usa `AYANAMI_DIR=/ruta` si el repo no está junto al script). También se puede instalar desde la vista Respaldos:
 
 ```bash
 sudo systemd/install_backup_timer.sh
+
+# Personalizar la programación:
+sudo systemd/install_backup_timer.sh --calendar "Mon..Fri 03:00" --persistent false
 ```
 
 Desinstalación:
@@ -88,7 +103,7 @@ systemctl list-timers ayanami-backup.timer --no-pager
 sudo systemctl start ayanami-backup.service   # ejecutar el backup ahora mismo
 ```
 
-El servicio corre `tui/firewall_config.py`, que copia el archivo al bucket del mes y borra los backups con más de 3 meses. Si `firewall_config.json` aún no existe, lo genera con el estado actual antes de respaldarlo.
+El servicio corre `tui/firewall_config.py`, que crea una copia con marca de tiempo y conserva solo las 5 más recientes. Si `firewall_config.json` aún no existe, lo genera con el estado actual antes de respaldarlo.
 
 ### Atajos de teclado
 

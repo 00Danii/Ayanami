@@ -201,10 +201,10 @@ Consecuencia práctica: **los archivos nuevos de `tui/` se importan plano, sin p
 ├── whitelist.json           # lista blanca ACTIVA (la editan los tabs y firewall_ops)
 ├── apps_firewall.json       # apps + dominios ACTIVOS (la editan los tabs y firewall_config)
 ├── firewall_config.json     # bundle unificado (NO se commitea; lo regenera la app)
-├── backups/                 # backups mensuales (no se commitean)
+├── backups/                 # backups automáticos (no se commitean)
 │
 ├── systemd/
-│   └── install_backup_timer.sh   # instalador/desinstalador del timer mensual
+│   └── install_backup_timer.sh   # instala/edita/desinstala el timer (OnCalendar/Persistent)
 │
 ├── venv/                    # entorno virtual (no se commitea)
 │
@@ -229,6 +229,7 @@ Consecuencia práctica: **los archivos nuevos de `tui/` se importan plano, sin p
     │   ├── sidebar.py       # barra lateral + selector de interfaz global
     │   ├── confirm_screen.py# modal de confirmación genérico (Sí/No)
     │   ├── path_picker.py   # modal para elegir una ruta (input + árbol de directorios)
+    │   ├── backup_timer_modal.py # editor de frecuencia/Persistent del timer de systemd
     │   ├── clickable_label.py # un Label que hace de botón (clic + Enter), para acciones chicas
     │   ├── app_row.py       # una fila de app (switch + modificar + eliminar)
     │   └── interface_row.py # una fila de interfaz (tipo, estado, botones)
@@ -240,12 +241,13 @@ Consecuencia práctica: **los archivos nuevos de `tui/` se importan plano, sin p
         ├── monitor.py       # vista "Monitor" (tráfico en tiempo real)
         ├── sniffer.py       # vista "Sniffer"
         ├── dhcp.py          # vista "DHCP" (estado/config/reinicio de dnsmasq)
+        ├── backups.py       # vista "Respaldos" (copias manuales + backups automáticos)
         ├── sistema.py       # vista "Sistema" (dashboard)
         └── firewall/        # módulo firewall: contiene sus propias sub-pestañas
             ├── __init__.py  # FirewallView: el contenedor con sus tabs
             ├── apps.py      # AppsTab: CRUD de apps + bloqueo por dominio
             ├── whitelist.py # WhitelistTab: lista blanca + IPRow
-            ├── config.py    # ConfigTab: gateway, estado, limpiar, guardar/cargar
+            ├── config.py    # ConfigTab: gateway, estado y limpiar
             └── app_modal.py # AppModal: formulario Registrar/Modificar app + APP_TYPES
 ```
 
@@ -515,6 +517,19 @@ Vista simple de estado y administración del servicio **`dnsmasq` del sistema**.
 
 > ⚠️ **No confundir**: Ayanami no implementa DHCP. Esta vista opera el `dnsmasq` **del sistema**, que es el mismo que (en la configuración del servidor) lee `ayanami-block.conf` vía `conf-dir`.
 
+### 5.10 Vista Respaldos (`views/backups.py`)
+
+Concentra la copia manual y la gestión de los backups automáticos. Reutiliza el patrón de `ConfigTab` y `DhcpView`: cards + botones + `RichLog` (`#bk-log`).
+
+- `compose()`: tres cards (copia manual, respaldos automáticos y backups disponibles) y un `RichLog`. La tarjeta de backups automáticos y el log comparten una fila de dos columnas (`2fr`/`3fr`): la lista a la izquierda y el log a la derecha. La lista usa `BackupTableHeader` y `BackupRow` para mostrar las columnas Año/Mes/Día/Hora/Tam/Acciones; las columnas de datos usan `1fr` con `min-width` para repartirse el ancho de la tarjeta, y `Restaurar`/`Eliminar` comparten una fila de acciones.
+- `refresh_data()`: la llama `tui.py` al navegar a `nav-backups` y con la tecla `r`. Lanza un worker (`thread=True`) que lee `firewall_config.list_backups()` y consulta `systemctl` (`is-enabled`, `is-active`, `show --property=NextElapseUSecRealtime` y `cat`); pinta con `call_from_thread` en `_render_data()`.
+- `_render_data()`: actualiza estado, próxima ejecución y programación (`OnCalendar` + `Persistent`), alterna la visibilidad de **Instalar/Desinstalar Timer**, guarda el estado en `_timer_status` y monta una `BackupRow` por cada backup.
+- **Guardar/Cargar Copia**: `_request_export()` / `_request_import()` usan `PathPicker`; `_do_export()` y `_import_config()` conservan la lógica que antes vivía en `ConfigTab`.
+- **Backup** (`#bk-run`): `_do_backup_now()` arma el bundle, actualiza el canónico, crea un backup con marca de tiempo y poda los antiguos.
+- **Timer**: `_run_timer_action()` ejecuta `systemd/install_backup_timer.sh` (o `--uninstall`) en un worker, con confirmación previa. Acepta `calendar` y `persistent` y los pasa como `--calendar` / `--persistent`.
+- **Editar** (`#bk-edit`): `edit_timer_config()` abre `BackupTimerModal` con el estado actual; `_configure_timer()` confirma y aplica los valores elegidos.
+- **Lista**: `BackupRow` usa `ClickableLabel` para `Restaurar` (`#bk-restore-<bucket>`) y `Eliminar` (`#bk-del-<bucket>`), donde `<bucket>` es el identificador del archivo (`AAAA-MM-DD_HHMMSS_ffffff`). `on_clickable_label_pressed()` resuelve la fila con `_row_for_widget()`; restaurar reutiliza `_confirm_import()` y eliminar usa `firewall_config.delete_backup()` (solo acepta rutas dentro de `BACKUP_DIR`).
+
 ---
 
 ## 6. Recorridos guiados por el código
@@ -677,44 +692,42 @@ sequenceDiagram
     Note over DNS,CT: Los dominios bloqueados<br/>resuelven a 0.0.0.0
 ```
 
-### 6.3 Recorrido C — Guardar la configuración (Copia de Seguridad → Guardar Config)
+### 6.3 Recorrido C — Guardar una copia (vista Respaldos → Guardar Copia)
 
-**Archivos**: `tui/views/firewall/config.py` → `tui/widgets/path_picker.py` → `tui/firewall_config.py`.
+**Archivos**: `tui/views/backups.py` → `tui/widgets/path_picker.py` → `tui/firewall_config.py`.
 
-1. En el tab Config, el usuario elige **Guardar Config** en el `Select #cfg-backup`.
-2. `ConfigTab.on_select_changed` (config.py) detecta `event.select.id == "cfg-backup"` y `value == "export"` → `_request_export()` y luego `event.select.clear()` (para que el Select vuelva a estar vacío).
-3. `_request_export()`: `push_screen(PathPicker("Guardar Configuración", CONFIG_FILE, confirm_text="Guardar"), self._do_export)`.
-4. Dentro del `PathPicker` (`widgets/path_picker.py`) el usuario puede:
+1. En la vista **Respaldos**, `BackupsView.on_button_pressed` recibe el botón `#bk-export` → `_request_export()`.
+2. `_request_export()`: `push_screen(PathPicker("Guardar Configuración", CONFIG_FILE, confirm_text="Guardar"), self._do_export)`.
+3. Dentro del `PathPicker` (`widgets/path_picker.py`) el usuario puede:
    - escribir la ruta a mano en el `Input #pp-path`, o
    - navegar el `DirectoryTree #pp-tree`:
      - carpeta → `on_directory_tree_directory_selected` → `_set_tree_dir(...)` re-enraiza el árbol y completa el Input (conservando el nombre de archivo ya escrito);
      - archivo → `on_directory_tree_file_selected` → completa la ruta exacta en el Input;
      - `⬆ Subir` (botón `#pp-up`) o tecla `b` suben un nivel.
    - confirmar (`#pp-ok`) → `self.dismiss(ruta)`; cancelar/escape → `dismiss(None)`.
-5. De vuelta en `_do_export(path)` (config.py):
-   - **Normaliza la ruta** (bug real ya corregido): carpeta → `carpeta/firewall_config.json`; vacía → archivo canónico.
-   - Toma WAN del `Select #cfg-nat-iface`, LAN de `app.selected_interface`, y `dns_target = network.get_iface_ip(lan)` (IP dinámica).
-   - `firewall_config.build_bundle(wan_iface, lan_iface, dns_target)` (firewall_config.py): lee los archivos **vivos** (`apps_firewall.json` y `whitelist.json`), arma `stats`, y fusiona el gateway: los parámetros pasados tienen prioridad, el resto se conserva de lo ya guardado.
-   - `save_config(bundle, path)`: escribe el archivo. Si `path` no es el canónico, **también guarda la copia canónica** (para que el timer mensual respalde lo más reciente).
-   - `save_backup()` + `prune_backups()`: crea el backup del mes y borra los de más de 3 meses.
-   - `notify("Configuración guardada")`.
+4. De vuelta en `_do_export(path)` (backups.py):
+   - **Normaliza la ruta**: carpeta → `carpeta/firewall_config.json`; vacía → archivo canónico.
+   - `_gateway_values()` obtiene WAN del gateway guardado, LAN de `app.selected_interface` (o de la guardada) y calcula `dns_target = network.get_iface_ip(lan)`, usando el valor guardado como respaldo.
+   - `firewall_config.build_bundle(wan_iface, lan_iface, dns_target)` (firewall_config.py): lee los archivos **vivos** (`apps_firewall.json` y `whitelist.json`), arma `stats` y fusiona el gateway.
+   - `save_config(bundle, path)`: escribe el archivo. Si `path` no es el canónico, **también guarda la copia canónica** para que el timer programado respalde lo más reciente.
+   - `save_backup()` + `prune_backups()`: crea un backup nuevo con fecha/hora y conserva las 5 copias más recientes.
+   - `refresh_data()` actualiza el estado del timer y la lista de backups; `notify("Configuración guardada")`.
 
-#### Diagrama de secuencia - Recorrido C — Guardar la configuración (Copia de Seguridad → Guardar Config)
+#### Diagrama de secuencia - Recorrido C — Guardar una copia (vista Respaldos)
 
 ```mermaid
 sequenceDiagram
     autonumber
 
     actor U as Usuario
-    participant UI as config.py<br/>ConfigTab
+    participant UI as backups.py<br/>BackupsView
     participant PP as path_picker.py<br/>PathPicker
     participant FC as firewall_config.py
     participant NET as network.py
     participant JSON as Archivos JSON
     participant FS as Sistema de archivos
 
-    U->>UI: Selecciona "Guardar Config"
-    UI->>UI: on_select_changed()
+    U->>UI: Pulsa "Guardar Copia" (#bk-export)
     UI->>UI: _request_export()
 
     UI->>PP: push_screen(PathPicker)
@@ -744,9 +757,10 @@ sequenceDiagram
 
         Note over UI: Carpeta → carpeta/firewall_config.json<br/>Vacía → archivo canónico
 
-        UI->>UI: Obtiene WAN desde #cfg-nat-iface
-        UI->>UI: Obtiene LAN desde app.selected_interface
+        UI->>FC: load_config()
+        FC-->>UI: gateway guardado
 
+        UI->>UI: _gateway_values()
         UI->>NET: get_iface_ip(lan)
         NET-->>UI: IP dinámica de LAN
 
@@ -773,27 +787,30 @@ sequenceDiagram
         end
 
         UI->>FC: save_backup()
-        FC->>FS: Crea backup mensual
+        FC->>FS: Crea backup con fecha y hora
 
         UI->>FC: prune_backups()
-        FC->>FS: Elimina backups con más de 3 meses
+        FC->>FS: Conserva las 5 copias más recientes
 
+        UI->>UI: refresh_data()
         UI-->>U: notify("Configuración guardada")
     end
 
 ```
 
-### 6.4 Recorrido D — Cargar una configuración
+### 6.4 Recorrido D — Cargar una configuración (vista Respaldos)
 
-**Archivos**: `tui/views/firewall/config.py` → `tui/firewall_config.py` → `firewall_ops.py`.
+**Archivos**: `tui/views/backups.py` → `tui/firewall_config.py` → `firewall_ops.py`.
 
-1. **Cargar Config** en el Select `#cfg-backup` → `_request_import()` → `PathPicker` → `_pick_import_path(path)`.
+1. El usuario pulsa **Cargar Copia** (`#bk-import`) o **Restaurar** en una fila de backup (`#bk-restore-<bucket>`).
+   - `#bk-import` → `_request_import()` → `PathPicker` → `_pick_import_path(path)`.
+   - `Restaurar` → `_confirm_import(path)` directamente con la ruta del backup.
 2. `_pick_import_path` hace la **validación temprana**:
    - ruta vacía → cortar; no existe → `notify("El archivo seleccionado no existe", severity="error")`; es una carpeta → `notify("Seleccionaste una carpeta: elige el archivo de configuración")`.
    - `load_config(path)` + `validate_config(candidate)`: si el archivo no tiene la estructura esperada (`version`, `apps`, `whitelist`), se rechaza **antes de pedir confirmación**.
 3. `ConfirmScreen` ("Se cargará... ¿Continuar?") → `_import_config(confirmed, path)`.
 4. `_import_config` **re-valida** (guarda de seguridad) y aplica en orden:
-   1. escribe `whitelist.json` con la lista del bundle;
+   1. `save_whitelist(whitelist, whitelist_disabled)` escribe `whitelist.json` conservando los switches por entrada;
    2. escribe `apps_firewall.json` completo;
    3. recomputa los dominios de apps bloqueadas → `apply_whitelist()` (regenera iptables) y regenera `ayanami-block.conf` (borra + `write_block_domains`);
    4. gateway: si había `wan_iface`, reactiva `ip_forward`, MASQUERADE y DNAT 53. **El `dns_target` guardado es solo referencia**: se recalcula con `network.get_iface_ip(lan)` y se usa el guardado solo si falla;
@@ -807,7 +824,7 @@ sequenceDiagram
     autonumber
 
     actor U as Usuario
-    participant UI as config.py<br/>ConfigTab
+    participant UI as backups.py<br/>BackupsView
     participant PP as path_picker.py<br/>PathPicker
     participant CF as ConfirmScreen
     participant CFG as firewall_config.py
@@ -816,13 +833,17 @@ sequenceDiagram
     participant JSON as Archivos JSON
     participant SYS as Sistema Linux
 
-    U->>UI: Selecciona "Cargar Config"
-    UI->>UI: _request_import()
-    UI->>PP: push_screen(PathPicker)
-    U->>PP: Selecciona archivo
-    PP-->>UI: dismiss(path)
-
-    UI->>UI: _pick_import_path(path)
+    alt Desde "Cargar Copia"
+        U->>UI: Pulsa "Cargar Copia" (#bk-import)
+        UI->>UI: _request_import()
+        UI->>PP: push_screen(PathPicker)
+        U->>PP: Selecciona archivo
+        PP-->>UI: dismiss(path)
+        UI->>UI: _pick_import_path(path)
+    else Desde "Restaurar" en la lista
+        U->>UI: Pulsa "Restaurar" (#bk-restore-<bucket>)
+        UI->>UI: _confirm_import(path)
+    end
 
     alt Ruta vacía
         UI-->>U: Cancelar operación
@@ -852,7 +873,7 @@ sequenceDiagram
                 U->>CF: Continuar
                 CF-->>UI: confirmed = True
 
-                UI->>CFG: _import_config(confirmed, path)
+                UI->>UI: _import_config(confirmed, path)
 
                 Note over UI,CFG: Revalidación de seguridad
 
@@ -861,7 +882,7 @@ sequenceDiagram
                 CFG-->>UI: Configuración válida
 
                 Note over UI,JSON: 1. Restaurar lista blanca
-                UI->>JSON: Escribir whitelist.json
+                UI->>JSON: save_whitelist(entries, disabled)
 
                 Note over UI,JSON: 2. Restaurar aplicaciones
                 UI->>JSON: Escribir apps_firewall.json
@@ -900,6 +921,19 @@ sequenceDiagram
     end
 
 ```
+
+### 6.5 Recorrido E — Gestionar respaldos automáticos
+
+**Archivos**: `tui/views/backups.py` → `tui/firewall_config.py` → `systemd/install_backup_timer.sh`.
+
+1. **Estado y lista**: al abrir la vista, `tui.py` llama a `BackupsView.refresh_data()`. Un worker en segundo plano ejecuta `firewall_config.list_backups()` y `_read_timer_status()` (consultas `systemctl is-enabled`, `is-active`, `show --property=NextElapseUSecRealtime` y `cat`). El resultado se pinta con `call_from_thread` en `_render_data()`, que actualiza estado, programación y botones. La programación se obtiene parseando `OnCalendar=` y `Persistent=` de `systemctl cat`.
+2. **Backup** (`#bk-run`): `create_backup_now()` lanza un worker con `_do_backup_now()`: arma el bundle actual, `save_config()`, `save_backup()` y `prune_backups()`. Al terminar refresca la lista.
+3. **Editar** (`#bk-edit`): `edit_timer_config()` abre `BackupTimerModal` con `calendar` y `persistent` de `_timer_status`. El modal ofrece solo frecuencias predefinidas (`monthly`, `weekly`, `daily`) y devuelve `{calendar, persistent}`. `_configure_timer()` pide confirmación y llama a `_run_timer_action("install", calendar=..., persistent=...)`; el instalador sigue validando la expresión con `systemd-analyze calendar`.
+4. **Instalar/Desinstalar Timer**: piden confirmación (`ConfirmScreen`) y ejecutan `bash systemd/install_backup_timer.sh` (con `--calendar`/`--persistent` si corresponde) o `--uninstall` desde un worker. La salida se muestra en el `RichLog` y luego se refresca el estado.
+5. **Restaurar**: reutiliza `_confirm_import()` con el path del backup.
+6. **Eliminar** (`#bk-del-<bucket>`): enlace clicable que pide confirmación y usa `firewall_config.delete_backup(path)`, que solo permite borrar archivos dentro de `BACKUP_DIR`.
+7. **Actualizar** (`#bk-refresh`): vuelve a lanzar `refresh_data()`.
+
 ---
 
 ## 7. El Firewall por dentro
@@ -909,11 +943,12 @@ sequenceDiagram
 | Módulo | Responsabilidad | ¿Conoce Textual? |
 |---|---|---|
 | `tui/firewall_ops.py` | Primitivas del firewall: validación de IPs/MACs, whitelist (JSON + iptables), bloqueo por dominio (dnsmasq), aplicar cambios | ❌ |
-| `tui/firewall_config.py` | Bundle unificado, guardar/cargar, backups mensuales, CLI de systemd | ❌ |
+| `tui/firewall_config.py` | Bundle unificado, backups automáticos, listado/borrado, CLI de systemd | ❌ |
 | `tui/views/firewall/__init__.py` | `FirewallView` — el contenedor con sus pestañas | ✅ |
 | `tui/views/firewall/apps.py` | `AppsTab` — CRUD de apps + bloqueo por dominio | ✅ |
 | `tui/views/firewall/whitelist.py` | `WhitelistTab` — lista blanca + `IPRow` + funciones de validación de entrada | ✅ |
-| `tui/views/firewall/config.py` | `ConfigTab` — gateway/NAT, ver estado, limpiar, guardar/cargar | ✅ |
+| `tui/views/firewall/config.py` | `ConfigTab` — gateway/NAT, ver estado, limpiar | ✅ |
+| `tui/views/backups.py` | `BackupsView` — copias manuales, timer systemd, lista/restaurar/eliminar backups | ✅ |
 | `tui/views/firewall/app_modal.py` | `AppModal` + constantes `APP_TYPES` y `DOMAIN_RE` | ✅ |
 
 > La parte "reglas iptables a nivel crudo" vive en `firewall_ops.py`. Los tabs **orquestan**: validan, persisten JSON y disparan workers; nunca fabrican comandos iptables largos.
@@ -983,7 +1018,7 @@ Observaciones sobre este flujo:
 
 **Switch por entrada**: cada `IPRow` tiene un `Switch` propio (`#wl-switch-<safe_id>`). `is_entry_enabled(entry)` consulta la lista `disabled` de `whitelist.json`; `set_entry_enabled(entry, enabled)` la actualiza sin borrar la entrada. `apply_whitelist()` salta las entradas de `disabled`. Al montar la fila, el `Switch.Changed` se ignora comparando contra `is_entry_enabled(entry)`, así no se reaplican reglas al abrir la pestaña. `save_whitelist(entries, disabled=None)` conserva los estados actuales y limpia los de entradas eliminadas.
 
-### 7.5 Gateway y el tab Config (`views/firewall/config.py`)
+### 7.5 Gateway y Config (`views/firewall/config.py`)
 
 - `setup_gateway()` (botón **Configurar Gateway**):
   1. WAN = valor del `Select #cfg-nat-iface`; LAN = `app.selected_interface`.
@@ -1053,18 +1088,24 @@ Funciones importantes:
 |---|---|---|
 | `load_config(path=None)` | lee el JSON (o `{}` si no existe/inválido) | import |
 | `validate_config(cfg) -> (ok, razón)` | exige `version`, `apps` (dict) y `whitelist` (list) | import (validación temprana + guarda de seguridad en `_import_config`) |
-| `save_config(bundle, path=None)` | escribe (con `makedirs` del dir contenedor) | export / update_gateway |
+| `save_config(bundle, path=None)` | escribe (con `makedirs` del dir contenedor) | export / backup inmediato / update_gateway |
 | `update_gateway(wan, lan, dns_target)` | actualiza solo `gateway` del canónico y guarda `applied_at` | `setup_gateway` |
-| `save_backup(month=None)` | copia el canónico a `backups/firewall_config-YYYY-MM.json`; si no existe el canónico, lo genera | export + timer systemd |
-| `prune_backups(keep=3)` | borra los buckets más viejos que los `keep` más recientes | export + timer systemd |
+| `save_backup()` | copia el canónico a `backups/firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json`; si no existe el canónico, lo genera | vista Respaldos + timer systemd |
+| `prune_backups(keep=5)` | conserva los `keep` backups más recientes y borra el resto | vista Respaldos + timer systemd |
+| `list_backups()` | devuelve `bucket`, `path`, `size` y `mtime` de cada backup válido, del más nuevo al más viejo | `BackupsView.refresh_data()` |
+| `delete_backup(path)` | borra un backup solo si está dentro de `BACKUP_DIR` y tiene nombre válido | botón **Eliminar** de la vista |
 
 > ⚠️ `validate_config` es obligatorio antes de aplicar un archivo cargado: sin él, cargar un JSON cualquiera escribiría `apps` y `whitelist` **vacíos** (pérdida de datos).
 
-### 8.2 El timer mensual (systemd)
+### 8.2 El timer de systemd
 
 - `firewall_config.py` como script (`python tui/firewall_config.py`) corre `save_backup()` + `prune_backups()` e imprime `[ayanami-backup] ...`. Ese es el `ExecStart` del servicio.
-- `systemd/install_backup_timer.sh` **genera los units en el momento de instalar** con la ruta real del repo (detecta su propia ubicación; podés forzar con `AYANAMI_DIR` y `AYANAMI_VENV`). Es `Type=oneshot` + `OnCalendar=monthly` con `Persistent=true`.
+- `systemd/install_backup_timer.sh` **genera los units en el momento de instalar** con la ruta real del repo (detecta su propia ubicación; podés forzar con `AYANAMI_DIR` y `AYANAMI_VENV`). Es `Type=oneshot`; por defecto usa `OnCalendar=monthly` y `Persistent=true`.
+- Acepta `--calendar "EXPRESIÓN"` y `--persistent true|false` (o `--calendar=...` / `--persistent=...`). Valida la expresión con `systemd-analyze calendar` si está disponible y reinicia el timer al aplicar cambios.
 - `--uninstall` elimina ambos units y hace `daemon-reload`.
+- `Persistent=true` hace que systemd guarde el último disparo en `/var/lib/systemd/timers/` y recupere **una sola vez** la ejecución si el equipo estaba apagado cuando correspondía. No se rellenan ejecuciones perdidas: el script crea un backup con la fecha y hora reales. Con `Persistent=false`, la ejecución perdida se descarta.
+- **Desde la vista Respaldos** se puede consultar el estado (`systemctl is-enabled`, `is-active`, `cat` y próxima ejecución), editar la frecuencia (`BackupTimerModal`), instalar/desinstalar el timer, crear un backup inmediato y restaurar o eliminar copias. Las operaciones sobre systemd requieren que Ayanami corra con `sudo`.
+- Cada ejecución crea un archivo nuevo (`firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json`). La retención conserva las **5 copias más recientes**; los archivos antiguos `YYYY-MM` se siguen listando y se eliminan cuando quedan fuera de la retención.
 
 ---
 
@@ -1111,8 +1152,8 @@ Organización por bloques con comentarios:
 | Clases Python | `CamelCase` | `WhitelistTab`, `PathPicker`, `AyanamiApp` |
 | Funciones y variables | `snake_case` | `apply_whitelist`, `_schedule_apply` |
 | Métodos privados | prefijo `_` | `_remove_all_whitelist_rules`, `_filtered_names` |
-| Constantes | `MAYÚSCULAS` | `APP_TYPES`, `DOMAIN_RE`, `NAV_ORDER`, `RETENTION_MONTHS` |
-| Ids de widgets | `kebab-case` con **prefijo de dominio** | `#wl-input`, `#apps-filter`, `#cfg-backup`, `#pp-path` |
+| Constantes | `MAYÚSCULAS` | `APP_TYPES`, `DOMAIN_RE`, `NAV_ORDER`, `RETENTION_BACKUPS` |
+| Ids de widgets | `kebab-case` con **prefijo de dominio** | `#wl-input`, `#apps-filter`, `#bk-export`, `#pp-path` |
 | Botones por fila | `verbo-<safe_id>` | `app-modify-tiktok`, `wl-del-10_0_0_5` |
 | Clases CSS | `kebab-case` | `app-type-videojuegos`, `fw-card-title` |
 | Uniforme de ids de tabs firewall | `fw-tab-<x>` ↔ `fw-panel-<x>` | `fw-tab-apps` → `fw-panel-apps` |
@@ -1124,6 +1165,7 @@ Los prefijos de dominio mapean al módulo:
 | `wl-` | Lista Blanca |
 | `app-` | Apps |
 | `cfg-` | Config (configuración firewall) |
+| `bk-` | Respaldos |
 | `modal-` | AppModal |
 | `pp-` | PathPicker |
 | `fw-` | Firewall (tabs y paneles) |
@@ -1138,7 +1180,7 @@ Los prefijos de dominio mapean al módulo:
 
 ```python
 # ─────────────────────────────────────────────
-# Backups mensuales con retención
+# Backups automáticos con retención
 # ─────────────────────────────────────────────
 ```
 y en las vistas `# ==== UI ====`, `# ==== EVENTS ====`, etc.
@@ -1174,10 +1216,10 @@ except (json.JSONDecodeError, UnicodeDecodeError, OSError):
 
 | Tipo | Uso | Ejemplo extraído del log |
 |---|---|---|
-| `feat:` | funcionalidad nueva | `feat: configuración unificada con backups mensuales` |
+| `feat:` | funcionalidad nueva | `feat: configuración unificada con backups automáticos` |
 | `fix:` | corrección de bug | `fix: Evitar que el programa se cierre al cargar un archivo inválido` |
 | `refactor:` | cambio interno sin cambiar comportamiento | `refactor: Bloquear Todo o Desbloquear Todo solo afecta a las apps visibles` |
-| `ui:` | cambios visuales/de estilos | `ui: Botones para Guardar y Cargar Configuración colocados en un select` |
+| `ui:` | cambios visuales/de estilos | `ui: Nueva vista Respaldos con copias manuales y gestión del timer` |
 | `ui fix:` / `ui refactor:` | variantes | `ui fix: Remover margin-bottom que creaba espacio hueco` |
 | `chore:` | mantenimiento (gitignore, deps, README) | `chore: Inicio del proyecto Ayanami` |
 | `temp:` | cambio temporal (reemplazar luego) | aparece en el historial |
@@ -1235,7 +1277,7 @@ from views.dns_view import DnsView                     # import plano (ver secci
 
 NAV_ORDER = ["nav-interfaces", "nav-hotspot", "nav-scanner",
              "nav-monitor", "nav-sniffer", "nav-dns",   # insertar en el orden visual
-             "nav-firewall", "nav-dhcp", "nav-sistema"]
+             "nav-firewall", "nav-dhcp", "nav-backups", "nav-sistema"]
 
 def compose(self):
     ...
@@ -1404,8 +1446,8 @@ Tabla rápida para orientarse:
 | Validación de IP/CIDR/rango | `firewall_ops.py` → `IP_RE`, `CIDR_RE`, `RANGE_RE`, `is_valid_*` | |
 | Reglas iptables de la lista blanca | `firewall_ops.py` → `apply_whitelist()` | comentarios `ayanami-wl`/`ayanami-wl-dns` son el marcador |
 | Lista de dominios de una app | `apps_firewall.json` (o la UI de Apps) | ojo: también está la copia dentro de `firewall_config.json`/backups |
-| Retención de backups | `firewall_config.py` → `RETENTION_MONTHS` | |
-| Frecuencia del timer mensual | el installer/systemd (`OnCalendar=monthly`) | después de editar: reinstalar el timer |
+| Retención de backups | `firewall_config.py` → `RETENTION_BACKUPS` | |
+| Frecuencia del timer | el installer/systemd (`OnCalendar`; por defecto `monthly`) | después de editar: reinstalar el timer |
 | Teclas/atajos | `tui.py` → `BINDINGS` y/o `BINDINGS` de cada widget | |
 | Texto de las confirmaciones | donde se construye `ConfirmScreen(...)` | |
 | Contenido del menú CLI | `cli/ayanami.py` y módulos `cli/*.py` | legacy: cuidar que no rompa el menú |
@@ -1469,6 +1511,10 @@ async def main():
             assert content.current == nav, f"no navegó a {nav} (actual: {content.current})"
             print(f"OK  navega a {nav}")
 
+        assert app.query_one("#bk-list"), "la vista Respaldos no tiene lista de backups"
+        assert app.query_one("#bk-timer-state"), "la vista Respaldos no muestra el timer"
+        print("OK  vista Respaldos compuesta")
+
         fw_content = app.query_one("#fw-content", ContentSwitcher)
         for tab, panel in FW_TABS:
             app.query_one(f"#{tab}", Button).press()
@@ -1510,7 +1556,7 @@ asyncio.run(main())
 
 - `validate_config(...)` contra bundles válidos/inválidos;
 - `is_valid_whitelist_entry` / regex;
-- `prune_backups(keep=3)` creando archivos falsos en `backups/` con nombres `firewall_config-YYYY-MM.json`;
+- `prune_backups(keep=5)` creando archivos falsos en `backups/` con nombres `firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json`;
 - `save_config`/`load_config` con rutas temporales.
 
 ### Verificación de sintaxis
@@ -1537,7 +1583,7 @@ sudo venv/bin/python tui.py
 |---|---|
 | **TUI** | *Text User Interface*: interfaz de texto interactiva (la de `tui/`). |
 | **Widget** | componente visual de Textual (botón, input, tabla...). |
-| **Vista** | una de las 7 pantallas grandes (Interfaces, Hotspot, ...). Cada una es un widget `Vertical`. |
+| **Vista** | una de las 9 pantallas grandes (Interfaces, Hotspot, ...). Cada una es un widget `Vertical`. |
 | **Tab / pestaña** | sub-sección dentro del Firewall (Apps, Lista Blanca, Config). |
 | **Modal (**Screen**)** | ventana que se superpone; devuelve un valor con `dismiss()`. |
 | **Handler** | método `on_<evento>` que reacciona a un evento. |
@@ -1550,7 +1596,7 @@ sudo venv/bin/python tui.py
 | **LAN** | interfaz hacia los clientes (la **global** de la barra lateral). |
 | **`dns_target`** | IP a la que se redirigen las consultas DNS (referencia: al restaurar se recalcula). |
 | **Bundle** | el JSON completo (`firewall_config.json`) exportable/importable. |
-| **Bucket mensual** | nombre del backup por mes: `firewall_config-YYYY-MM.json`. |
+| **Bucket de backup** | identificador del archivo: `AAAA-MM-DD_HHMMSS_ffffff`; los antiguos usan `AAAA-MM`. |
 | **`group="firewall"`** | grupo de workers; convención para agrupar tareas del firewall. |
 | **Debounce** | posponer (1.5 s) la aplicación de cambios para evitar reinicios seguidos. |
 
@@ -1570,6 +1616,6 @@ Estos errores ya surgieron durante el proceso de desarrollo; leerlas ahora ahorr
 8. **El orden de iptables importa**: la whitelist inserta en posición 1 (`-I ... 1`) para ganarle a cualquier DROP; el `DNAT` del DNS de la whitelist (`ayanami-wl-dns`) debe ir **antes** del DNAT del gateway. No modificar esos `-I 1` sin pensar la precedencia (o se romperá la exención).
 9. **El tipo de app con default `"Videojuegos"`**: `app_row.py`, `_filtered_names()` y `AppModal` usan `type` con respaldo a `"Videojuegos"`. Si se agrega un tipo nuevo, actualizar **los tres puntos** y el CSS `.app-type-*`.
 10. **Los ids con datos no se parsean**: se reconstruye buscando en los datos por `safe_id`, o subiendo por `parent` hasta el widget contenedor (`AppRow` guarda `app_name`).
-11. **La copia canónica se mantiene "al día"** a propósito: exportar a otra ruta también actualiza `firewall_config.json` (el timer mensual respalda lo más reciente). No eliminar ese comportamiento al tocar `_do_export`.
+11. **La copia canónica se mantiene "al día"** a propósito: exportar a otra ruta también actualiza `firewall_config.json` (el timer programado respalda lo más reciente). No eliminar ese comportamiento al tocar `_do_export`.
 12. **`Select` dispara `Changed` al montarse**: Textual les asigna el valor inicial al montar, así que un `on_select_changed` que refresque una lista hace ese trabajo durante el arranque de la app (y con muchas filas se siente como un cuelgue). Filtrá con `if self._loaded:` o un flag equivalente.
 13. **Montar widgets de a uno es lentísimo**: `for f in filas: container.mount(f)` recalcula el layout en cada montaje y se va al cuadrado. Siempre `container.mount(*filas)`. Con ~100 filas la diferencia es de 22 s a 3 s (ver 5.8).

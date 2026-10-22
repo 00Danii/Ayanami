@@ -21,7 +21,7 @@ Este manual explica la funcionalidad completa del programa, con **especial énfa
 5. [Las vistas de la TUI](#5-las-vistas-de-la-tui)
 6. [El Firewall](#6-el-firewall)
 7. [Guardar y Cargar configuración](#7-guardar-y-cargar-configuración)
-8. [Backups mensuales automaticos](#8-backups-mensuales-automáticos)
+8. [Backups automáticos](#8-backups-automáticos)
 9. [Versión CLI](#9-versión-cli)
 10. [Archivos de datos](#10-archivos-de-datos)
 11. [Solución de problemas](#11-solución-de-problemas)
@@ -45,8 +45,9 @@ Funcionalidades principales:
 | **Scanner** | Detecta dispositivos en la red LAN y muestra detalles (MAC, fabricante, puertos). |
 | **Monitor** | Monitorea ancho de banda por host en tiempo real. |
 | **Sniffer** | Captura y analiza paquetes con Scapy (todo el tráfico, por dispositivo o RAW). |
-| **Firewall** | Bloqueo por apps (dominios), lista blanca de IPs y MACs, gateway/NAT, backups. |
+| **Firewall** | Bloqueo por apps (dominios), lista blanca de IPs y MACs, gateway/NAT. |
 | **DHCP** | Estado del servicio `dnsmasq`, su configuración y reinicio del servicio. |
+| **Respaldos** | Copias manuales de la configuración y gestión de los backups automáticos (timer, restaurar y eliminar). |
 | **Sistema** | Dashboard tipo *fastfetch*: CPU, memoria, disco, procesos, temperatura y red. |
 
 > ⚠️ **Permisos**: la mayoría de las funciones (firewall, hotspot, sniffer, scanner) requieren ejecutarse con **root** (`sudo`).
@@ -117,7 +118,7 @@ sudo python3 cli/ayanami.py
 La barra lateral contiene:
 
 - **Interfaz Global**: un selector (`Select`) con todas las interfaces de red. La interfaz elegida aquí es la "global" que usan otros módulos (scanner, monitor, sniffer y el gateway como **LAN**). Si se cambia la interfaz aquí, todos los módulos la usan.
-- **Navegación** con 8 botones: Interfaces, Hotspot, Scanner, Monitor, Sniffer, Firewall, DHCP y Sistema.
+- **Navegación** con 9 botones: Interfaces, Hotspot, Scanner, Monitor, Sniffer, Firewall, DHCP, Respaldos y Sistema.
 
 ### Atajos de teclado
 
@@ -418,6 +419,55 @@ systemctl status dnsmasq
 
 ---
 
+### 5.9 Respaldos
+
+La vista **Respaldos** concentra todo lo relacionado con las copias de seguridad de la configuración del firewall: la exportación/importación manual y la gestión de los backups automáticos.
+
+En la parte inferior, la lista de **backups automáticos** y el **log de salida** se muestran en dos columnas: la lista queda a la izquierda (más angosta) y el log a la derecha (más ancho).
+
+#### Copia manual
+
+| Botón | Qué hace |
+|---|---|
+| **Guardar Copia** | Abre el selector de rutas y exporta lista blanca, apps y datos de referencia del gateway. También actualiza la copia canónica y crea un backup automático. |
+| **Cargar Copia** | Selecciona un archivo, lo valida y, tras confirmar, reaplica lista blanca, apps, reglas DNS/iptables y gateway/NAT. |
+
+#### Respaldos automáticos
+
+La tarjeta muestra si el timer de systemd está **instalado/activo**, su programación (`OnCalendar` y `Persistent`) y la fecha de la **próxima ejecución**. Los botones permiten:
+
+| Botón | Qué hace |
+|---|---|
+| **Actualizar** | Vuelve a consultar el estado del timer y la lista de backups. |
+| **Backup** | Genera la copia canónica con el estado actual, crea un backup con fecha y hora y limpia los que superan la retención de 5 copias. |
+| **Editar** | Abre un formulario para elegir la frecuencia (mensual, semanal o diaria) y el modo `Persistent`; al guardar, reinstala/reinicia el timer. |
+| **Instalar Timer** | Instala y activa `ayanami-backup.timer` con la programación por defecto (mensual). |
+| **Desinstalar Timer** | Desactiva y elimina el timer; los backups existentes se conservan. |
+
+#### ¿Qué significa `Persistent`?
+
+| Valor | Comportamiento |
+|---|---|
+| **Activado** | Systemd guarda en disco la última ejecución. Si el equipo estaba apagado o el timer inactivo cuando tocaba ejecutar, al volver a encenderse/activarse **recupera la ejecución atrasada** y corre el backup una vez. |
+| **Desactivado** | Si se pasa el horario, **no recupera nada**. Espera directamente a la próxima fecha programada. |
+
+Por ejemplo, con un timer programado para el **1 de noviembre** (por ejemplo, frecuencia mensual) y el equipo apagado hasta el **5 de noviembre**:
+
+- **Persistente:** ejecuta el backup el 5 de noviembre al arrancar.
+- **No persistente:** no ejecuta nada; espera a la próxima fecha programada.
+
+La recuperación es **una sola vez**, aunque hayan pasado varios meses. No se rellenan ejecuciones perdidas: el script crea un backup con la fecha y hora en que realmente se ejecuta. Cada ejecución genera una copia distinta, aunque el timer sea diario o semanal.
+
+**Persistente** es útil si Ayanami no está encendido 24/7. **No persistente** es más estricto: solo respeta el horario exacto.
+
+Debajo se listan los **backups disponibles** (`backups/firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json`) en formato de tabla: **Año**, **Mes**, **Día**, **Hora**, **Tam** (tamaño compacto, por ejemplo `23K`) y **Acciones**. La tabla ocupa todo el ancho disponible de su columna; **Restaurar** (con confirmación y validación) y **Eliminar** son enlaces clicables y aparecen en la misma fila.
+
+> ⚠️ Editar, instalar o desinstalar el timer modifica systemd: requiere que Ayanami se ejecute con `sudo`. Las acciones piden confirmación.
+
+> 💡 Cada ejecución del timer crea un backup nuevo con fecha y hora. Se conservan las **5 copias más recientes**; al crear la sexta se elimina automáticamente la más antigua.
+
+---
+
 ## 6. El Firewall 
 
 La vista **Firewall** tiene **3 pestañas**: **Apps**, **Lista Blanca** y **Config**. Se navega haciendo clic en las pestañas superiores.
@@ -582,15 +632,15 @@ Borra **todo** el estado del firewall:
 
 > ⚠️ Pide confirmación explícita. No borra `whitelist.json` ni `firewall_config.json` (la configuración guardada se conserva; las entradas de la lista blanca quedan apagadas), pero **sí se borra la configuración del gateway**: se debe configurar de nuevo.
 
-#### Copia de Seguridad (Guardar/Cargar)
+#### Copias de seguridad
 
-El selector **Copia de Seguridad** (en la misma sección Config) ofrece **Guardar Config** y **Cargar Config**. Se explica en detalle en la [sección 7](#7-guardar-y-cargar-configuración).
+Las copias de seguridad se gestionan ahora en la vista **Respaldos** de la barra lateral. Se explican en detalle en la [sección 7](#7-guardar-y-cargar-configuración).
 
 ---
 
 ## 7. Guardar y Cargar configuración
 
-Toda la configuración del firewall se guarda en **un único archivo**: `firewall_config.json` (en la raíz del proyecto). Contiene:
+La vista **Respaldos** (barra lateral) contiene las acciones **Guardar Copia** y **Cargar Copia**. Toda la configuración del firewall se guarda en **un único archivo**: `firewall_config.json` (en la raíz del proyecto). Contiene:
 
 ```json
 {
@@ -599,6 +649,7 @@ Toda la configuración del firewall se guarda en **un único archivo**: `firewal
   "hostname": "ayanami",
   "gateway": { "wan_iface": "eth0", "lan_iface": "wlan0", "dns_target": "10.42.0.1", "applied_at": "..." },
   "stats": { "whitelist_count": 3, "apps_count": 22, "blocked_count": 5, "domains_count": 120 },
+  "whitelist_disabled": ["192.168.1.0/24"],
   "whitelist": ["10.0.0.5", "192.168.1.0/24"],
   "apps": { "...": { "domains": [], "blocked": false, "type": "Videojuegos" } }
 }
@@ -606,18 +657,18 @@ Toda la configuración del firewall se guarda en **un único archivo**: `firewal
 
 > El campo de **gateway** (`wan_iface`, `lan_iface`, `dns_target`) es **información de referencia**: al restaurar no se usa tal cual, sino que se **recalcula** la IP de la LAN dinámicamente (con respaldo al valor guardado si no se puede).
 
-### Guardar Config
+### Guardar Copia
 
-1. En la pestaña Config → selector **Copia de Seguridad** → **Guardar Config**.
+1. En la vista **Respaldos** → **Guardar Copia**.
 2. Se abre un **selector de rutas** donde puedes navegar el árbol de directorios (con `⬆ Subir` o tecla `b`) o escribir la ruta a mano.
 3. Al confirmar, exporta lista blanca + apps + datos de referencia del gateway:
    - Si se selecciona solo una **carpeta** (sin nombre de archivo), se guarda `firewall_config.json` dentro de esa carpeta (no se puede escribir sobre un directorio).
-   - Si el destino es diferente al canónico, **también se actualiza la copia canónica** de la raíz para que el backup mensual funcione.
-   - Además crea un **backup mensual inmediato** (`backups/firewall_config-AAAA-MM.json`) y limpia los backups viejos.
+   - Si el destino es diferente al canónico, **también se actualiza la copia canónica** de la raíz para que el timer programado respalde lo más reciente.
+   - Además crea un **backup inmediato** (`backups/firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json`) y limpia los backups viejos.
 
-### Cargar Config
+### Cargar Copia
 
-1. **Copia de Seguridad** → **Cargar Config**.
+1. En la vista **Respaldos** → **Cargar Copia**.
 2. Seleccionar el archivo en el selector de rutas (o escríbelo).
 3. El archivo se **valida** antes de confirmar:
    - Debe ser un JSON de configuración real (con `version`, `apps` y `whitelist`). Cualquier otro archivo (imagen, texto, JSON random) se rechaza con un aviso y **no se toca nada**.
@@ -628,29 +679,34 @@ Toda la configuración del firewall se guarda en **un único archivo**: `firewal
    - Reconfigura el gateway/NAT si había uno guardado.
    - Reinicia NetworkManager y refresca las listas en pantalla.
 
-> 💡 Los **backups mensuales** (`backups/firewall_config-AAAA-MM.json`) también se pueden cargar: ya que tienen la misma estructura.
+> 💡 Los **backups automáticos** (`backups/firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json`) también se pueden cargar: aparecen en la lista de la vista Respaldos con el botón **Restaurar**, o se pueden elegir con **Cargar Copia** (tienen la misma estructura).
 
 ---
 
-## 8. Backups mensuales automáticos
+## 8. Backups automáticos
 
-Ayanami conserva **backups mensuales** con retención de los **últimos 3 meses** (los más viejos se borran de forma programada).
+Ayanami conserva **backups automáticos** con una retención de **5 copias**: al crear la sexta se elimina la más antigua.
 
-- **Dónde**: `backups/firewall_config-AAAA-MM.json`.
-- **Cuándo**: una vez al mes vía un **timer de systemd** (no dentro de la app).
-- **Cómo**: copia el `firewall_config.json` al bucket del mes. Si el archivo canónico aún no existe, lo genera con el estado actual antes de respaldarlo.
+- **Dónde**: `backups/firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json`. Los backups antiguos con nombre `AAAA-MM` siguen siendo válidos y aparecen en la lista.
+- **Cuándo**: según el **timer de systemd**. Por defecto se ejecuta una vez al mes, pero la programación real puede ser mensual, semanal, diaria o una expresión `OnCalendar` personalizada. La vista muestra el `OnCalendar` configurado.
+- **Cómo**: copia el `firewall_config.json` a un archivo nuevo con la fecha y hora de la ejecución. Si el archivo canónico aún no existe, lo genera con el estado actual antes de respaldarlo.
 - La copia canónica siempre se mantiene al día (al exportar a otra ruta y al configurar el gateway se actualiza automáticamente).
 
-### Instalar el timer
+La vista **Respaldos** muestra el estado del timer, permite editarlo, instalarlo/desinstalarlo, crear un backup inmediato y restaurar o eliminar cada copia. Las mismas operaciones se pueden hacer por consola:
+
+### Instalar o editar el timer
 
 ```bash
 sudo systemd/install_backup_timer.sh
+
+# Cambiar la programación y el modo persistente:
+sudo systemd/install_backup_timer.sh --calendar "Mon..Fri 03:00" --persistent false
 ```
 
 El instalador detecta automáticamente la raíz del repo y el Python del venv (puedes forzar con las variables `AYANAMI_DIR` y `AYANAMI_VENV`). Genera:
 
 - `/etc/systemd/system/ayanami-backup.service` — ejecuta `tui/firewall_config.py`.
-- `/etc/systemd/system/ayanami-backup.timer` — `OnCalendar=monthly`, con `Persistent=true` (si el equipo estaba apagado, corre al encender).
+- `/etc/systemd/system/ayanami-backup.timer` — con el `OnCalendar` y `Persistent` indicados (por defecto `monthly` y `true`).
 
 ### Desinstalar
 
@@ -724,7 +780,7 @@ sudo python3 cli/ayanami.py
 | `whitelist.json` | Lista blanca: `{"whitelist": ["10.0.0.5", ...], "disabled": ["10.0.0.9"]}` |
 | `apps_firewall.json` | Apps de la TUI: `{"App": {"type": ..., "domains": [...], "blocked": bool}}` |
 | `firewall_config.json` | Configuración unificada (whitelist + apps + gateway + stats). Es la copia canónica. |
-| `backups/firewall_config-AAAA-MM.json` | Backups mensuales (retención: 3 meses). |
+| `backups/firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json` | Backups automáticos (retención: 5 copias). |
 | `/etc/NetworkManager/dnsmasq-shared.d/ayanami-block.conf` | Dominios bloqueados: `address=/{dominio}/0.0.0.0` |
 | `/etc/NetworkManager/dnsmasq-shared.d/ayanami-device-block.conf` | Bloqueo por dispositivo (solo CLI). |
 | `/etc/sysctl.conf` | Persistencia de `net.ipv4.ip_forward=1`. |
@@ -755,4 +811,4 @@ sudo python3 cli/ayanami.py
 - El **sniffer** captura paquetes: evítar en redes ajenas.
 - **Reiniciar NetworkManager** (consecuencia de bloquear/desbloquear apps) corta momentáneamente la red, incluido el hotspot.
 - **Limpiar Firewall** elimina el gateway configurado: se tiene que configurar de nuevo.
-- Antes de **cerrar** sesiones o firewalls críticos, considerar exportar la configuración (Copia de Seguridad → Guardar Config) para poder recuperarla con Cargar Config.
+- Antes de **cerrar** sesiones o firewalls críticos, considerar exportar la configuración (vista Respaldos → Guardar Copia) para poder recuperarla con Cargar Copia.
