@@ -18,10 +18,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "tui"))
 
-from textual.widgets import Button, ContentSwitcher
+from textual.widgets import Button, ContentSwitcher, TextArea
 
 from tui import AyanamiApp, NAV_ORDER
 from views.firewall.apps import PAGINADO_FILAS
+from widgets.clickable_label import ClickableLabel
 
 FW_TABS = [
     ("fw-tab-rules", "fw-panel-rules"),
@@ -42,9 +43,22 @@ async def main():
 
         for nav in NAV_ORDER:
             sidebar.query_one(f"#{nav}", Button).press()
-            await pilot.pause()
+            # Las vistas se importan/montan bajo demanda; Monitor y Sniffer
+            # pueden tardar en importar scapy. Esperar al cambio real evita
+            # depender de una pausa fija.
+            for _ in range(40):
+                await pilot.pause(0.1)
+                if content.current == nav:
+                    break
             assert content.current == nav, f"no navegó a {nav} (actual: {content.current})"
             print(f"OK  navega a {nav}")
+
+        assert app.query_one("#dhcp-editor"), "la vista DHCP no tiene editor de configuración"
+        assert not app.query_one("#dhcp-editor").display, "el editor DHCP debería empezar oculto"
+        assert app.query_one("#dhcp-config", TextArea), "el editor DHCP no tiene TextArea"
+        assert app.query_one("#dhcp-save-config", ClickableLabel), "el editor DHCP no tiene Guardar"
+        assert app.query_one("#dhcp-cancel-config", ClickableLabel), "el editor DHCP no tiene Cancelar"
+        print("OK  vista DHCP con editor en el mismo espacio del log")
 
         assert app.query_one("#bk-list"), "la vista Respaldos no tiene lista de backups"
         assert app.query_one("#bk-log"), "la vista Respaldos no tiene log de salida"
@@ -53,6 +67,12 @@ async def main():
         assert app.query_one("#bk-timer-calendar"), "la vista Respaldos no muestra la programación"
         assert app.query_one("#bk-edit"), "la vista Respaldos no permite editar el timer"
         assert app.query_one("#bk-status"), "la vista Respaldos no permite ver el estado del timer"
+        # Las filas se montan después de leer los backups; esperar a que
+        # terminen de componer evita mirar una fila a medio armar.
+        for _ in range(40):
+            await pilot.pause(0.05)
+            if app.query(".bk-row-link") or app.query(".bk-empty"):
+                break
         if app.query(".bk-row"):
             assert app.query_one(".bk-table-head"), "la lista de backups no tiene encabezado de tabla"
             row = app.query_one(".bk-row")
