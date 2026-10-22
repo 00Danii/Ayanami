@@ -4,6 +4,7 @@ from textual.widgets import Label, Button, RichLog, TextArea
 
 from widgets.clickable_label import ClickableLabel
 from widgets.confirm_screen import ConfirmScreen
+from widgets.dnsmasq_text_area import DnsmasqTextArea
 
 import os
 import shutil
@@ -63,7 +64,7 @@ class DhcpView(Vertical):
                         classes="dhcp-edit-link dhcp-edit-cancel",
                         markup=False,
                     )
-            yield TextArea(
+            yield DnsmasqTextArea(
                 "",
                 id="dhcp-config",
                 show_line_numbers=True,
