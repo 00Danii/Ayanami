@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
-# Instala (o desinstala) el timer de backups mensuales de Ayanami.
+# Instala (o desinstala) el timer de backups programados de Ayanami.
 #
 # Detecta la raíz del proyecto desde la ubicación de este script, de modo
 # que funciona en cualquier máquina (laptop, servidor de desarrollo, etc.)
 # sin editar rutas a mano.
 #
 # Uso:
-#   ./install_backup_timer.sh                 # instalar y activar (mensual)
+#   ./install_backup_timer.sh                 # instalar y activar (mensual por defecto)
 #   ./install_backup_timer.sh --uninstall     # desinstalar
 #   ./install_backup_timer.sh --calendar "daily" --persistent false
 #

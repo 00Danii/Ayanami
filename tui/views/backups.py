@@ -35,6 +35,10 @@ def _human_size(size: int) -> str:
     return f"{value:.0f}B"
 
 
+def _backup_label(info: dict) -> str:
+    return datetime.fromtimestamp(info["mtime"]).strftime("%Y-%m-%d %H:%M")
+
+
 class BackupTableHeader(Horizontal):
     """Encabezado de la tabla de backups."""
 
@@ -51,7 +55,7 @@ class BackupTableHeader(Horizontal):
 
 
 class BackupRow(Horizontal):
-    """Fila de un backup mensual con sus acciones."""
+    """Fila de un backup automático con sus acciones."""
 
     def __init__(self, info: dict, **kwargs):
         super().__init__(classes="bk-row", **kwargs)
@@ -394,7 +398,7 @@ class BackupsView(Vertical):
         target = firewall_config.save_config(bundle, path=path)
         self.log(f"[#9ece6a]  ✓ Configuración guardada en {target}[/]")
 
-        # Mantener la copia canónica al día para que el timer mensual
+        # Mantener la copia canónica al día para que el timer programado
         # siempre respalde la configuración más reciente.
         if os.path.abspath(target) != os.path.abspath(firewall_config.CONFIG_FILE):
             firewall_config.save_config(bundle)
@@ -413,7 +417,7 @@ class BackupsView(Vertical):
         backup = firewall_config.save_backup()
         removed = firewall_config.prune_backups()
         if backup:
-            self.log(f"[#9ece6a]  ✓ Backup mensual: {backup}[/]")
+            self.log(f"[#9ece6a]  ✓ Backup creado: {backup}[/]")
         if removed:
             self.log(
                 f"[#565f89]  → Backups viejos eliminados: {len(removed)}[/]"
@@ -622,7 +626,7 @@ class BackupsView(Vertical):
     def uninstall_timer(self):
         self.app.push_screen(
             ConfirmScreen(
-                "Se desinstalará el timer mensual de systemd.\n\n"
+                "Se desinstalará el timer de backups de systemd.\n\n"
                 "Los backups existentes se conservan.\n\n"
                 "¿Continuar?",
                 confirm_text="Desinstalar",
@@ -682,15 +686,15 @@ class BackupsView(Vertical):
             self.app.notify("Error al actualizar el timer", severity="error")
 
     def delete_backup(self, info: dict):
+        label = _backup_label(info)
+
         def on_confirm(confirmed):
             if not confirmed:
                 return
             if firewall_config.delete_backup(info["path"]):
-                self.log(
-                    f"[#9ece6a]✓ Backup eliminado: {info['bucket']}[/]"
-                )
+                self.log(f"[#9ece6a]✓ Backup eliminado: {label}[/]")
                 self.refresh_data()
-                self.app.notify(f"Backup {info['bucket']} eliminado")
+                self.app.notify(f"Backup {label} eliminado")
             else:
                 self.log(
                     f"[#f7768e]✗ No se pudo eliminar {info['path']}[/]"
@@ -699,7 +703,7 @@ class BackupsView(Vertical):
 
         self.app.push_screen(
             ConfirmScreen(
-                f"¿Eliminar el backup {info['bucket']}?\n\n{info['path']}",
+                f"¿Eliminar el backup {label}?\n\n{info['path']}",
                 confirm_text="Eliminar",
             ),
             on_confirm,

@@ -3,9 +3,9 @@ Configuración unificada del firewall de Ayanami.
 
 Reúne en un solo archivo (firewall_config.json) la lista blanca, el
 registro de apps y los datos de referencia del gateway, y mantiene
-copias de seguridad mensuales con retención de 3 meses.
+backups automáticos con retención de las últimas 5 copias.
 
-Uso desde systemd (timer mensual):
+Uso desde systemd (timer programado):
     python firewall_config.py
 """
 import glob
@@ -23,7 +23,9 @@ WHITELIST_FILE = str(REPO_ROOT / "whitelist.json")
 INSTALL_BACKUP_TIMER = str(REPO_ROOT / "systemd" / "install_backup_timer.sh")
 
 CONFIG_VERSION = 1
-RETENTION_MONTHS = 3
+RETENTION_BACKUPS = 5
+BACKUP_PREFIX = "firewall_config-"
+BACKUP_SUFFIX = ".json"
 
 
 # ─────────────────────────────────────────────────────────────
@@ -49,10 +51,6 @@ def _write_json(path: str, data: dict):
 
 def _now_iso() -> str:
     return datetime.now().isoformat(timespec="seconds")
-
-
-def _month_bucket() -> str:
-    return datetime.now().strftime("%Y-%m")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -144,24 +142,48 @@ def update_gateway(wan_iface: str, lan_iface: str, dns_target: str) -> str:
 
 
 # ─────────────────────────────────────────────────────────────
-# Backups mensuales con retención
+# Backups automáticos con retención
 # ─────────────────────────────────────────────────────────────
 
-def _backup_path(month: str | None = None) -> str:
-    bucket = month or _month_bucket()
-    return os.path.join(BACKUP_DIR, f"firewall_config-{bucket}.json")
+def _backup_stamp() -> str:
+    """Marca de tiempo única para el nombre del backup."""
+    return datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")
 
 
-def save_backup(month: str | None = None) -> str | None:
-    """Copia el firewall_config.json al bucket mensual (YYYY-MM).
+def _backup_path(stamp: str | None = None) -> str:
+    stamp = stamp or _backup_stamp()
+    return os.path.join(BACKUP_DIR, f"{BACKUP_PREFIX}{stamp}{BACKUP_SUFFIX}")
 
+
+def _backup_stem(path: str) -> str | None:
+    name = os.path.basename(path)
+    if not (name.startswith(BACKUP_PREFIX) and name.endswith(BACKUP_SUFFIX)):
+        return None
+    return name[len(BACKUP_PREFIX):-len(BACKUP_SUFFIX)]
+
+
+def _valid_backup_stem(stem: str) -> bool:
+    """Acepta backups nuevos con fecha/hora y los antiguos ``YYYY-MM``."""
+    for fmt in ("%Y-%m-%d_%H%M%S_%f", "%Y-%m-%d_%H%M%S", "%Y-%m"):
+        try:
+            datetime.strptime(stem, fmt)
+            return True
+        except ValueError:
+            pass
+    return False
+
+
+def save_backup(stamp: str | None = None) -> str | None:
+    """Crea una copia con marca de tiempo en ``BACKUP_DIR``.
+
+    Cada ejecución del timer (o backup manual) genera un archivo nuevo.
     Si el archivo de configuración no existe todavía, primero lo genera
     con el estado actual. Devuelve la ruta del backup o None si no pudo.
     """
     if not os.path.exists(CONFIG_FILE):
         save_config(build_bundle())
 
-    target = _backup_path(month)
+    target = _backup_path(stamp)
     try:
         os.makedirs(os.path.dirname(target), exist_ok=True)
         with open(CONFIG_FILE) as src, open(target, "w") as dst:
@@ -171,61 +193,50 @@ def save_backup(month: str | None = None) -> str | None:
         return None
 
 
-def prune_backups(keep: int = RETENTION_MONTHS) -> list[str]:
-    """Borra los backups más viejos que los últimos `keep` meses.
+def list_backups() -> list[dict]:
+    """Lista los backups, del más nuevo al más viejo.
 
-    Ordena por bucket mensual (YYYY-MM) y elimina el resto.
-    Devuelve la lista de archivos eliminados.
+    Cada elemento trae ``bucket`` (identificador del archivo),
+    ``path``, ``size`` (bytes) y ``mtime`` (timestamp). Se aceptan
+    nombres nuevos con fecha/hora y los antiguos ``YYYY-MM``.
     """
-    pattern = os.path.join(BACKUP_DIR, "firewall_config-*.json")
-    removed = []
-    buckets = set()
+    pattern = os.path.join(BACKUP_DIR, f"{BACKUP_PREFIX}*{BACKUP_SUFFIX}")
+    backups = []
     for path in glob.glob(pattern):
-        name = os.path.basename(path)
-        try:
-            bucket = name.replace("firewall_config-", "").replace(".json", "")
-            datetime.strptime(bucket, "%Y-%m")
-        except ValueError:
+        stem = _backup_stem(path)
+        if not stem or not _valid_backup_stem(stem):
             continue
-        buckets.add((bucket, path))
-
-    ordered = sorted(buckets, key=lambda x: x[0], reverse=True)
-    for _, path in ordered[keep:]:
         try:
-            os.remove(path)
-            removed.append(path)
+            stat = os.stat(path)
+        except OSError:
+            continue
+        backups.append({
+            "bucket": stem,
+            "path": path,
+            "size": stat.st_size,
+            "mtime": stat.st_mtime,
+        })
+    return sorted(
+        backups,
+        key=lambda item: (item["mtime"], item["bucket"]),
+        reverse=True,
+    )
+
+
+def prune_backups(keep: int = RETENTION_BACKUPS) -> list[str]:
+    """Conserva los ``keep`` backups más recientes y borra el resto."""
+    removed = []
+    for info in list_backups()[keep:]:
+        try:
+            os.remove(info["path"])
+            removed.append(info["path"])
         except OSError:
             pass
     return removed
 
 
-def list_backups() -> list[dict]:
-    """Lista los backups mensuales, del más nuevo al más viejo.
-
-    Cada elemento trae ``bucket`` (YYYY-MM), ``path``, ``size`` (bytes) y
-    ``mtime`` (timestamp). Ignora archivos con nombres que no sean un mes.
-    """
-    pattern = os.path.join(BACKUP_DIR, "firewall_config-*.json")
-    backups = []
-    for path in glob.glob(pattern):
-        name = os.path.basename(path)
-        bucket = name.replace("firewall_config-", "").replace(".json", "")
-        try:
-            datetime.strptime(bucket, "%Y-%m")
-            stat = os.stat(path)
-        except (ValueError, OSError):
-            continue
-        backups.append({
-            "bucket": bucket,
-            "path": path,
-            "size": stat.st_size,
-            "mtime": stat.st_mtime,
-        })
-    return sorted(backups, key=lambda item: item["bucket"], reverse=True)
-
-
 def delete_backup(path: str) -> bool:
-    """Borra un backup mensual, solo si está dentro de BACKUP_DIR.
+    """Borra un backup, solo si está dentro de BACKUP_DIR.
 
     La comprobación evita que un id manipulado desde la UI pueda borrar
     archivos fuera de la carpeta de respaldos.
@@ -234,8 +245,8 @@ def delete_backup(path: str) -> bool:
     root = os.path.realpath(BACKUP_DIR)
     if os.path.dirname(target) != root:
         return False
-    name = os.path.basename(target)
-    if not (name.startswith("firewall_config-") and name.endswith(".json")):
+    stem = _backup_stem(target)
+    if not stem or not _valid_backup_stem(stem):
         return False
     try:
         os.remove(target)
@@ -244,11 +255,11 @@ def delete_backup(path: str) -> bool:
         return False
 
 
-def run_monthly_backup() -> list[str]:
-    """Flujo completo del timer mensual: backup + limpieza."""
+def run_scheduled_backup() -> tuple[str | None, list[str]]:
+    """Flujo completo del timer: crea un backup y aplica la retención."""
     target = save_backup()
     removed = prune_backups()
-    return [target] if target else removed
+    return target, removed
 
 
 # ─────────────────────────────────────────────────────────────
@@ -256,8 +267,7 @@ def run_monthly_backup() -> list[str]:
 # ─────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    target = save_backup()
-    removed = prune_backups()
+    target, removed = run_scheduled_backup()
     print(f"[ayanami-backup] backup: {target or 'FAILED'}")
     if removed:
         print(f"[ayanami-backup] eliminados: {', '.join(removed)}")
