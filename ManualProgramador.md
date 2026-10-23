@@ -534,7 +534,7 @@ Concentra la copia manual y la gestión de los backups automáticos. Reutiliza e
 - `compose()`: tres cards (copia manual, respaldos automáticos y backups disponibles) y un `RichLog`. La tarjeta de backups automáticos y el log comparten una fila de dos columnas (`2fr`/`3fr`): la lista a la izquierda y el log a la derecha. La lista usa `BackupTableHeader` y `BackupRow` para mostrar las columnas Año/Mes/Día/Hora/Tam/Acciones; las columnas de datos usan `1fr` con `min-width` para repartirse el ancho de la tarjeta, y `Restaurar`/`Eliminar` comparten una fila de acciones.
 - `refresh_data()`: la llama `tui.py` al navegar a `nav-backups` y con la tecla `r`. Lanza un worker (`thread=True`) que lee `firewall_config.list_backups()` y consulta `systemctl` (`is-enabled`, `is-active`, `show --property=NextElapseUSecRealtime` y `cat`); pinta con `call_from_thread` en `_render_data()`.
 - `_render_data()`: actualiza estado, próxima ejecución y programación (`OnCalendar` + `Persistent`), alterna la visibilidad de **Instalar Timer**, **Desinstalar Timer**, **Ver estado** y **Editar** según si el timer está instalado, guarda el estado en `_timer_status` y monta una `BackupRow` por cada backup.
-- **Guardar/Cargar Copia**: `_request_export()` / `_request_import()` usan `PathPicker`; `_do_export()` y `_import_config()` conservan la lógica que antes vivía en `ConfigTab`. El bundle incluye `dnsmasq` con el contenido de `/etc/dnsmasq.conf`; al restaurar, `_import_config()` llama a `firewall_config.restore_dnsmasq()` antes de tocar la lista blanca y las apps.
+- **Guardar/Cargar Copia**: `_request_export()` / `_request_import()` usan `PathPicker`; `_do_export()` y `_import_config()` conservan la lógica que antes vivía en `ConfigTab`. El bundle incluye `dnsmasq` con el contenido de `/etc/dnsmasq.conf`. `_confirm_import()` muestra un `ConfirmScreen` con switch (apagado por defecto) cuando la copia incluye `dnsmasq`; `_import_config(..., restore_dnsmasq_conf=...)` llama a `firewall_config.restore_dnsmasq()` solo si se activó, antes de tocar la lista blanca y las apps.
 - **Backup** (`#bk-run`): `_do_backup_now()` arma el bundle, actualiza el canónico, crea un backup con marca de tiempo y poda los antiguos. `save_backup()` refresca el bloque `dnsmasq` desde el archivo vivo aunque el canónico sea antiguo.
 - **Timer**: `_run_timer_action()` ejecuta `systemd/install_backup_timer.sh` (o `--uninstall`) en un worker, con confirmación previa. Acepta `calendar` y `persistent` y los pasa como `--calendar` / `--persistent`.
 - **Ver estado** (`#bk-status`): `show_timer_status()` consulta `systemd` en un worker y escribe en `#bk-log` el estado, la próxima ejecución, la programación, `Persistent` y la salida de `systemctl status`.
@@ -819,9 +819,9 @@ sequenceDiagram
 2. `_pick_import_path` hace la **validación temprana**:
    - ruta vacía → cortar; no existe → `notify("El archivo seleccionado no existe", severity="error")`; es una carpeta → `notify("Seleccionaste una carpeta: elige el archivo de configuración")`.
    - `load_config(path)` + `validate_config(candidate)`: si el archivo no tiene la estructura esperada (`version`, `apps`, `whitelist`) o el bloque `dnsmasq` tiene un contenido/codificación inválidos, se rechaza **antes de pedir confirmación**.
-3. `ConfirmScreen` ("Se cargará... ¿Continuar?") → `_import_config(confirmed, path)`. El mensaje avisa si la copia incluye `dnsmasq` o si solo se restaurará el firewall.
+3. `ConfirmScreen` ("Se cargará... ¿Continuar?") → `_on_import_result()` → `_import_config(confirmed, path, restore_dnsmasq_conf)`. Si la copia incluye `dnsmasq`, el modal muestra un switch apagado por defecto; el mensaje avisa si la copia lo incluye o si solo se restaurará el firewall.
 4. `_import_config` **re-valida** (guarda de seguridad) y aplica en orden:
-   1. `dnsmasq`: si la copia incluye `content`, `firewall_config.restore_dnsmasq()` escribe un temporal, ejecuta `dnsmasq --test`, copia el archivo actual a `/etc/dnsmasq.conf.ayanami.bak`, hace `os.replace()` y reinicia `dnsmasq`. Si el test falla, aborta sin tocar el resto;
+   1. `dnsmasq`: solo si el switch está activo y la copia incluye `content`, `firewall_config.restore_dnsmasq()` escribe un temporal, ejecuta `dnsmasq --test`, copia el archivo actual a `/etc/dnsmasq.conf.ayanami.bak`, hace `os.replace()` y reinicia `dnsmasq`. Si el test falla, aborta sin tocar el resto;
    2. `save_whitelist(whitelist, whitelist_disabled)` escribe `whitelist.json` conservando los switches por entrada;
    3. escribe `apps_firewall.json` completo;
    4. recomputa los dominios de apps bloqueadas → `apply_whitelist()` (regenera iptables) y regenera `ayanami-block.conf` (borra + `write_block_domains`);
@@ -893,7 +893,7 @@ sequenceDiagram
 
                 CFG-->>UI: Configuración válida
 
-                alt La copia incluye dnsmasq
+                alt Switch activo y la copia incluye dnsmasq
                     Note over UI,SYS: 1. Restaurar /etc/dnsmasq.conf
                     UI->>CFG: restore_dnsmasq(payload)
                     CFG->>SYS: dnsmasq --test (temporal)
@@ -905,6 +905,8 @@ sequenceDiagram
                         CFG-->>UI: (False, error)
                         UI-->>U: Abortar sin tocar el resto
                     end
+                else Switch apagado o copia sin dnsmasq
+                    Note over UI,SYS: Se omite /etc/dnsmasq.conf
                 end
 
                 Note over UI,JSON: 2. Restaurar lista blanca
@@ -1142,7 +1144,7 @@ Funciones importantes:
 
 - `firewall_config.py` como script (`python tui/firewall_config.py`) corre `save_backup()` + `prune_backups()` e imprime `[ayanami-backup] ...`. Ese es el `ExecStart` del servicio. Si el `firewall_config.json` canónico está incompleto o corrupto, `save_backup()` arma un bundle válido desde `apps_firewall.json` y `whitelist.json`; además la escritura es atómica (`.tmp` + `os.replace`), así que un fallo de disco no deja un backup a medio escribir.
 - `save_backup()` siempre vuelve a leer `/etc/dnsmasq.conf`, incluso cuando el canónico ya es válido. El servicio corre como root, de modo que el timer puede incluir el contenido sin depender de la TUI. Si el archivo no se puede leer, el backup se crea igual con `dnsmasq.available: false` y un `error`, y la restauración omite ese bloque.
-- Al restaurar, `restore_dnsmasq()` no escribe directamente sobre el archivo real: usa un temporal en `/etc`, valida con `dnsmasq --test`, conserva la versión actual en `/etc/dnsmasq.conf.ayanami.bak`, hace `os.replace()` y reinicia `dnsmasq`. Si el test falla, el archivo actual queda intacto y `_import_config()` aborta antes de restaurar whitelist/apps. El campo `dnsmasq.path` es informativo y no se usa como destino.
+- Al restaurar con el switch activo, `restore_dnsmasq()` no escribe directamente sobre el archivo real: usa un temporal en `/etc`, valida con `dnsmasq --test`, conserva la versión actual en `/etc/dnsmasq.conf.ayanami.bak`, hace `os.replace()` y reinicia `dnsmasq`. Si el test falla, el archivo actual queda intacto y `_import_config()` aborta antes de restaurar whitelist/apps. El switch está apagado por defecto; sin activarlo, `/etc/dnsmasq.conf` no se toca. El campo `dnsmasq.path` es informativo y no se usa como destino.
 - `systemd/install_backup_timer.sh` **genera los units en el momento de instalar** con la ruta real del repo (detecta su propia ubicación; podés forzar con `AYANAMI_DIR` y `AYANAMI_VENV`). Es `Type=oneshot`; por defecto usa `OnCalendar=monthly` y `Persistent=true`.
 - Acepta `--calendar "EXPRESIÓN"` y `--persistent true|false` (o `--calendar=...` / `--persistent=...`). Valida la expresión con `systemd-analyze calendar` si está disponible y reinicia el timer al aplicar cambios.
 - `--uninstall` elimina ambos units y hace `daemon-reload`.

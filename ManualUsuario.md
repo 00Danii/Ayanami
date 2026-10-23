@@ -438,11 +438,11 @@ En la parte inferior, la lista de **backups automáticos** y el **log de salida*
 | Botón | Qué hace |
 |---|---|
 | **Guardar Copia** | Abre el selector de rutas y exporta lista blanca, apps, el gateway **aplicado y guardado** y el contenido actual de `/etc/dnsmasq.conf`. También actualiza la copia canónica y crea un backup automático. |
-| **Cargar Copia** | Selecciona un archivo, lo valida y, tras confirmar, reaplica lista blanca, apps, reglas DNS/iptables, gateway/NAT y `dnsmasq.conf` si la copia lo incluye. |
+| **Cargar Copia** | Selecciona un archivo, lo valida y, tras confirmar, reaplica lista blanca, apps, reglas DNS/iptables y gateway/NAT. Si la copia incluye `dnsmasq.conf`, la confirmación ofrece un switch (apagado por defecto) para restaurarlo también. |
 
 > El gateway de una copia se toma de `firewall_config.json` (el último que se aplicó con **Configurar Gateway**), **no** de la interfaz seleccionada en la barra lateral. Puedes cerrar la UI: el timer seguirá respaldando el gateway real.
 
-> El bloque `dnsmasq` guarda el texto del archivo con su codificación (`utf-8` o `latin-1`) para reconstruirlo sin corromperlo. El campo `path` es informativo: al restaurar siempre se escribe en `/etc/dnsmasq.conf`. Las copias antiguas que no tengan ese bloque se pueden cargar igual, pero solo restauran el firewall.
+> El bloque `dnsmasq` guarda el texto del archivo con su codificación (`utf-8` o `latin-1`) para reconstruirlo sin corromperlo. El campo `path` es informativo: al restaurar, si se activa el switch, siempre se escribe en `/etc/dnsmasq.conf`. Las copias que no tengan ese bloque se pueden cargar igual, pero solo restauran el firewall.
 
 #### Respaldos automáticos
 
@@ -699,7 +699,7 @@ La vista **Respaldos** (barra lateral) contiene las acciones **Guardar Copia** y
    - Debe ser un JSON de configuración real (con `version`, `apps` y `whitelist`). Cualquier otro archivo (imagen, texto, JSON random) se rechaza con un aviso y **no se toca nada**.
    - Si incluye el bloque `dnsmasq`, se comprueba que el contenido sea texto y que la codificación sea `utf-8` o `latin-1`.
 4. Tras confirmar, se **reaplica todo**:
-   - Si la copia incluye `dnsmasq`, restaura `/etc/dnsmasq.conf` de forma atómica: escribe un temporal, lo valida con `dnsmasq --test`, guarda el actual en `/etc/dnsmasq.conf.ayanami.bak`, reemplaza el archivo y reinicia `dnsmasq`. Si la validación falla, el archivo actual no se modifica.
+   - Si la copia incluye `dnsmasq`, la confirmación muestra el switch **Restaurar también /etc/dnsmasq.conf**, apagado por defecto. Si se activa, restaura `/etc/dnsmasq.conf` de forma atómica: escribe un temporal, lo valida con `dnsmasq --test`, guarda el actual en `/etc/dnsmasq.conf.ayanami.bak`, reemplaza el archivo y reinicia `dnsmasq`. Si la validación falla, el archivo actual no se modifica.
    - Escribe `whitelist.json` y `apps_firewall.json`.
    - Regenera las reglas iptables de la lista blanca.
    - Regenera el bloqueo de dominios en dnsmasq.
@@ -718,7 +718,7 @@ Ayanami conserva **backups automáticos** con una retención de **5 copias**: al
 - **Cuándo**: según el **timer de systemd**. Por defecto se ejecuta una vez al mes, pero la programación real puede ser mensual, semanal, diaria o una expresión `OnCalendar` personalizada. La vista muestra el `OnCalendar` configurado.
 - **Cómo**: copia el `firewall_config.json` a un archivo nuevo con la fecha y hora de la ejecución e incluye el contenido actual de `/etc/dnsmasq.conf` con su codificación. Si el archivo canónico no existe, está incompleto o está corrupto, genera un bundle válido desde `apps_firewall.json` y `whitelist.json`. La escritura es atómica: un fallo de disco no deja una copia a medio escribir.
 - La copia canónica siempre se mantiene al día (al exportar a otra ruta y al configurar el gateway se actualiza automáticamente).
-- Al **Restaurar** una copia con `dnsmasq`, se valida el contenido antes de reemplazar el archivo y se conserva la versión anterior en `/etc/dnsmasq.conf.ayanami.bak`. Las copias creadas antes de esta función no tienen el bloque `dnsmasq`; se restauran igual, omitiendo ese archivo.
+- Al **Restaurar** una copia con `dnsmasq` y activar el switch, se valida el contenido antes de reemplazar el archivo y se conserva la versión anterior en `/etc/dnsmasq.conf.ayanami.bak`. El switch está apagado por defecto: si no se activa, `/etc/dnsmasq.conf` no se modifica. Las copias creadas antes de esta función no tienen el bloque `dnsmasq`; se restauran igual, omitiendo ese archivo.
 - Si al restaurar aparece un error, el log ahora distingue entre **archivo inexistente**, **JSON inválido/truncado** y **campo faltante**.
 
 La vista **Respaldos** muestra el estado del timer, permite editarlo, instalarlo/desinstalarlo, crear un backup inmediato y restaurar o eliminar cada copia. Las mismas operaciones se pueden hacer por consola:
