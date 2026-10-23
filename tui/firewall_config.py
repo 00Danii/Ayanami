@@ -1,10 +1,9 @@
 """
-Configuración unificada del firewall de Ayanami.
+Configuración unificada y backups de Ayanami.
 
-Reúne en un solo archivo (firewall_config.json) la lista blanca, el
-registro de apps, los datos de referencia del gateway y el contenido de
-/etc/dnsmasq.conf, y mantiene backups automáticos con retención de las
-últimas 5 copias.
+Reúne en un solo archivo (backup.json) la lista blanca, el registro de
+apps, los datos de referencia del gateway y el contenido de /etc/dnsmasq.conf,
+y mantiene backups automáticos con retención de las últimas 5 copias.
 
 Uso desde systemd (timer programado):
     python firewall_config.py
@@ -21,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-CONFIG_FILE = str(REPO_ROOT / "firewall_config.json")
+CONFIG_FILE = str(REPO_ROOT / "backup.json")
 BACKUP_DIR = str(REPO_ROOT / "backups")
 APPS_FILE = str(REPO_ROOT / "apps_firewall.json")
 WHITELIST_FILE = str(REPO_ROOT / "whitelist.json")
@@ -30,7 +29,7 @@ INSTALL_BACKUP_TIMER = str(REPO_ROOT / "systemd" / "install_backup_timer.sh")
 
 CONFIG_VERSION = 1
 RETENTION_BACKUPS = 5
-BACKUP_PREFIX = "firewall_config-"
+BACKUP_PREFIX = "backup-"
 BACKUP_SUFFIX = ".json"
 
 
@@ -316,7 +315,9 @@ def build_bundle(
 
 
 def load_config(path: str | None = None) -> dict:
-    return _read_json(path or CONFIG_FILE)
+    if path:
+        return _read_json(path)
+    return _read_json(CONFIG_FILE)
 
 
 def load_config_checked(path: str | None = None) -> tuple[dict, str]:
@@ -433,13 +434,13 @@ def _backup_path(stamp: str | None = None) -> str:
 
 def _backup_stem(path: str) -> str | None:
     name = os.path.basename(path)
-    if not (name.startswith(BACKUP_PREFIX) and name.endswith(BACKUP_SUFFIX)):
-        return None
-    return name[len(BACKUP_PREFIX):-len(BACKUP_SUFFIX)]
+    if name.startswith(BACKUP_PREFIX) and name.endswith(BACKUP_SUFFIX):
+        return name[len(BACKUP_PREFIX):-len(BACKUP_SUFFIX)]
+    return None
 
 
 def _valid_backup_stem(stem: str) -> bool:
-    """Acepta backups nuevos con fecha/hora y los antiguos ``YYYY-MM``."""
+    """Acepta backups con fecha/hora y el formato corto ``YYYY-MM``."""
     for fmt in ("%Y-%m-%d_%H%M%S_%f", "%Y-%m-%d_%H%M%S", "%Y-%m"):
         try:
             datetime.strptime(stem, fmt)
@@ -479,7 +480,7 @@ def list_backups() -> list[dict]:
 
     Cada elemento trae ``bucket`` (identificador del archivo),
     ``path``, ``size`` (bytes) y ``mtime`` (timestamp). Se aceptan
-    nombres nuevos con fecha/hora y los antiguos ``YYYY-MM``.
+    nombres con fecha/hora y el formato corto ``YYYY-MM``.
     """
     pattern = os.path.join(BACKUP_DIR, f"{BACKUP_PREFIX}*{BACKUP_SUFFIX}")
     backups = []
