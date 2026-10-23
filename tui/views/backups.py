@@ -8,7 +8,6 @@ import subprocess
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.widgets import Label, Button, RichLog
 
-import network
 import firewall_config
 from firewall_ops import (
     get_dns_block_file,
@@ -91,7 +90,7 @@ class BackupsView(Vertical):
             yield Label("Copia de Seguridad", classes="fw-card-title")
             with Horizontal(classes="bk-copy-row"):
                 yield Label(
-                    "Lista blanca, Apps, gateway y dnsmasq.conf en un único archivo JSON.",
+                    "Lista blanca, Apps, gateway y dnsmasq.conf en un único archivo backup.json.",
                     classes="fw-card-desc",
                 )
                 with Horizontal(classes="bk-actions bk-copy-actions"):
@@ -380,44 +379,77 @@ class BackupsView(Vertical):
             )
             return
 
+        switches = []
+        has_apps = isinstance(candidate.get("apps"), dict)
+        if has_apps:
+            switches.append({
+                "key": "apps",
+                "label": "\nRestaurar aplicaciones y bloqueos",
+                "default": False,
+            })
+        
+        has_whitelist = isinstance(candidate.get("whitelist"), list)
+        if has_whitelist:
+            switches.append({
+                "key": "whitelist",
+                "label": "\nRestaurar lista blanca",
+                "default": False,
+            })
+        
+        gw = candidate.get("gateway")
+        has_gateway = isinstance(gw, dict) and any(
+            gw.get(field) for field in ("wan_iface", "lan_iface", "dns_target")
+        )
+        if has_gateway:
+            switches.append({
+                "key": "gateway",
+                "label": "\nRestaurar configuración gateway/NAT",
+                "default": False,
+            })
         dnsmasq = candidate.get("dnsmasq")
         has_dnsmasq = (
             isinstance(dnsmasq, dict)
             and isinstance(dnsmasq.get("content"), str)
         )
         if has_dnsmasq:
-            dnsmasq_note = (
-                "\nLa copia incluye /etc/dnsmasq.conf\n"
-                "Se puede restaurar con el selector de abajo.\n\n"
-            )
-            switch_label = "Restaurar también /etc/dnsmasq.conf"
+            switches.append({
+                "key": "dnsmasq",
+                "label": "\nRestaurar /etc/dnsmasq.conf",
+                "default": False,
+            })
+
+        if switches:
+            note = "Selecciona los componentes a restaurar:\n\nSolo se aplicarán los elementos seleccionados\ny se sobrescribirá su estado actual."
         else:
-            dnsmasq_note = (
-                "\nLa copia no incluye dnsmasq.conf; se restaurará solo el "
-                "firewall.\n\n"
-            )
-            switch_label = None
+            note = "¿Qué quieres restaurar de esta copia?\n\nLa copia no contiene componentes restaurables conocidos."
 
         self.app.push_screen(
             ConfirmScreen(
-                f"Se cargará:\n\n{path}\n\n"
-                "Se reaplicarán lista blanca, apps y gateway/NAT.\n"
-                f"{dnsmasq_note}"
-                "Se sobrescribirá el estado actual.\n\n"
-                "¿Continuar?",
+                f"Se cargará:\n\n{path}\n\n{note}\n\n¿Continuar?",
                 confirm_text="Cargar",
                 confirm_variant="success",
-                switch_label=switch_label,
+                switches=switches or None,
             ),
             lambda result: self._on_import_result(result, path),
         )
 
     def _on_import_result(self, result, path):
-        if isinstance(result, tuple):
-            confirmed, restore_dnsmasq_conf = result
+        confirmed = False
+        selections = {}
+        if isinstance(result, dict):
+            confirmed = bool(result.get("confirmed"))
+            sel = result.get("selections")
+            if isinstance(sel, dict):
+                selections = sel
+        elif isinstance(result, tuple):
+            if len(result) == 2:
+                confirmed, restore_dnsmasq_conf = result
+                selections["dnsmasq"] = bool(restore_dnsmasq_conf)
+            else:
+                confirmed = bool(result[0]) if result else False
         else:
-            confirmed, restore_dnsmasq_conf = result, False
-        self._import_config(confirmed, path, restore_dnsmasq_conf)
+            confirmed = bool(result)
+        self._import_config(confirmed, path, selections)
 
     def _do_export(self, path):
         """Guarda el estado actual y crea el backup de inmediato."""
@@ -428,7 +460,7 @@ class BackupsView(Vertical):
         if not stripped:
             path = firewall_config.CONFIG_FILE
         elif os.path.isdir(stripped):
-            path = os.path.join(stripped, "firewall_config.json")
+            path = os.path.join(stripped, "backup.json")
         else:
             path = stripped
 
@@ -501,10 +533,14 @@ class BackupsView(Vertical):
         self,
         confirmed: bool | None = None,
         path: str | None = None,
-        restore_dnsmasq_conf: bool = False,
+        selections=None,
     ):
         if not confirmed:
             return
+        if selections is None:
+            selections = {}
+        if not isinstance(selections, dict):
+            selections = {}
         source = path or firewall_config.CONFIG_FILE
         self.query_one("#bk-log", RichLog).clear()
         self.log("\n[#e0af68]━━━ Cargar Configuración ━━━[/]")
@@ -527,9 +563,38 @@ class BackupsView(Vertical):
             self.app.notify("El archivo no es válido", severity="error")
             return
 
-        # ── dnsmasq.conf ─────────────────────────────────
+        restore_dnsmasq_conf = bool(selections.get("dnsmasq"))
+        restore_whitelist = selections.get("whitelist")
+        if restore_whitelist is None and "whitelist" in config:
+            restore_whitelist = True
+        restore_apps = selections.get("apps")
+        if restore_apps is None and "apps" in config:
+            restore_apps = True
+        restore_gateway = selections.get("gateway")
+        if restore_gateway is None and isinstance(config.get("gateway"), dict):
+            gw_cand = config.get("gateway") or {}
+            if gw_cand.get("wan_iface") or gw_cand.get("lan_iface") or gw_cand.get("dns_target"):
+                restore_gateway = True
+
         dnsmasq = config.get("dnsmasq")
-        if isinstance(dnsmasq, dict) and isinstance(dnsmasq.get("content"), str):
+        has_dnsmasq = (
+            isinstance(dnsmasq, dict)
+            and isinstance(dnsmasq.get("content"), str)
+        )
+        if not any(
+            (
+                restore_dnsmasq_conf and has_dnsmasq,
+                restore_whitelist,
+                restore_apps,
+                restore_gateway,
+            )
+        ):
+            self.log("[#e0af68]  No se seleccionó ningún componente; no se cambió nada[/]")
+            self.app.notify("No se seleccionó ningún componente", severity="warning")
+            return
+
+        # ── dnsmasq.conf ─────────────────────────────────
+        if has_dnsmasq:
             if restore_dnsmasq_conf:
                 self.log("[#7dcfff]◆ Restaurando /etc/dnsmasq.conf[/]")
                 dns_ok, dns_message = firewall_config.restore_dnsmasq(dnsmasq)
@@ -556,105 +621,145 @@ class BackupsView(Vertical):
                     "(interruptor desactivado)[/]"
                 )
         else:
-            reason = ""
+            reason_dns = ""
             if isinstance(dnsmasq, dict):
-                reason = str(dnsmasq.get("error") or "").strip()
-            detail = f" ({reason})" if reason else ""
+                reason_dns = str(dnsmasq.get("error") or "").strip()
+            detail = f" ({reason_dns})" if reason_dns else ""
             self.log(
                 "[#565f89]  → La copia no incluye dnsmasq.conf; "
                 f"se omite{detail}[/]"
             )
 
+        blocked_domains = []
         # ── Lista blanca ─────────────────────────────────
-        whitelist = config.get("whitelist", [])
-        whitelist_disabled = config.get("whitelist_disabled", [])
-        save_whitelist(whitelist, whitelist_disabled)
-        self.log(
-            f"[#9ece6a]  ✓ Lista blanca restaurada "
-            f"({len(whitelist)} entradas, {len(whitelist_disabled)} desactivadas)[/]"
-        )
+        if restore_whitelist:
+            whitelist = config.get("whitelist", [])
+            if isinstance(whitelist, list):
+                whitelist_disabled = config.get("whitelist_disabled", [])
+                if not isinstance(whitelist_disabled, list):
+                    whitelist_disabled = []
+                try:
+                    save_whitelist(whitelist, whitelist_disabled)
+                    self.log(
+                        f"[#9ece6a]  ✓ Lista blanca restaurada "
+                        f"({len(whitelist)} entradas, {len(whitelist_disabled)} desactivadas)[/]"
+                    )
+                except Exception as exc:
+                    self.log(f"[#f7768e]  ✗ Error restaurando lista blanca: {exc}[/]")
+            else:
+                self.log("[#565f89]  → Lista blanca no válida; se omite[/]")
+        else:
+            self.log("[#565f89]  → Lista blanca no restaurada (desmarcada)[/]")
 
         # ── Apps ─────────────────────────────────────────
-        apps = config.get("apps", {})
-        with open(firewall_config.APPS_FILE, "w") as f:
-            json.dump(apps, f, indent=2, ensure_ascii=False)
-            f.write("\n")
-        blocked_domains = []
-        for info in apps.values():
-            if info.get("blocked"):
-                blocked_domains.extend(info.get("domains", []))
-        self.log(
-            f"[#9ece6a]  ✓ Registro de apps restaurado "
-            f"({len(apps)} apps, {len(blocked_domains)} dominios bloqueados)[/]"
-        )
+        if restore_apps:
+            apps = config.get("apps", {})
+            if isinstance(apps, dict):
+                try:
+                    with open(firewall_config.APPS_FILE, "w") as f:
+                        json.dump(apps, f, indent=2, ensure_ascii=False)
+                        f.write("\n")
+                    for info in apps.values():
+                        if isinstance(info, dict) and info.get("blocked"):
+                            domains = info.get("domains", [])
+                            if isinstance(domains, list):
+                                blocked_domains.extend(domains)
+                    self.log(
+                        f"[#9ece6a]  ✓ Registro de apps restaurado "
+                        f"({len(apps)} apps, {len(blocked_domains)} dominios bloqueados)[/]"
+                    )
+                except Exception as exc:
+                    self.log(f"[#f7768e]  ✗ Error restaurando apps: {exc}[/]")
+            else:
+                self.log("[#565f89]  → Apps no válidas; se omite[/]")
+        else:
+            self.log("[#565f89]  → Aplicaciones/bloqueos no restaurados (desmarcados)[/]")
 
         # ── Firewall: aplicar whitelist + bloqueo DNS ────
-        self.log("[#7dcfff]◆ Aplicando reglas de lista blanca[/]")
-        apply_whitelist()
-        self.log("[#9ece6a]  ✓ Reglas de lista blanca aplicadas[/]")
-
-        self.log("[#7dcfff]◆ Regenerando configuración de bloqueo DNS[/]")
-        dns_conf = get_dns_block_file()
-        if os.path.exists(dns_conf):
-            os.remove(dns_conf)
-        write_block_domains(blocked_domains)
-        self.log(
-            f"[#9ece6a]  ✓ Bloqueo DNS regenerado "
-            f"({len(blocked_domains)} dominios)[/]"
-        )
+        if restore_whitelist:
+            try:
+                self.log("[#7dcfff]◆ Aplicando reglas de lista blanca[/]")
+                apply_whitelist()
+                self.log("[#9ece6a]  ✓ Reglas de lista blanca aplicadas[/]")
+            except Exception as exc:
+                self.log(f"[#f7768e]  ✗ Error aplicando lista blanca: {exc}[/]")
+        if restore_apps:
+            try:
+                self.log("[#7dcfff]◆ Regenerando configuración de bloqueo DNS[/]")
+                dns_conf = get_dns_block_file()
+                if os.path.exists(dns_conf):
+                    try:
+                        os.remove(dns_conf)
+                    except OSError:
+                        pass
+                write_block_domains(blocked_domains)
+                self.log(
+                    f"[#9ece6a]  ✓ Bloqueo DNS regenerado "
+                    f"({len(blocked_domains)} dominios)[/]"
+                )
+            except Exception as exc:
+                self.log(f"[#f7768e]  ✗ Error regenerando bloqueo DNS: {exc}[/]")
 
         # ── Gateway / NAT ────────────────────────────────
-        gw = config.get("gateway", {})
-        wan = gw.get("wan_iface", "")
-        lan = gw.get("lan_iface", "")
-        stored_target = gw.get("dns_target", "")
-        if wan:
-            self.log("[#7dcfff]◆ Reaplicando gateway[/]")
-            self.run("sysctl -w net.ipv4.ip_forward=1")
-            self.run(
-                f"iptables -t nat -C POSTROUTING -o {wan} -j MASQUERADE 2>/dev/null || "
-                f"iptables -t nat -A POSTROUTING -o {wan} -j MASQUERADE"
-            )
-            if lan:
-                dns_target = network.get_iface_ip(lan) or stored_target
-            else:
-                dns_target = stored_target
-            if dns_target:
-                for proto in ("udp", "tcp"):
-                    self.run(
-                        f"iptables -t nat -C PREROUTING -p {proto} --dport 53 "
-                        f"-j DNAT --to-destination {dns_target} 2>/dev/null || "
-                        f"iptables -t nat -A PREROUTING -p {proto} --dport 53 "
-                        f"-j DNAT --to-destination {dns_target}"
+        if restore_gateway:
+            gw = config.get("gateway", {})
+            if isinstance(gw, dict):
+                wan = gw.get("wan_iface", "")
+                lan = gw.get("lan_iface", "")
+                stored_target = gw.get("dns_target", "")
+                try:
+                    firewall_config.update_gateway(
+                        wan_iface=wan or "",
+                        lan_iface=lan or "",
+                        dns_target=stored_target or "",
                     )
-                self.log(
-                    f"[#9ece6a]  ✓ Gateway reaplicado: WAN={wan} "
-                    f"DNS→{dns_target}[/]"
-                )
+                    self.log("[#9ece6a]  ✓ Configuración gateway/NAT guardada[/]")
+                    self.log("[#e0af68]  ⚠ Para aplicar las reglas iptables usa 'Configurar Gateway' en la vista Firewall[/]")
+                except Exception as exc:
+                    self.log(f"[#f7768e]  ✗ Error guardando gateway: {exc}[/]")
             else:
-                self.log(
-                    "[#f7768e]  ✗ Sin DNS target: no se pudo reaplicar "
-                    "la redirección DNS[/]"
-                )
+                self.log("[#565f89]  → Gateway inválido; se omite[/]")
         else:
-            self.log("[#565f89]  → Sin gateway guardado, se omite[/]")
+            self.log("[#565f89]  → Gateway/NAT no restaurado (desmarcado)[/]")
+
+        # ── Sincronizar la copia canónica ─────────────────
+        # El timer parte de backup.json: si no lo actualizamos, el próximo
+        # backup automático conservaría los datos anteriores a la restauración.
+        try:
+            target = firewall_config.save_config(firewall_config.build_bundle())
+            self.log(f"[#9ece6a]  ✓ Copia canónica actualizada: {target}[/]")
+        except Exception as exc:
+            self.log(f"[#f7768e]  ✗ No se pudo actualizar backup.json: {exc}[/]")
+            self.app.notify(
+                "No se pudo actualizar backup.json; revisa el log",
+                severity="warning",
+            )
 
         # ── Aplicar cambios y refrescar vistas ────────────
-        self.log("[#7dcfff]◆ Reiniciando NetworkManager[/]")
-        self.run("systemctl restart NetworkManager")
-        self.log("[#9ece6a]  ✓ Cambios aplicados[/]")
+        if restore_whitelist or restore_apps:
+            self.log("[#7dcfff]◆ Reiniciando NetworkManager[/]")
+            self.run("systemctl restart NetworkManager")
+            self.log("[#9ece6a]  ✓ Cambios aplicados[/]")
+        else:
+            self.log("[#565f89]  → NetworkManager no se reinicia: no se cambiaron reglas de red[/]")
         self.log("[#9ece6a]━━━ Configuración cargada ━━━[/]")
 
         # La vista Firewall puede no estar montada si el usuario restauró
         # desde Respaldos sin haberla abierto: refrescar solo si existe.
         for apps_tab in self.app.query("#fw-panel-apps"):
             if hasattr(apps_tab, "refresh_apps"):
-                apps_tab.refresh_apps()
+                try:
+                    apps_tab.refresh_apps()
+                except Exception:
+                    pass
         for rules_tab in self.app.query("#fw-panel-rules"):
             if hasattr(rules_tab, "refresh_list"):
-                rules_tab.refresh_list()
+                try:
+                    rules_tab.refresh_list()
+                except Exception:
+                    pass
 
-        self.app.notify("Configuración cargada y aplicada")
+        self.app.notify("Configuración cargada")
 
     # ── Backups automáticos ──────────────────────────────
 
