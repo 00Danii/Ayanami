@@ -387,14 +387,14 @@ class BackupsView(Vertical):
         )
         if has_dnsmasq:
             dnsmasq_note = (
-                "La copia incluye /etc/dnsmasq.conf; puedes restaurarlo "
-                "con el interruptor de abajo.\n"
+                "\nLa copia incluye /etc/dnsmasq.conf\n"
+                "Se puede restaurar con el selector de abajo.\n\n"
             )
             switch_label = "Restaurar también /etc/dnsmasq.conf"
         else:
             dnsmasq_note = (
-                "La copia no incluye dnsmasq.conf; se restaurará solo el "
-                "firewall.\n"
+                "\nLa copia no incluye dnsmasq.conf; se restaurará solo el "
+                "firewall.\n\n"
             )
             switch_label = None
 
