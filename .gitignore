@@ -1,4 +1,4 @@
 __pycache__
 backups/
-firewall_config.json
+backup.json
 whitelist.json
