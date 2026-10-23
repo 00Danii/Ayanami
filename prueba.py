@@ -5,8 +5,9 @@ Uso:   venv/bin/python prueba.py
 Arranca la app en modo test, recorre todos los botones de navegación y
 comprueba que cada vista se muestre, que las pestañas del Firewall cambien
 de panel y que la lista de Apps se cargue diferida y paginada. También
-verifica que los backups incluyan y restauren dnsmasq.conf y que el
-switch de restauración empiece apagado. Dura un par de segundos.
+verifica que los backups incluyan y restauren dnsmasq.conf y que los
+switches de restauración selectiva respeten sus valores por defecto.
+Dura un par de segundos.
 
 Nota: el mensaje "sudo: se requiere una contraseña" que puede aparecer
 viene del arp-scan del Scanner al no correr como root; es inofensivo
@@ -53,7 +54,7 @@ def check_backup_dnsmasq():
                 "DNSMASQ_CONF",
             )
         }
-        firewall_config.CONFIG_FILE = str(root / "firewall_config.json")
+        firewall_config.CONFIG_FILE = str(root / "backup.json")
         firewall_config.BACKUP_DIR = str(root / "backups")
         firewall_config.APPS_FILE = str(root / "apps_firewall.json")
         firewall_config.WHITELIST_FILE = str(root / "whitelist.json")
@@ -122,7 +123,7 @@ def check_backup_dnsmasq():
 
 
 async def check_restore_switch(app, pilot):
-    """Comprueba el switch opcional de dnsmasq en la confirmación."""
+    """Comprueba los switches de restauración selectiva."""
     app.query_one("#nav-backups", Button).press()
     for _ in range(40):
         await pilot.pause(0.1)
@@ -139,7 +140,11 @@ async def check_restore_switch(app, pilot):
             "version": 1,
             "whitelist": [],
             "apps": {},
-            "gateway": {},
+            "gateway": {
+                "wan_iface": "eno1",
+                "lan_iface": "eno2",
+                "dns_target": "10.0.0.1",
+            },
             "dnsmasq": {"content": "interface=lo\n", "encoding": "utf-8"},
         }))
         without_dnsmasq.write_text(json.dumps({
@@ -152,42 +157,45 @@ async def check_restore_switch(app, pilot):
         calls = []
         old_import = view._import_config
 
-        def fake_import(confirmed, path=None, restore_dnsmasq_conf=False):
-            calls.append((confirmed, path, restore_dnsmasq_conf))
+        def fake_import(confirmed, path=None, selections=None):
+            calls.append((confirmed, path, selections or {}))
 
         view._import_config = fake_import
+        keys = ("apps", "whitelist", "gateway", "dnsmasq")
         try:
-            # Con dnsmasq: switch visible, apagado por defecto.
+            # Todos los switches visibles empiezan apagados.
             view._confirm_import(str(with_dnsmasq))
             await pilot.pause()
             assert isinstance(app.screen, ConfirmScreen)
-            switch = app.screen.query_one("#confirm-switch", Switch)
-            assert not switch.value, "el switch de dnsmasq debe empezar apagado"
+            for key in keys:
+                switch = app.screen.query_one(f"#confirm-switch-{key}", Switch)
+                assert not switch.value, f"el switch {key} debe empezar apagado"
             app.screen.query_one("#confirm-yes", Button).press()
             await pilot.pause()
             assert calls[-1][0] is True
-            assert calls[-1][2] is False, "por defecto no debe restaurar dnsmasq"
+            assert calls[-1][2] == {key: False for key in keys}
 
-            # Al activarlo, _import_config recibe True.
+            # Al activarlos, _import_config recibe el estado marcado.
             view._confirm_import(str(with_dnsmasq))
             await pilot.pause()
-            switch = app.screen.query_one("#confirm-switch", Switch)
-            switch.value = True
+            for key in keys:
+                app.screen.query_one(f"#confirm-switch-{key}", Switch).value = True
             await pilot.pause()
             app.screen.query_one("#confirm-yes", Button).press()
             await pilot.pause()
-            assert calls[-1][2] is True, "el switch activo no se respetó"
+            for key in keys:
+                assert calls[-1][2].get(key) is True, f"el switch {key} no se respetó"
 
-            # Sin dnsmasq: no debe mostrarse el switch.
+            # Sin dnsmasq: no debe mostrarse ese switch.
             view._confirm_import(str(without_dnsmasq))
             await pilot.pause()
-            assert not app.screen.query("#confirm-switch")
+            assert not app.screen.query("#confirm-switch-dnsmasq")
             app.screen.query_one("#confirm-no", Button).press()
             await pilot.pause()
         finally:
             view._import_config = old_import
 
-    print("OK  switch de dnsmasq apagado por defecto y opcional")
+    print("OK  switches de restauración apagados por defecto y respetados al activarlos")
 
 
 async def main():
