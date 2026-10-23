@@ -438,11 +438,11 @@ En la parte inferior, la lista de **backups automáticos** y el **log de salida*
 | Botón | Qué hace |
 |---|---|
 | **Guardar Copia** | Abre el selector de rutas y exporta lista blanca, apps, el gateway **aplicado y guardado** y el contenido actual de `/etc/dnsmasq.conf`. También actualiza la copia canónica y crea un backup automático. |
-| **Cargar Copia** | Selecciona un archivo, lo valida y, tras confirmar, reaplica lista blanca, apps, reglas DNS/iptables y gateway/NAT. Si la copia incluye `dnsmasq.conf`, la confirmación ofrece un switch (apagado por defecto) para restaurarlo también. |
+| **Cargar Copia** | Selecciona un archivo, lo valida y muestra una confirmación con switches para elegir qué restaurar: lista blanca, aplicaciones/bloqueos, configuración guardada del gateway/NAT y, si está incluido, `/etc/dnsmasq.conf`. Todos empiezan apagados; activa los que quieras restaurar. Solo se aplican los componentes marcados. |
 
-> El gateway de una copia se toma de `firewall_config.json` (el último que se aplicó con **Configurar Gateway**), **no** de la interfaz seleccionada en la barra lateral. Puedes cerrar la UI: el timer seguirá respaldando el gateway real.
+> El gateway de una copia se toma de `backup.json` (el último que se aplicó con **Configurar Gateway**), **no** de la interfaz seleccionada en la barra lateral. Puedes cerrar la UI: el timer seguirá respaldando el gateway real.
 
-> El bloque `dnsmasq` guarda el texto del archivo con su codificación (`utf-8` o `latin-1`) para reconstruirlo sin corromperlo. El campo `path` es informativo: al restaurar, si se activa el switch, siempre se escribe en `/etc/dnsmasq.conf`. Las copias que no tengan ese bloque se pueden cargar igual, pero solo restauran el firewall.
+> El bloque `dnsmasq` guarda el texto del archivo con su codificación (`utf-8` o `latin-1`) para reconstruirlo sin corromperlo. El campo `path` es informativo: al restaurar, si se activa el switch, siempre se escribe en `/etc/dnsmasq.conf`. Las copias que no tengan ese bloque se pueden cargar igual; el switch de `dnsmasq` simplemente no aparece. Los switches de lista blanca, apps y gateway solo aparecen si la copia contiene esos datos.
 
 #### Respaldos automáticos
 
@@ -475,7 +475,7 @@ La recuperación es **una sola vez**, aunque hayan pasado varios meses. No se re
 
 **Persistente** es útil si Ayanami no está encendido 24/7. **No persistente** es más estricto: solo respeta el horario exacto.
 
-Debajo se listan los **backups disponibles** (`backups/firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json`) en formato de tabla: **Año**, **Mes**, **Día**, **Hora**, **Tam** (tamaño compacto, por ejemplo `23K`) y **Acciones**. La tabla ocupa todo el ancho disponible de su columna; **Restaurar** (con confirmación y validación) y **Eliminar** son enlaces clicables y aparecen en la misma fila.
+Debajo se listan los **backups disponibles** (`backups/backup-AAAA-MM-DD_HHMMSS_ffffff.json`) en formato de tabla: **Año**, **Mes**, **Día**, **Hora**, **Tam** (tamaño compacto, por ejemplo `23K`) y **Acciones**. La tabla ocupa todo el ancho disponible de su columna; **Restaurar** (con confirmación y validación) y **Eliminar** son enlaces clicables y aparecen en la misma fila.
 
 > ⚠️ Editar, instalar o desinstalar el timer modifica systemd: requiere que Ayanami se ejecute con `sudo`. Las acciones piden confirmación.
 
@@ -603,7 +603,7 @@ Convierte al equipo en **router/gateway** de la red:
    - Permite el reenvío **LAN↔WAN** (reglas `FORWARD` de ida y vuelta, para que los dispositivos detrás de la LAN salgan a internet).
    - Redirige el DNS (puerto 53 TCP/UDP) de toda la LAN hacia la **IP dinámica** de la interfaz LAN (se calcula en vivo en cada configuración).
    - **Bloquea el DNS cifrado (DoT, puerto 853)** que sale de la LAN: así los teléfonos no se pueden "esconder" de los bloqueos usando un DNS privado. Estas reglas se insertan en la **primera posición** de `FORWARD`, antes del `ACCEPT` de reenvío, para que realmente se apliquen.
-   - Guarda los datos de referencia en `firewall_config.json` (`wan_iface`, `lan_iface`, `dns_target`) para poder restaurarlos después. Los backups usan ese valor guardado, no la interfaz que esté seleccionada en la barra lateral.
+   - Guarda los datos de referencia en `backup.json` (`wan_iface`, `lan_iface`, `dns_target`) para poder restaurarlos después. Los backups usan ese valor guardado, no la interfaz que esté seleccionada en la barra lateral.
 
 > Si la LAN no tiene IP y no se puede completar la redirección DNS, Ayanami guarda igual la WAN/LAN y las reglas NAT/FORWARD que sí aplicó, con `dns_target` vacío.
 
@@ -647,7 +647,7 @@ Borra **todo** el estado del firewall:
 - **Desactiva todas las entradas de la Lista Blanca**: las entradas se conservan, pero sus switches quedan apagados y no se regeneran sus reglas hasta que las vuelvas a activar.
 - `conntrack -F`.
 
-> ⚠️ Pide confirmación explícita. No borra `whitelist.json` ni `firewall_config.json` (la configuración guardada se conserva; las entradas de la lista blanca quedan apagadas), pero **sí se borra la configuración del gateway**: se debe configurar de nuevo.
+> ⚠️ Pide confirmación explícita. No borra `whitelist.json` ni `backup.json` (la configuración guardada se conserva; las entradas de la lista blanca quedan apagadas), pero **sí se borra la configuración del gateway**: se debe configurar de nuevo.
 
 #### Copias de seguridad
 
@@ -657,7 +657,7 @@ Las copias de seguridad se gestionan ahora en la vista **Respaldos** de la barra
 
 ## 7. Guardar y Cargar configuración
 
-La vista **Respaldos** (barra lateral) contiene las acciones **Guardar Copia** y **Cargar Copia**. Toda la configuración del firewall se guarda en **un único archivo**: `firewall_config.json` (en la raíz del proyecto). Contiene:
+La vista **Respaldos** (barra lateral) contiene las acciones **Guardar Copia** y **Cargar Copia**. Toda la configuración del firewall se guarda en **un único archivo**: `backup.json` (en la raíz del proyecto). Contiene:
 
 ```json
 {
@@ -680,16 +680,16 @@ La vista **Respaldos** (barra lateral) contiene las acciones **Guardar Copia** y
 }
 ```
 
-> El campo de **gateway** (`wan_iface`, `lan_iface`, `dns_target`) es **información de referencia**: al restaurar no se usa tal cual, sino que se **recalcula** la IP de la LAN dinámicamente (con respaldo al valor guardado si no se puede).
+> El campo de **gateway** (`wan_iface`, `lan_iface`, `dns_target`) es **información de referencia**. Al restaurar solo se vuelve a guardar en `backup.json`; no se reaplican reglas `iptables` automáticamente. Para aplicar el NAT usa **Configurar Gateway** en la vista Firewall.
 
 ### Guardar Copia
 
 1. En la vista **Respaldos** → **Guardar Copia**.
 2. Se abre un **selector de rutas** donde puedes navegar el árbol de directorios (con `⬆ Subir` o tecla `b`) o escribir la ruta a mano.
 3. Al confirmar, exporta lista blanca + apps + datos de referencia del gateway + contenido actual de `/etc/dnsmasq.conf`:
-   - Si se selecciona solo una **carpeta** (sin nombre de archivo), se guarda `firewall_config.json` dentro de esa carpeta (no se puede escribir sobre un directorio).
+   - Si se selecciona solo una **carpeta** (sin nombre de archivo), se guarda `backup.json` dentro de esa carpeta (no se puede escribir sobre un directorio).
    - Si el destino es diferente al canónico, **también se actualiza la copia canónica** de la raíz para que el timer programado respalde lo más reciente.
-   - Además crea un **backup inmediato** (`backups/firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json`) y limpia los backups viejos.
+   - Además crea un **backup inmediato** (`backups/backup-AAAA-MM-DD_HHMMSS_ffffff.json`) y limpia los backups viejos.
 
 ### Cargar Copia
 
@@ -698,15 +698,15 @@ La vista **Respaldos** (barra lateral) contiene las acciones **Guardar Copia** y
 3. El archivo se **valida** antes de confirmar:
    - Debe ser un JSON de configuración real (con `version`, `apps` y `whitelist`). Cualquier otro archivo (imagen, texto, JSON random) se rechaza con un aviso y **no se toca nada**.
    - Si incluye el bloque `dnsmasq`, se comprueba que el contenido sea texto y que la codificación sea `utf-8` o `latin-1`.
-4. Tras confirmar, se **reaplica todo**:
-   - Si la copia incluye `dnsmasq`, la confirmación muestra el switch **Restaurar también /etc/dnsmasq.conf**, apagado por defecto. Si se activa, restaura `/etc/dnsmasq.conf` de forma atómica: escribe un temporal, lo valida con `dnsmasq --test`, guarda el actual en `/etc/dnsmasq.conf.ayanami.bak`, reemplaza el archivo y reinicia `dnsmasq`. Si la validación falla, el archivo actual no se modifica.
-   - Escribe `whitelist.json` y `apps_firewall.json`.
-   - Regenera las reglas iptables de la lista blanca.
-   - Regenera el bloqueo de dominios en dnsmasq.
-   - Reconfigura el gateway/NAT si había uno guardado.
-   - Reinicia NetworkManager y refresca las listas en pantalla.
+4. Tras confirmar, se aplican **solo los componentes marcados** (todos los switches aparecen apagados por defecto):
+   - **Lista blanca**: escribe `whitelist.json`, regenera reglas `iptables` y refresca la pestaña.
+   - **Aplicaciones y bloqueos**: escribe `apps_firewall.json` y regenera el bloqueo de dominios en dnsmasq.
+   - **Gateway/NAT**: guarda `wan_iface`, `lan_iface` y `dns_target` en `backup.json`. **No** reaplica iptables; para eso usa **Configurar Gateway**.
+   - **dnsmasq.conf**: solo aparece si la copia lo incluye y está apagado por defecto. Si se activa, restaura `/etc/dnsmasq.conf` de forma atómica: escribe un temporal, lo valida con `dnsmasq --test`, guarda el actual en `/etc/dnsmasq.conf.ayanami.bak`, reemplaza el archivo y reinicia `dnsmasq`. Si la validación falla, el archivo actual no se modifica.
+   - Actualiza la copia canónica `backup.json` con el estado resultante.
+   - Reinicia NetworkManager solo si se restauraron lista blanca o apps, y refresca las listas en pantalla.
 
-> 💡 Los **backups automáticos** (`backups/firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json`) también se pueden cargar: aparecen en la lista de la vista Respaldos con el botón **Restaurar**, o se pueden elegir con **Cargar Copia** (tienen la misma estructura).
+> 💡 Los **backups automáticos** (`backups/backup-AAAA-MM-DD_HHMMSS_ffffff.json`) también se pueden cargar: aparecen en la lista de la vista Respaldos con el botón **Restaurar**, o se pueden elegir con **Cargar Copia** (tienen la misma estructura).
 
 ---
 
@@ -714,10 +714,10 @@ La vista **Respaldos** (barra lateral) contiene las acciones **Guardar Copia** y
 
 Ayanami conserva **backups automáticos** con una retención de **5 copias**: al crear la sexta se elimina la más antigua.
 
-- **Dónde**: `backups/firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json`. Los backups antiguos con nombre `AAAA-MM` siguen siendo válidos y aparecen en la lista.
+- **Dónde**: `backups/backup-AAAA-MM-DD_HHMMSS_ffffff.json`. También se aceptan nombres con formato `backup-AAAA-MM.json`.
 - **Cuándo**: según el **timer de systemd**. Por defecto se ejecuta una vez al mes, pero la programación real puede ser mensual, semanal, diaria o una expresión `OnCalendar` personalizada. La vista muestra el `OnCalendar` configurado.
-- **Cómo**: copia el `firewall_config.json` a un archivo nuevo con la fecha y hora de la ejecución e incluye el contenido actual de `/etc/dnsmasq.conf` con su codificación. Si el archivo canónico no existe, está incompleto o está corrupto, genera un bundle válido desde `apps_firewall.json` y `whitelist.json`. La escritura es atómica: un fallo de disco no deja una copia a medio escribir.
-- La copia canónica siempre se mantiene al día (al exportar a otra ruta y al configurar el gateway se actualiza automáticamente).
+- **Cómo**: copia el `backup.json` a un archivo nuevo con la fecha y hora de la ejecución e incluye el contenido actual de `/etc/dnsmasq.conf` con su codificación. Si el archivo canónico no existe, está incompleto o está corrupto, genera un bundle válido desde `apps_firewall.json` y `whitelist.json`. La escritura es atómica: un fallo de disco no deja una copia a medio escribir.
+- La copia canónica siempre se mantiene al día (al exportar a otra ruta, al configurar el gateway y al restaurar se actualiza automáticamente).
 - Al **Restaurar** una copia con `dnsmasq` y activar el switch, se valida el contenido antes de reemplazar el archivo y se conserva la versión anterior en `/etc/dnsmasq.conf.ayanami.bak`. El switch está apagado por defecto: si no se activa, `/etc/dnsmasq.conf` no se modifica. Las copias creadas antes de esta función no tienen el bloque `dnsmasq`; se restauran igual, omitiendo ese archivo.
 - Si al restaurar aparece un error, el log ahora distingue entre **archivo inexistente**, **JSON inválido/truncado** y **campo faltante**.
 
@@ -753,8 +753,8 @@ sudo systemctl start ayanami-backup.service             # backup ahora mismo
 Al ejecutar el servicio se mostrará en consola algo como:
 
 ```
-[ayanami-backup] backup: /ruta/backups/firewall_config-2026-09.json
-[ayanami-backup] eliminados: firewall_config-2026-06.json
+[ayanami-backup] backup: /ruta/backups/backup-2026-09.json
+[ayanami-backup] eliminados: backup-2026-06.json
 ```
 
 ---
@@ -808,8 +808,8 @@ sudo python3 cli/ayanami.py
 |---|---|
 | `whitelist.json` | Lista blanca: `{"whitelist": ["10.0.0.5", ...], "disabled": ["10.0.0.9"]}` |
 | `apps_firewall.json` | Apps de la TUI: `{"App": {"type": ..., "domains": [...], "blocked": bool}}` |
-| `firewall_config.json` | Configuración unificada (whitelist + apps + gateway + stats). Es la copia canónica. |
-| `backups/firewall_config-AAAA-MM-DD_HHMMSS_ffffff.json` | Backups automáticos (retención: 5 copias). |
+| `backup.json` | Configuración unificada (whitelist + apps + gateway + stats). Es la copia canónica. |
+| `backups/backup-AAAA-MM-DD_HHMMSS_ffffff.json` | Backups automáticos (retención: 5 copias). |
 | `/etc/NetworkManager/dnsmasq-shared.d/ayanami-block.conf` | Dominios bloqueados: `address=/{dominio}/0.0.0.0` |
 | `/etc/NetworkManager/dnsmasq-shared.d/ayanami-device-block.conf` | Bloqueo por dispositivo (solo CLI). |
 | `/etc/sysctl.conf` | Persistencia de `net.ipv4.ip_forward=1`. |
