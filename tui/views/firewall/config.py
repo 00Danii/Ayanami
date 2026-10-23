@@ -89,7 +89,7 @@ class ConfigTab(Vertical):
         try:
             firewall_config.update_gateway(wan_iface, lan_iface, dns_target)
             self.log(
-                "[#9ece6a]  ✓ Gateway guardado en firewall_config.json[/]"
+                "[#9ece6a]  ✓ Gateway guardado en backup.json[/]"
             )
             return True
         except Exception as e:
