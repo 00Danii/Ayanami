@@ -70,13 +70,13 @@ class BackupRow(Horizontal):
         yield Label(_human_size(self.info["size"]), classes="bk-col bk-col-size")
         with Horizontal(classes="bk-row-actions"):
             yield ClickableLabel(
-                "Restaurar",
+                "[Cargar]",
                 id=f"bk-restore-{self.info['bucket']}",
                 classes="bk-row-link",
                 markup=False,
             )
             yield ClickableLabel(
-                "Eliminar",
+                "[Borrar]",
                 id=f"bk-del-{self.info['bucket']}",
                 classes="bk-row-link bk-row-link-delete",
                 markup=False,
