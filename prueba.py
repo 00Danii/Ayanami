@@ -5,8 +5,8 @@ Uso:   venv/bin/python prueba.py
 Arranca la app en modo test, recorre todos los botones de navegación y
 comprueba que cada vista se muestre, que las pestañas del Firewall cambien
 de panel y que la lista de Apps se cargue diferida y paginada. También
-verifica que los backups incluyan y restauren dnsmasq.conf. Dura un par
-de segundos.
+verifica que los backups incluyan y restauren dnsmasq.conf y que el
+switch de restauración empiece apagado. Dura un par de segundos.
 
 Nota: el mensaje "sudo: se requiere una contraseña" que puede aparecer
 viene del arp-scan del Scanner al no correr como root; es inofensivo
@@ -21,12 +21,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "tui"))
 
-from textual.widgets import Button, ContentSwitcher, TextArea
+from textual.widgets import Button, ContentSwitcher, Switch, TextArea
 
 import firewall_config
 from tui import AyanamiApp, NAV_ORDER
 from views.firewall.apps import PAGINADO_FILAS
 from widgets.clickable_label import ClickableLabel
+from widgets.confirm_screen import ConfirmScreen
 from widgets.dnsmasq_text_area import DnsmasqTextArea
 
 FW_TABS = [
@@ -120,12 +121,83 @@ def check_backup_dnsmasq():
     print("OK  backups con dnsmasq.conf y restauración validada")
 
 
+async def check_restore_switch(app, pilot):
+    """Comprueba el switch opcional de dnsmasq en la confirmación."""
+    app.query_one("#nav-backups", Button).press()
+    for _ in range(40):
+        await pilot.pause(0.1)
+        if app.query_one("#main-content", ContentSwitcher).current == "nav-backups":
+            break
+    assert app.query_one("#main-content", ContentSwitcher).current == "nav-backups"
+
+    view = app.query_one("#nav-backups")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        with_dnsmasq = root / "with-dnsmasq.json"
+        without_dnsmasq = root / "without-dnsmasq.json"
+        with_dnsmasq.write_text(json.dumps({
+            "version": 1,
+            "whitelist": [],
+            "apps": {},
+            "gateway": {},
+            "dnsmasq": {"content": "interface=lo\n", "encoding": "utf-8"},
+        }))
+        without_dnsmasq.write_text(json.dumps({
+            "version": 1,
+            "whitelist": [],
+            "apps": {},
+            "gateway": {},
+        }))
+
+        calls = []
+        old_import = view._import_config
+
+        def fake_import(confirmed, path=None, restore_dnsmasq_conf=False):
+            calls.append((confirmed, path, restore_dnsmasq_conf))
+
+        view._import_config = fake_import
+        try:
+            # Con dnsmasq: switch visible, apagado por defecto.
+            view._confirm_import(str(with_dnsmasq))
+            await pilot.pause()
+            assert isinstance(app.screen, ConfirmScreen)
+            switch = app.screen.query_one("#confirm-switch", Switch)
+            assert not switch.value, "el switch de dnsmasq debe empezar apagado"
+            app.screen.query_one("#confirm-yes", Button).press()
+            await pilot.pause()
+            assert calls[-1][0] is True
+            assert calls[-1][2] is False, "por defecto no debe restaurar dnsmasq"
+
+            # Al activarlo, _import_config recibe True.
+            view._confirm_import(str(with_dnsmasq))
+            await pilot.pause()
+            switch = app.screen.query_one("#confirm-switch", Switch)
+            switch.value = True
+            await pilot.pause()
+            app.screen.query_one("#confirm-yes", Button).press()
+            await pilot.pause()
+            assert calls[-1][2] is True, "el switch activo no se respetó"
+
+            # Sin dnsmasq: no debe mostrarse el switch.
+            view._confirm_import(str(without_dnsmasq))
+            await pilot.pause()
+            assert not app.screen.query("#confirm-switch")
+            app.screen.query_one("#confirm-no", Button).press()
+            await pilot.pause()
+        finally:
+            view._import_config = old_import
+
+    print("OK  switch de dnsmasq apagado por defecto y opcional")
+
+
 async def main():
     app = AyanamiApp()
 
     async with app.run_test(size=(130, 45)) as pilot:
         await pilot.pause(0.5)
         print("OK  la app arranca")
+
+        await check_restore_switch(app, pilot)
 
         sidebar = app.query_one("#sidebar-list")
         content = app.query_one("#main-content", ContentSwitcher)
