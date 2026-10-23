@@ -1325,7 +1325,9 @@ AppRow Label {
 
 #confirm-modal {
     width: 61;
+    max-height: 90%;
     height: auto;
+    overflow-y: auto;
     background: #1f2335;
     border: thick #f7768e;
     padding: 2;
