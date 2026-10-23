@@ -381,16 +381,22 @@ class BackupsView(Vertical):
             return
 
         dnsmasq = candidate.get("dnsmasq")
-        if isinstance(dnsmasq, dict) and isinstance(dnsmasq.get("content"), str):
+        has_dnsmasq = (
+            isinstance(dnsmasq, dict)
+            and isinstance(dnsmasq.get("content"), str)
+        )
+        if has_dnsmasq:
             dnsmasq_note = (
-                "También se restaurará /etc/dnsmasq.conf y se reiniciará "
-                "dnsmasq.\n"
+                "La copia incluye /etc/dnsmasq.conf; puedes restaurarlo "
+                "con el interruptor de abajo.\n"
             )
+            switch_label = "Restaurar también /etc/dnsmasq.conf"
         else:
             dnsmasq_note = (
                 "La copia no incluye dnsmasq.conf; se restaurará solo el "
                 "firewall.\n"
             )
+            switch_label = None
 
         self.app.push_screen(
             ConfirmScreen(
@@ -401,9 +407,17 @@ class BackupsView(Vertical):
                 "¿Continuar?",
                 confirm_text="Cargar",
                 confirm_variant="success",
+                switch_label=switch_label,
             ),
-            lambda confirmed: self._import_config(confirmed, path),
+            lambda result: self._on_import_result(result, path),
         )
+
+    def _on_import_result(self, result, path):
+        if isinstance(result, tuple):
+            confirmed, restore_dnsmasq_conf = result
+        else:
+            confirmed, restore_dnsmasq_conf = result, False
+        self._import_config(confirmed, path, restore_dnsmasq_conf)
 
     def _do_export(self, path):
         """Guarda el estado actual y crea el backup de inmediato."""
@@ -483,7 +497,12 @@ class BackupsView(Vertical):
             gateway.get("dns_target") or "",
         )
 
-    def _import_config(self, confirmed: bool | None = None, path: str | None = None):
+    def _import_config(
+        self,
+        confirmed: bool | None = None,
+        path: str | None = None,
+        restore_dnsmasq_conf: bool = False,
+    ):
         if not confirmed:
             return
         source = path or firewall_config.CONFIG_FILE
@@ -511,24 +530,30 @@ class BackupsView(Vertical):
         # ── dnsmasq.conf ─────────────────────────────────
         dnsmasq = config.get("dnsmasq")
         if isinstance(dnsmasq, dict) and isinstance(dnsmasq.get("content"), str):
-            self.log("[#7dcfff]◆ Restaurando /etc/dnsmasq.conf[/]")
-            dns_ok, dns_message = firewall_config.restore_dnsmasq(dnsmasq)
-            if not dns_ok:
+            if restore_dnsmasq_conf:
+                self.log("[#7dcfff]◆ Restaurando /etc/dnsmasq.conf[/]")
+                dns_ok, dns_message = firewall_config.restore_dnsmasq(dnsmasq)
+                if not dns_ok:
+                    self.log(
+                        f"[#f7768e]  ✗ No se restauró dnsmasq.conf: "
+                        f"{dns_message}[/]"
+                    )
+                    self.app.notify(
+                        "No se pudo restaurar dnsmasq.conf",
+                        severity="error",
+                    )
+                    return
+                self.log("[#9ece6a]  ✓ dnsmasq.conf restaurado[/]")
+                if dns_message:
+                    self.log(f"[#e0af68]  ⚠ {dns_message}[/]")
+                    self.app.notify(
+                        "dnsmasq.conf restaurado con avisos; revisa el log",
+                        severity="warning",
+                    )
+            else:
                 self.log(
-                    f"[#f7768e]  ✗ No se restauró dnsmasq.conf: "
-                    f"{dns_message}[/]"
-                )
-                self.app.notify(
-                    "No se pudo restaurar dnsmasq.conf",
-                    severity="error",
-                )
-                return
-            self.log("[#9ece6a]  ✓ dnsmasq.conf restaurado[/]")
-            if dns_message:
-                self.log(f"[#e0af68]  ⚠ {dns_message}[/]")
-                self.app.notify(
-                    "dnsmasq.conf restaurado con avisos; revisa el log",
-                    severity="warning",
+                    "[#565f89]  → dnsmasq.conf incluido; no se restaura "
+                    "(interruptor desactivado)[/]"
                 )
         else:
             reason = ""
