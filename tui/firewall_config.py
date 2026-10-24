@@ -400,18 +400,18 @@ def update_gateway(wan_iface: str, lan_iface: str, dns_target: str) -> str:
     """Persiste la configuración del gateway recién aplicada.
 
     Guarda también applied_at para saber cuándo se configuró por última vez.
-    Si el canónico falta o está incompleto, se reconstruye antes de escribir
-    para no dejar un JSON sin ``version``/``apps``/``whitelist``.
+    Reconstruye el bundle desde los archivos vivos para que apps y lista blanca
+    no queden desactualizados en la copia canónica.
     """
-    config = load_config()
-    ok, _ = validate_config(config)
-    if not ok:
-        config = build_bundle()
-
+    config = build_bundle(
+        wan_iface=wan_iface or "",
+        lan_iface=lan_iface or "",
+        dns_target=dns_target or "",
+    )
     config["gateway"] = {
-        "wan_iface": wan_iface or "",
-        "lan_iface": lan_iface or "",
-        "dns_target": dns_target or "",
+        "wan_iface": wan_iface or config.get("gateway", {}).get("wan_iface", ""),
+        "lan_iface": lan_iface or config.get("gateway", {}).get("lan_iface", ""),
+        "dns_target": dns_target or config.get("gateway", {}).get("dns_target", ""),
         "applied_at": _now_iso(),
     }
     config["dnsmasq"] = read_dnsmasq_config()
@@ -459,14 +459,13 @@ def save_backup(stamp: str | None = None) -> str | None:
     contenido actual. La escritura es atómica: nunca deja una copia a medio
     escribir si falla el disco o los permisos.
     """
-    config = load_config(CONFIG_FILE)
-    ok, _ = validate_config(config)
-    if not ok:
-        config = build_bundle()
-        if not os.path.exists(CONFIG_FILE):
-            save_config(config)
-    else:
-        config["dnsmasq"] = read_dnsmasq_config()
+    saved_gateway = get_saved_gateway()
+    config = build_bundle(
+        wan_iface=saved_gateway.get("wan_iface", ""),
+        lan_iface=saved_gateway.get("lan_iface", ""),
+        dns_target=saved_gateway.get("dns_target", ""),
+        applied_at=saved_gateway.get("applied_at", ""),
+    )
 
     target = _backup_path(stamp)
     try:

@@ -13,6 +13,7 @@ from firewall_ops import (
     write_block_domains,
     remove_block_domains,
     apply_changes,
+    sync_canonical,
 )
 
 
@@ -191,6 +192,7 @@ class AppsTab(Vertical):
     def save_apps(self, data: dict):
         with open(APPS_FILE, "w") as f:
             json.dump(data, f, indent=2)
+        sync_canonical()
 
     def _filtered_names(self):
         data = self.load_apps()

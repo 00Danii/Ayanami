@@ -102,6 +102,7 @@ def save_whitelist(entries: list[str], disabled: list[str] | None = None):
     disabled = [e for e in disabled if e in entries]
     with open(WHITELIST_FILE, "w") as f:
         json.dump({"whitelist": entries, "disabled": disabled}, f, indent=2)
+    sync_canonical()
 
 
 def set_entry_enabled(entry: str, enabled: bool):
@@ -267,3 +268,14 @@ def reset_apps_state():
             changed = True
     if changed:
         apps_file.write_text(json.dumps(data, indent=2) + "\n")
+        sync_canonical()
+
+
+def sync_canonical() -> str | None:
+    """Refresca ``backup.json`` con el estado vivo actual."""
+    try:
+        import firewall_config
+
+        return firewall_config.save_config(firewall_config.build_bundle())
+    except Exception:
+        return None
