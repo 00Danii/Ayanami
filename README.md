@@ -63,16 +63,16 @@ Toda la configuración del firewall se resume en un solo archivo, `backup.json` 
     "available": true,
     "encoding": "utf-8",
     "size": 482,
-    "content": "interface=wlan0\ndhcp-range=10.42.0.10,10.42.0.200,12h\n"
+    "content": "interface=eno2\ndhcp-range=10.0.0.50,10.0.0.200,2h\n"
   },
   "stats": {
-    "whitelist_count": 3,
+    "whitelist_count": 1,
     "apps_count": 22,
     "blocked_count": 5,
     "domains_count": 120
   },
   "whitelist_disabled": [],
-  "whitelist": ["10.0.0.5", "192.168.1.0/24"],
+  "whitelist": ["10.0.0.5"],
   "apps": { "...": { "domains": [], "blocked": false, "type": "Videojuegos" } }
 }
 ```
