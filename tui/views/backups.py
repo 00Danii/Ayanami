@@ -426,7 +426,7 @@ class BackupsView(Vertical):
 
         self.app.push_screen(
             ConfirmScreen(
-                f"Se cargará:\n\n{path}\n\n{note}\n\n¿Continuar?",
+                f"Se cargará:\n\n{os.path.basename(str(path))}\n\n{note}\n\n¿Continuar?",
                 confirm_text="Cargar",
                 confirm_variant="success",
                 switches=switches or None,
