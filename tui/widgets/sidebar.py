@@ -25,7 +25,7 @@ class Sidebar(Vertical):
             #yield Label("network toolkit", id="app-subtitle")
 
         yield Label(
-            "Interfaz Global:",
+            "Interfaz LAN:",
             classes="sidebar-label"
         )
 
@@ -54,7 +54,8 @@ class Sidebar(Vertical):
             ]
             iface_select.set_options(options)
             if not getattr(self.app, 'selected_interface', None):
-                first_iface = ifaces[0]['iface']
+                iface_names = [d['iface'] for d in ifaces]
+                first_iface = "eno2" if "eno2" in iface_names else ifaces[0]['iface']
                 self.app.selected_interface = first_iface
                 iface_select.value = first_iface
 
