@@ -165,11 +165,20 @@ class HotspotView(Vertical):
         log.clear()
 
         try:
-            result = subprocess.check_output(
+            proc = subprocess.run(
                 "nmcli dev wifi show-password",
                 shell=True,
-                text=True
+                capture_output=True,
+                text=True,
             )
+            result = proc.stdout or ""
+            if proc.returncode != 0:
+                message = (proc.stderr or proc.stdout or "").strip()
+                self.app.notify(
+                    message or "No se encontraron redes activas",
+                    severity="warning",
+                )
+                return
 
             networks = []
             current = {}
@@ -226,10 +235,10 @@ class HotspotView(Vertical):
             # ==========================================
 
             if not networks:
-                self.write_log(
-                    "[red]No se encontraron redes activas[/]"
+                self.app.notify(
+                    "No se encontraron redes activas",
+                    severity="warning",
                 )
-
                 return
 
             # ==========================================
@@ -300,7 +309,8 @@ class HotspotView(Vertical):
                 )
 
         except Exception as e:
-
-            self.write_log(
-                f"[red]{e}[/]"
+            message = str(e).strip()
+            self.app.notify(
+                message or "No se pudo mostrar la contraseña",
+                severity="error",
             )
