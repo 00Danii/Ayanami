@@ -8,6 +8,7 @@ import subprocess
 from textual.containers import Vertical, Horizontal, ScrollableContainer
 from textual.widgets import Label, Button, RichLog
 
+import network
 import firewall_config
 from firewall_ops import (
     get_dns_block_file,
@@ -704,19 +705,86 @@ class BackupsView(Vertical):
         if restore_gateway:
             gw = config.get("gateway", {})
             if isinstance(gw, dict):
-                wan = gw.get("wan_iface", "")
-                lan = gw.get("lan_iface", "")
-                stored_target = gw.get("dns_target", "")
-                try:
-                    firewall_config.update_gateway(
-                        wan_iface=wan or "",
-                        lan_iface=lan or "",
-                        dns_target=stored_target or "",
-                    )
-                    self.log("[#9ece6a]  ✓ Configuración gateway/NAT guardada[/]")
-                    self.log("[#e0af68]  ⚠ Para aplicar las reglas iptables usa 'Configurar Gateway' en la vista Firewall[/]")
-                except Exception as exc:
-                    self.log(f"[#f7768e]  ✗ Error guardando gateway: {exc}[/]")
+                wan = gw.get("wan_iface", "") or ""
+                lan = gw.get("lan_iface", "") or ""
+                stored_target = gw.get("dns_target", "") or ""
+                if not wan:
+                    self.log("[#f7768e]  ✗ No hay interfaz WAN en la copia; no se aplica el gateway[/]")
+                else:
+                    try:
+                        self.query_one("#bk-log", RichLog).clear()
+                        self.log("\n[#e0af68]━━━ Restaurar gateway/NAT ━━━[/]")
+                        # Usar las interfaces guardadas en la copia (igual que Configurar Gateway)
+                        if not stored_target and lan:
+                            stored_target = network.get_iface_ip(lan) or ""
+                        cfg_tab = self.app.query_one("#fw-panel-config")
+                        if cfg_tab is None:
+                            raise RuntimeError("Vista de configuración del firewall no disponible")
+                        # Aplicar igual que en Configurar Gateway
+                        self.log(f"[#565f89]   Interfaz WAN : {wan}[/]")
+                        self.log(f"[#565f89]   Interfaz LAN : {lan or '—'}[/]")
+                        self.log("[#7dcfff]◆ Habilitando reenvío de paquetes IPv4[/]")
+                        cfg_tab.run("sysctl -w net.ipv4.ip_forward=1")
+                        try:
+                            with open("/etc/sysctl.conf", "r") as f:
+                                content = f.read()
+                            if "net.ipv4.ip_forward=1" not in content:
+                                with open("/etc/sysctl.conf", "a") as f:
+                                    f.write("\nnet.ipv4.ip_forward=1\n")
+                                self.log("[#9ece6a]  ✓ IP Forward habilitado de forma persistente en /etc/sysctl.conf[/]")
+                            else:
+                                self.log("[#9ece6a]  ✓ IP Forward ya estaba configurado[/]")
+                        except Exception as e:
+                            self.log(f"[#f7768e]  ✗ Error al configurar /etc/sysctl.conf: {e}[/]")
+                        self.log("[#7dcfff]◆ Configurando NAT (MASQUERADE y FORWARD)[/]")
+                        self.log(f"[#565f89]  → El tráfico de los clientes saldrá por {wan}[/]")
+                        cfg_tab.run(
+                            f"iptables -t nat -C POSTROUTING -o {wan} -j MASQUERADE 2>/dev/null || "
+                            f"iptables -t nat -A POSTROUTING -o {wan} -j MASQUERADE"
+                        )
+                        if lan:
+                            cfg_tab.run(
+                                f"iptables -C FORWARD -i {lan} -o {wan} -j ACCEPT 2>/dev/null || "
+                                f"iptables -A FORWARD -i {lan} -o {wan} -j ACCEPT"
+                            )
+                            cfg_tab.run(
+                                f"iptables -C FORWARD -i {wan} -o {lan} -m state --state ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || "
+                                f"iptables -A FORWARD -i {wan} -o {lan} -m state --state ESTABLISHED,RELATED -j ACCEPT"
+                            )
+                        self.log("[#9ece6a]  ✓ Reglas de NAT y Reenvío (FORWARD) configuradas[/]")
+                        self.log("[#7dcfff]◆ Configurando redirección DNS e interceptación[/]")
+                        if not stored_target:
+                            self.log(f"[#f7768e]  ✗ No se pudo obtener la IP de la interfaz LAN {lan or '—'}[/]")
+                            self.log("[#e0af68]  ⚠ WAN/NAT/FORWARD aplicados; guardando lo que quedó[/]")
+                            firewall_config.update_gateway(wan, lan, "")
+                            self.log("[#9ece6a]  ✓ Configuración gateway/NAT guardada[/]")
+                        else:
+                            self.log(f"[#565f89]  → Interfaz DNS: {lan}[/]")
+                            self.log(f"[#565f89]  → Dirección local: {stored_target}[/]")
+                            self.log("[#565f89]  → Las consultas DNS de los clientes serán redirigidas a AYANAMI[/]")
+                            for proto in ("udp", "tcp"):
+                                cfg_tab.run(
+                                    f"iptables -t nat -C PREROUTING -i {lan} -p {proto} --dport 53 "
+                                    f"-j DNAT --to-destination {stored_target} 2>/dev/null || "
+                                    f"iptables -t nat -A PREROUTING -i {lan} -p {proto} --dport 53 "
+                                    f"-j DNAT --to-destination {stored_target}"
+                                )
+                                self.log(f"[#9ece6a]  ✓ DNS {proto.upper()} (puerto 53) redirigido en {lan}[/]")
+                            for proto in ("udp", "tcp"):
+                                cfg_tab.run(
+                                    f"iptables -C FORWARD -i {lan} -p {proto} --dport 853 -j DROP 2>/dev/null || "
+                                    f"iptables -I FORWARD 1 -i {lan} -p {proto} --dport 853 -j DROP"
+                                )
+                            self.log("[#9ece6a]  ✓ Bloqueo anti-evasión (DoT puerto 853) activo[/]")
+                            self.log("[#9ece6a]━━━ Gateway configurado correctamente ━━━[/]")
+                            self.log(f"[#565f89]   WAN → {wan}[/]")
+                            self.log(f"[#565f89]   LAN → {lan} ({stored_target})[/]")
+                            self.log("[#565f89]   NAT → Activo[/]")
+                            self.log("[#565f89]   DNS → Redirección e interceptación local activa[/]")
+                            firewall_config.update_gateway(wan, lan, stored_target)
+                            self.log("[#9ece6a]  ✓ Configuración gateway/NAT guardada[/]")
+                    except Exception as exc:
+                        self.log(f"[#f7768e]  ✗ Error aplicando gateway: {exc}[/]")
             else:
                 self.log("[#565f89]  → Gateway inválido; se omite[/]")
         else:
