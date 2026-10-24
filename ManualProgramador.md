@@ -262,7 +262,7 @@ Consecuencia práctica: **los archivos nuevos de `tui/` se importan plano, sin p
 
 1. `tui/tui.py` ejecuta `AyanamiApp().run()`.
 2. Textual instancia la app y llama `compose()`, que declara: `Header` (arriba), `Horizontal(Sidebar, ContentSwitcher)` (el cuerpo) y `Footer` (abajo, muestra las teclas).
-3. El `ContentSwitcher` con `initial="nav-interfaces"` muestra la primera vista. **Al arrancar solo se monta `InterfacesView`**; el resto no se importa ni se construye todavía.
+3. El `ContentSwitcher` con `initial="nav-sistema"` muestra la primera vista. **Al arrancar solo se monta `SistemaView`**; el resto no se importa ni se construye todavía.
 4. `on_mount()` de la app activa la navegación a Interfaces y programa el auto-refresco de Sistema (1 segundo).
 5. Al pulsar otra vista, `AyanamiApp._show_view()` importa su módulo con `importlib`, la monta con `ContentSwitcher.add_content(..., set_current=True)` y la deja visible. Las siguientes visitas solo cambian `ContentSwitcher.current`.
 6. Al montarse por primera vez, el `on_mount()` de la vista carga sus datos iniciales. **La lista de Apps y los datos de Sistema siguen cargándose al abrir esas vistas** (`ensure_loaded()` / `refresh_data()`), porque pintarlos al arrancar hacía que la app tardara 27 s (ver 5.8).

@@ -117,8 +117,8 @@ sudo python3 cli/ayanami.py
 
 La barra lateral contiene:
 
-- **Interfaz Global**: un selector (`Select`) con todas las interfaces de red. La interfaz elegida aquí es la "global" que usan otros módulos (scanner, monitor, sniffer y el gateway como **LAN**). Si se cambia la interfaz aquí, todos los módulos la usan.
-- **Navegación** con 9 botones: Interfaces, Hotspot, Scanner, Monitor, Sniffer, Firewall, DHCP, Respaldos y Sistema.
+- **Interfaz Global (LAN)**: un selector (`Select`) con todas las interfaces de red. La interfaz elegida aquí es la "global" que usan otros módulos (scanner, monitor, sniffer y el gateway como **LAN**). Por defecto se elige `eno2` si está disponible. Si se cambia la interfaz aquí, todos los módulos la usan.
+- **Navegación** con 9 botones: Sistema, Firewall, Respaldos, DHCP, Scanner, Monitor, Sniffer, Interfaces y Hotspot.
 
 ### Atajos de teclado
 
@@ -595,7 +595,7 @@ El input muestra el placeholder con los cuatro formatos; se agrega con el botón
 
 Convierte al equipo en **router/gateway** de la red:
 
-1. En el selector elige la **interfaz con internet** (WAN).
+1. En el selector elige la **interfaz con internet** (WAN). Por defecto se usa `eno1` si está disponible.
 2. Pulsa **Configurar Gateway**. La **LAN** se toma de la interfaz global (barra lateral).
 3. Ayanami hace:
    - Habilita `net.ipv4.ip_forward=1` (y lo persiste en `/etc/sysctl.conf`).
