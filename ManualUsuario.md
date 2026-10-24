@@ -440,7 +440,7 @@ En la parte inferior, la lista de **backups automáticos** y el **log de salida*
 | **Guardar Copia** | Abre el selector de rutas y exporta lista blanca, apps, el gateway **aplicado y guardado** y el contenido actual de `/etc/dnsmasq.conf`. También actualiza la copia canónica y crea un backup automático. |
 | **Cargar Copia** | Selecciona un archivo, lo valida y muestra una confirmación con switches para elegir qué restaurar: lista blanca, aplicaciones/bloqueos, configuración guardada del gateway/NAT y, si está incluido, `/etc/dnsmasq.conf`. Todos empiezan apagados; activa los que quieras restaurar. Solo se aplican los componentes marcados. |
 
-> El gateway de una copia se toma de `backup.json` (el último que se aplicó con **Configurar Gateway**), **no** de la interfaz seleccionada en la barra lateral. Puedes cerrar la UI: el timer seguirá respaldando el gateway real.
+> El gateway de una copia se toma de `backup.json`. Al restaurarlo con el switch activado, se aplican las reglas usando las interfaces guardadas en la copia.
 
 > El bloque `dnsmasq` guarda el texto del archivo con su codificación (`utf-8` o `latin-1`) para reconstruirlo sin corromperlo. El campo `path` es informativo: al restaurar, si se activa el switch, siempre se escribe en `/etc/dnsmasq.conf`. Las copias que no tengan ese bloque se pueden cargar igual; el switch de `dnsmasq` simplemente no aparece. Los switches de lista blanca, apps y gateway solo aparecen si la copia contiene esos datos.
 
@@ -658,6 +658,7 @@ Las copias de seguridad se gestionan ahora en la vista **Respaldos** de la barra
 ## 7. Guardar y Cargar configuración
 
 La vista **Respaldos** (barra lateral) contiene las acciones **Guardar Copia** y **Cargar Copia**. Toda la configuración del firewall se guarda en **un único archivo**: `backup.json` (en la raíz del proyecto). Contiene:
+- `backup.json` se actualiza automáticamente al modificar la lista blanca, las apps o el gateway, por lo que el timer siempre respalda el estado actual.
 
 ```json
 {
@@ -680,7 +681,7 @@ La vista **Respaldos** (barra lateral) contiene las acciones **Guardar Copia** y
 }
 ```
 
-> El campo de **gateway** (`wan_iface`, `lan_iface`, `dns_target`) es **información de referencia**. Al restaurar solo se vuelve a guardar en `backup.json`; no se reaplican reglas `iptables` automáticamente. Para aplicar el NAT usa **Configurar Gateway** en la vista Firewall.
+> El campo de **gateway** (`wan_iface`, `lan_iface`, `dns_target`) se guarda en la copia. Al restaurarlo con el switch activado, se aplican las reglas con esas interfaces (igual que **Configurar Gateway**).
 
 ### Guardar Copia
 
@@ -701,7 +702,7 @@ La vista **Respaldos** (barra lateral) contiene las acciones **Guardar Copia** y
 4. Tras confirmar, se aplican **solo los componentes marcados** (todos los switches aparecen apagados por defecto):
    - **Lista blanca**: escribe `whitelist.json`, regenera reglas `iptables` y refresca la pestaña.
    - **Aplicaciones y bloqueos**: escribe `apps_firewall.json` y regenera el bloqueo de dominios en dnsmasq.
-   - **Gateway/NAT**: guarda `wan_iface`, `lan_iface` y `dns_target` en `backup.json`. **No** reaplica iptables; para eso usa **Configurar Gateway**.
+   - **Gateway/NAT**: guarda `wan_iface`, `lan_iface` y `dns_target` en `backup.json`. Si se restaura con el switch activado, se aplican las reglas iptables usando esas interfaces.
    - **dnsmasq.conf**: solo aparece si la copia lo incluye y está apagado por defecto. Si se activa, restaura `/etc/dnsmasq.conf` de forma atómica: escribe un temporal, lo valida con `dnsmasq --test`, guarda el actual en `/etc/dnsmasq.conf.ayanami.bak`, reemplaza el archivo y reinicia `dnsmasq`. Si la validación falla, el archivo actual no se modifica.
    - Actualiza la copia canónica `backup.json` con el estado resultante.
    - Reinicia NetworkManager solo si se restauraron lista blanca o apps, y refresca las listas en pantalla.

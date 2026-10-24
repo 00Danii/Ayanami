@@ -78,8 +78,9 @@ Toda la configuración del firewall se resume en un solo archivo, `backup.json` 
 ```
 
 - **Guardar Copia** (vista Respaldos) — abre un **selector de rutas** (o escribe la ruta a mano) para exportar lista blanca, apps, datos de referencia del gateway y el contenido actual de `/etc/dnsmasq.conf`. También crea un backup inmediato.
-- **Cargar Copia** — selecciona el archivo y muestra switches para elegir qué restaurar: lista blanca, apps/bloqueos, gateway guardado y, si está incluido, `dnsmasq.conf`. Todos empiezan apagados; activa los que quieras aplicar. Solo se aplican los componentes marcados y al final se actualiza la copia canónica `backup.json`. El gateway solo se persiste, no se reaplican reglas NAT automáticamente: para eso usa **Configurar Gateway**. Las copias antiguas sin el bloque `dnsmasq` siguen funcionando.
-- El gateway se guarda automáticamente cada vez que se configura con "Configurar Gateway". Al restaurar, `dns_target` se conserva tal cual en `backup.json`; las reglas NAT no se reaplican hasta que uses **Configurar Gateway**.
+- **Cargar Copia** — selecciona el archivo y muestra switches para elegir qué restaurar: lista blanca, apps/bloqueos, gateway guardado y, si está incluido, `dnsmasq.conf`. Todos empiezan apagados; activa los que quieras aplicar. Solo se aplican los componentes marcados y al final se actualiza la copia canónica `backup.json`. Si restauras el gateway, se aplican las mismas reglas que con **Configurar Gateway** usando las interfaces guardadas en la copia. Las copias antiguas sin el bloque `dnsmasq` siguen funcionando.
+- `backup.json` se actualiza automáticamente al modificar la lista blanca, las apps o el gateway, por lo que el timer siempre respalda el estado actual.
+- El gateway se guarda automáticamente cada vez que se configura con "Configurar Gateway". Al restaurar con el switch activado, se aplica el gateway desde la copia y se guarda de nuevo en `backup.json`.
 - En el bloque `dnsmasq`, `content` es el texto del archivo y `encoding` indica cómo decodificarlo (`utf-8` o `latin-1`, para no corromper bytes no UTF-8). El campo `path` es informativo: si activas el switch, la restauración siempre escribe en `/etc/dnsmasq.conf`.
 
 #### Backups automáticos (systemd timer)

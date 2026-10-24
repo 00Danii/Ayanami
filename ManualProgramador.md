@@ -824,7 +824,7 @@ sequenceDiagram
    1. `dnsmasq`: solo si el switch está activo y la copia incluye `content`, `firewall_config.restore_dnsmasq()` escribe un temporal, ejecuta `dnsmasq --test`, copia el archivo actual a `/etc/dnsmasq.conf.ayanami.bak`, hace `os.replace()` y reinicia `dnsmasq`. Si el test falla, aborta sin tocar el resto;
    2. `whitelist`: `save_whitelist(whitelist, whitelist_disabled)` escribe `whitelist.json` conservando los switches por entrada y ejecuta `apply_whitelist()` para regenerar iptables;
    3. `apps`: escribe `apps_firewall.json` completo, recomputa los dominios bloqueados y regenera `ayanami-block.conf` (borra + `write_block_domains`);
-   4. `gateway`: solo persiste `wan_iface`, `lan_iface` y `dns_target` con `update_gateway()`. **No** reaplica `ip_forward`, MASQUERADE ni DNAT; el usuario debe usar **Configurar Gateway**;
+   4. `gateway`: al restaurarlo con el switch activado, se aplican `ip_forward`, MASQUERADE, FORWARD, DNAT 53 y bloqueo DoT con las interfaces guardadas en la copia (igual que **Configurar Gateway**), y se persiste en `backup.json`.
    5. reconstruye y guarda la copia canónica `backup.json` desde los archivos vivos, para que el próximo backup automático no conserve datos anteriores a la restauración;
    6. `systemctl restart NetworkManager` solo si se restauraron lista blanca o apps;
    7. refresca las listas de las pestañas Apps y Lista Blanca y notifica.
