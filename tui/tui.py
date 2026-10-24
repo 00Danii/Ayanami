@@ -109,6 +109,7 @@ class AyanamiApp(App):
             self.query_one(Sidebar).refresh_interfaces()
         elif current_view == "nav-scanner":
             self.query_one("#nav-scanner").refresh_data()
+            self.notify("Escaneo completado")
         elif current_view == "nav-sniffer":
             self.query_one("#nav-sniffer").refresh_devices()
         elif current_view == "nav-hotspot":

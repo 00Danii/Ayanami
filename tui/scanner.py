@@ -11,7 +11,8 @@ def get_neighbors_simple():
     result = subprocess.check_output(
         "ip neigh",
         shell=True,
-        text=True
+        text=True,
+        stderr=subprocess.DEVNULL,
     )
 
     devices = []
@@ -49,7 +50,8 @@ def enrich_devices(devices, iface):
         result = subprocess.check_output(
             f"sudo arp-scan --interface={iface} --localnet",
             shell=True,
-            text=True
+            text=True,
+            stderr=subprocess.DEVNULL,
         )
 
     except:
