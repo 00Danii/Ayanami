@@ -1,5 +1,7 @@
 from textual.containers import Horizontal
-from textual.widgets import Label, Button
+from textual.widgets import Label
+
+from widgets.clickable_label import ClickableLabel
 
 
 class InterfaceRow(Horizontal):
@@ -23,5 +25,15 @@ class InterfaceRow(Horizontal):
         yield Label(f"{dot}  {state}", classes=f"iface-state {state_color}")
 
         with Horizontal(classes="iface-actions"):
-            yield Button("Global", variant="success", id=f"global-{self.iface}", classes="iface-btn")
-            yield Button("X", variant="error", id=f"disconnect-{self.iface}", classes="iface-btn")
+            yield ClickableLabel(
+                "[Establecer como interfaz LAN]",
+                id=f"global-{self.iface}",
+                classes="iface-btn iface-global",
+                markup=False,
+            )
+            yield ClickableLabel(
+                "[Desconectar]",
+                id=f"disconnect-{self.iface}",
+                classes="iface-btn iface-disconnect",
+                markup=False,
+            )

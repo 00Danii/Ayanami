@@ -1,6 +1,8 @@
 from textual.containers import Vertical, Horizontal
 from textual.widgets import Label, Button, Select
 
+from widgets.clickable_label import ClickableLabel
+
 from widgets.sidebar import Sidebar
 from widgets.interface_row import InterfaceRow
 
@@ -17,7 +19,7 @@ class InterfacesView(Vertical):
                 classes="title"
             ),
             Button(
-                "Refresh",
+                "Recargar",
                 variant="primary",
                 id="refresh"
             ),
@@ -55,14 +57,14 @@ class InterfacesView(Vertical):
         button_id = event.button.id
         if button_id == "refresh":
             self.refresh_data()
-            return
 
-        if button_id.startswith("global-"):
-            iface = button_id.replace("global-", "")
+    def on_clickable_label_pressed(self, event: ClickableLabel.Pressed):
+        bid = event.label.id or ""
+        if bid.startswith("global-"):
+            iface = bid.replace("global-", "")
             self.set_global_interface(iface)
-
-        elif button_id.startswith("disconnect-"):
-            iface = button_id.replace("disconnect-", "")
+        elif bid.startswith("disconnect-"):
+            iface = bid.replace("disconnect-", "")
             self.disconnect_interface(iface)
 
     def set_global_interface(self, iface: str):
