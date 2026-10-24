@@ -9,13 +9,15 @@ from textual.css.query import NoMatches
 from widgets.sidebar import Sidebar
 
 from views.interfaces import InterfacesView
+from views.sistema import SistemaView
 
 
-NAV_ORDER = ["nav-interfaces", "nav-hotspot", "nav-scanner", "nav-monitor", "nav-sniffer", "nav-firewall", "nav-dhcp", "nav-backups", "nav-sistema"]
+NAV_ORDER = ["nav-sistema", "nav-firewall", "nav-backups", "nav-dhcp", "nav-scanner", "nav-monitor", "nav-sniffer", "nav-interfaces", "nav-hotspot"]
 
 # Las vistas se importan al abrirlas por primera vez. Monitor y Sniffer
 # importan scapy, que tarda ~1 s y no hace falta para el arranque.
 VIEW_IMPORTS = {
+    "nav-interfaces": ("views.interfaces", "InterfacesView"),
     "nav-hotspot": ("views.hotspot", "HotspotView"),
     "nav-scanner": ("views.scanner", "ScannerView"),
     "nav-monitor": ("views.monitor", "MonitorView"),
@@ -46,14 +48,14 @@ class AyanamiApp(App):
         yield Header()
         with Horizontal():
             yield Sidebar()
-            with ContentSwitcher(initial="nav-interfaces", id="main-content"):
+            with ContentSwitcher(initial="nav-sistema", id="main-content"):
                 # Solo la vista inicial se monta al arrancar. El resto se
                 # crea bajo demanda en _show_view().
-                yield InterfacesView(id="nav-interfaces")
+                yield SistemaView(id="nav-sistema")
         yield Footer()
 
     def on_mount(self):
-        self._activate_nav("nav-interfaces")
+        self._activate_nav("nav-sistema")
         self.set_interval(1.0, self._auto_refresh_sistema)
 
     def _auto_refresh_sistema(self):

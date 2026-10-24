@@ -5,15 +5,15 @@ import network
 
 
 NAV_ITEMS = [
-    ("nav-interfaces", ">  Interfaces"),
-    ("nav-hotspot",    ">  Hotspot   "),
+    ("nav-sistema",    ">  Sistema   "),
+    ("nav-firewall",   ">  Firewall  "),
+    ("nav-backups",    ">  Respaldos "),
+    ("nav-dhcp",       ">  DHCP      "),
     ("nav-scanner",    ">  Scanner   "),
     ("nav-monitor",    ">  Monitor   "),
     ("nav-sniffer",    ">  Sniffer   "),
-    ("nav-firewall",   ">  Firewall  "),
-    ("nav-dhcp",       ">  DHCP      "),
-    ("nav-backups",    ">  Respaldos "),
-    ("nav-sistema",    ">  Sistema   "),
+    ("nav-interfaces", ">  Interfaces"),
+    ("nav-hotspot",    ">  Hotspot   "),
 ]
 
 
