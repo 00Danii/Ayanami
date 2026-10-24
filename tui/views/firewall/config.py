@@ -28,7 +28,7 @@ class ConfigTab(Vertical):
             with Horizontal(classes="fw-gw-row"):
                 yield Select(
                     [],
-                    prompt="Selecciona interfaz con internet",
+                    prompt="Selecciona interfaz con internet (WAN)",
                     id="cfg-nat-iface"
                 )
                 yield Button("Configurar Gateway", id="cfg-setup-nat", variant="success")
@@ -45,6 +45,9 @@ class ConfigTab(Vertical):
             for d in ifaces
         ]
         select.set_options(options)
+        ifaces_list = [d['iface'] for d in ifaces]
+        if "eno1" in ifaces_list:
+            select.value = "eno1"
 
     def _get_selected_interface(self):
         iface = getattr(self.app, "selected_interface", None)
