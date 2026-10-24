@@ -42,7 +42,7 @@ Ayanami es una herramienta de **control de red y firewall** para Linux con dos i
 ### Diagrama arquitectónico
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph TUI["TUI · Textual"]
         VIEWS["CAPA UI<br/>tui/views/<br/><br/>Interfaces<br/>Scanner<br/>Firewall<br/>Monitor<br/>Sniffer<br/>Hotspot"]
 
