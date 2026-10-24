@@ -994,7 +994,7 @@ sequenceDiagram
 ```json
 {
   "TikTok": {
-    "type": "Social",          // Videojuegos | Plataforma | Social | DNS | Otro
+    "type": "Social",          // Videojuegos | Plataforma | Social | Otro
     "domains": ["tiktok.com", "tiktokcdn.com"],
     "blocked": true
   }
