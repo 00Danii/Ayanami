@@ -3,7 +3,7 @@ from textual.containers import Vertical, Horizontal
 from textual.widgets import Label, Input, TextArea, Switch, Button, Select
 
 
-DOMAIN_RE = r"^([a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$"
+DOMAIN_RE = r"^(\*\.)?([a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$"
 
 APP_TYPES = [
     "Videojuegos",
