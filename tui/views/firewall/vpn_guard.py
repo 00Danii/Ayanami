@@ -19,7 +19,7 @@ from textual.widgets import (
 from widgets.clickable_label import ClickableLabel
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-VPN_GUARD_SCRIPT = REPO_ROOT / "cli" / "vpn_guard.py"
+VPN_GUARD_SCRIPT = REPO_ROOT / "tui" / "vpn_guard.py"
 
 MAC_RE = re.compile(r"([0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5})")
 
