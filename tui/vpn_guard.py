@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """
-ayanami_vpn_guard.py — prototipo independiente para AYANAMI.
-
 Captura con ndpiReader -R y, cuando nDPI emite una detección configurada,
-bloquea el dispositivo por MAC (las IPs se reciclan por DHCP cada ~2h,
-por eso no se bloquea por IP).
+bloquea el dispositivo por MAC.
 
 IMPORTANTE:
 - Por defecto funciona en simulación. Para aplicar reglas se requiere --apply.
@@ -274,7 +271,7 @@ def main():
     parser.add_argument("--lan-iface", required=True,
                         help="Interfaz LAN por la que entran los paquetes del cliente.")
     parser.add_argument("--subnet", default=None,
-                        help="Subred LAN a vigilar, ej. 10.42.0.0/24. Si se omite, se auto-detecta de --lan-iface.")
+                        help="Subred LAN a vigilar, ej. 10.0.0.1/21. Si se omite, se auto-detecta de --lan-iface.")
     parser.add_argument("--ndpi-reader", default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ndpiReader"),
                         help="Ruta al ejecutable ndpiReader compilado (por defecto en la raíz del proyecto).")
     parser.add_argument("--vpn-name", action="append", default=[],
