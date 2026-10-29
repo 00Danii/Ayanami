@@ -206,6 +206,9 @@ Consecuencia práctica: **los archivos nuevos de `tui/` se importan plano, sin p
 ├── systemd/
 │   └── install_backup_timer.sh   # instala/edita/desinstala el timer (OnCalendar/Persistent)
 │
+├── ndpiReader            # binario nDPI (open source de ntop, https://github.com/ntop/nDPI) usado por VPN Guard
+├── vpn_guard.py          # script externo lanzado por VpnGuardTab (detección VPN + bloqueo por MAC)
+│
 ├── venv/                    # entorno virtual (no se commitea)
 │
 ├── cli/                     # front-end CLI legacy
@@ -249,6 +252,7 @@ Consecuencia práctica: **los archivos nuevos de `tui/` se importan plano, sin p
             ├── apps.py      # AppsTab: CRUD de apps + bloqueo por dominio
             ├── whitelist.py # WhitelistTab: lista blanca + IPRow
             ├── config.py    # ConfigTab: gateway, estado y limpiar
+            └── vpn_guard.py # VpnGuardTab: detección VPN con ndpiReader y bloqueo por MAC
             └── app_modal.py # AppModal: formulario Registrar/Modificar app + APP_TYPES
 ```
 
@@ -1084,6 +1088,15 @@ El bloqueo *funciona* porque todos los clientes que consultan DNS **plano (puert
 - **DoH (443)** no se puede bloquear por puerto: comparte puerto con el HTTPS. Bloquearlo de verdad exige inspección TLS/SNI (fuera de alcance).
 - **VPN** encapsula el DNS dentro del túnel: ni el DNAT ni el `DROP` 853 lo alcanzan. Única vía: filtrar por IP del servidor VPN.
 - El DNAT al puerto 53 solo captura consultas **en tránsito por el gateway**: si el dispositivo resuelve a través de otra ruta (router con NAT propio que resuelve por su cuenta), Ayanami no ve la consulta.
+
+### 7.5.2 VPN Guard (`views/firewall/vpn_guard.py` + `vpn_supervisor.py` + `cli/vpn_guard.py`)
+
+Detecta VPNs con `ndpiReader` y bloquea el dispositivo por **MAC** en `FORWARD`. Componentes:
+
+- `VpnGuardTab` — pestaña del Firewall que lanza `vpn_guard.py` como proceso externo (`subprocess.Popen`) y lee su salida línea a línea en un worker. Hardcodea: 5 s, dispositivo completo, `--apply`.
+- `vpn_guard.py` (raíz del proyecto) — ejecuta `ndpiReader -R`, parsea líneas `Detected Realtime protocol: ... app=...`, resuelve la MAC del cliente vía ARP y bloquea con iptables. Usa `VPNBlockSupervisor` cuando hay bloqueo temporal.
+- `VPNBlockSupervisor` — un único hilo que lee `iptables-save -c -t filter` cada segundo. Mantiene estados `BLOCKED`/`WATCHING`: al dejar de ver tráfico VPN desbloquea temporalmente, pero conserva watchers; si reaparece tráfico, reactiva el bloqueo. Evita temporizadores individuales.
+- Bloqueo por MAC (no por IP): las IPs se reciclan por DHCP, pero la MAC persiste mientras el dispositivo siga en la misma L2.
 
 ### 7.6 `reset_apps_state` y el manejo del JSON de apps
 

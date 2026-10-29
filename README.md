@@ -35,6 +35,7 @@ La TUI está construida con **Textual** y es la forma más completa y amigable d
 - **Apps** — Registra aplicaciones con sus dominios, activa/desactiva su bloqueo con un switch, filtra y ordena. El bloqueo se aplica vía **dnsmasq** (`address=/{dominio}/0.0.0.0`) más **iptables** para QUIC/NAT.
 - **Lista Blanca** — Exenta IPs, rangos (`10.0.0.1-10.0.0.255`), subredes CIDR (`192.168.1.0/24`) o **direcciones MAC** (`AA:BB:CC:DD:EE:FF`) de todas las reglas de bloqueo. Cada entrada tiene su propio **switch para activarla o desactivarla** sin borrarla; **Limpiar Firewall** apaga todos los switches y conserva las entradas. Las entradas activas resuelven DNS externamente (8.8.8.8) en vez del dnsmasq local, con aplicación automática de las reglas.
 - **Config** — Configura el gateway/NAT, fuerza DNS local, muestra el estado de las reglas y limpia el firewall completo.
+- **VPN Guard** — Detecta VPNs con `ndpiReader` y bloquea el dispositivo por MAC. Requiere el binario `ndpiReader` en la raíz del proyecto (biblioteca open source de **ntop**, https://github.com/ntop/nDPI) y ejecución como root.
 
 ### Vista Respaldos
 
