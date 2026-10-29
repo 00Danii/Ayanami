@@ -2,3 +2,5 @@ __pycache__
 backups/
 backup.json
 whitelist.json
+vpn_guard.log
+vpn_guard.pid

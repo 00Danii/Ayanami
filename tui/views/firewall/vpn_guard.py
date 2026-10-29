@@ -31,8 +31,12 @@ class VpnGuardTab(Vertical):
         super().__init__(**kwargs)
         self._proc = None
         self._worker = None
+        self._pid = None
+        self._running = False
         self._blocked = {}  # mac -> {"ip":..., "since":...}
         self._apply = False
+        self._log_path = REPO_ROOT / "vpn_guard.log"
+        self._pid_path = REPO_ROOT / "vpn_guard.pid"
 
     def compose(self) -> ComposeResult:
         with Vertical(classes="fw-card"):
@@ -58,6 +62,8 @@ class VpnGuardTab(Vertical):
             self.query_one("#vpn-stop", ClickableLabel).display = False
         except Exception:
             pass
+        self.set_interval(2.0, self._check_proc)
+        self._reattach_if_running()
         if not VPN_GUARD_SCRIPT.exists():
             self._log(f"[red]No se encontró {VPN_GUARD_SCRIPT}[/]")
 
@@ -90,6 +96,45 @@ class VpnGuardTab(Vertical):
         elif bid == "vpn-stop":
             self.stop_guard()
 
+    def _reattach_if_running(self):
+        """Si VPN Guard ya está corriendo, reanuda el seguimiento del log."""
+        try:
+            if not self._pid_path.exists():
+                return
+            pid = int(self._pid_path.read_text().strip())
+        except (ValueError, OSError):
+            try:
+                self._pid_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+            return
+
+        if not self._pid_alive(pid):
+            try:
+                self._pid_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+            return
+
+        self._pid = pid
+        self._running = True
+        self._proc = None
+        try:
+            self.query_one("#vpn-start", ClickableLabel).display = False
+            self.query_one("#vpn-stop", ClickableLabel).display = True
+        except Exception:
+            pass
+        self._set_status(f"ejecutando (PID {pid})")
+        self._log(f"[#565f89]VPN Guard ya en ejecución (PID {pid}). Siguiendo log: {self._log_path}[/]")
+        self._worker = self.run_worker(self._tail_log, name="vpn-guard-tail", group="vpn", thread=True)
+
+    def _pid_alive(self, pid: int) -> bool:
+        try:
+            os.kill(pid, 0)
+            return True
+        except (ProcessLookupError, PermissionError):
+            return False
+
     def start_guard(self):
         if self._proc is not None and self._proc.poll() is None:
             self.notify("El VPN Guard ya está en ejecución", severity="warning")
@@ -116,24 +161,33 @@ class VpnGuardTab(Vertical):
         self._log(f"[#565f89]$ {' '.join(cmd)}[/]")
         self._set_status("iniciando...")
 
+        log_path = REPO_ROOT / "vpn_guard.log"
         try:
+            log_handle = open(log_path, "a", buffering=1)
             self._proc = subprocess.Popen(
                 cmd,
-                stdout=subprocess.PIPE,
+                stdout=log_handle,
                 stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
+                start_new_session=True,
             )
+            log_handle.close()
         except Exception as e:
             self._log(f"[red]Error al lanzar: {e}[/]")
             self._set_status("error")
             return
 
+        self._pid = self._proc.pid
+        try:
+            self._pid_path.write_text(str(self._proc.pid))
+        except Exception as e:
+            self._log(f"[red]No se pudo guardar PID: {e}[/]")
+        self._running = True
+
         self.query_one("#vpn-start", ClickableLabel).display = False
         self.query_one("#vpn-stop", ClickableLabel).display = True
-        self._set_status("ejecutando")
-
-        self._worker = self.run_worker(self._read_output, name="vpn-guard", group="vpn", thread=True)
+        self._set_status(f"ejecutando (PID {self._proc.pid})")
+        self._log(f"[#565f89]Proceso desacoplado. Log: {log_path}[/]")
+        self._worker = self.run_worker(self._tail_log, name="vpn-guard-tail", group="vpn", thread=True)
 
     def _read_output(self):
         proc = self._proc
@@ -210,6 +264,42 @@ class VpnGuardTab(Vertical):
             since = info.get("since") or ""
             container.mount(Label(f"{mac}  —  IP: {ip}  —  desde {since}", classes="vpn-blocked-row"))
 
+    def _tail_log(self):
+        path = self._log_path
+        try:
+            with open(path, "r") as handle:
+                handle.seek(0, 2)
+                size = handle.tell()
+                handle.seek(max(0, size - 4096))
+                for line in handle:
+                    if not self._running:
+                        return
+                    self.app.call_from_thread(self._handle_line, line.rstrip("\n"))
+                while self._running:
+                    line = handle.readline()
+                    if line:
+                        self.app.call_from_thread(self._handle_line, line.rstrip("\n"))
+                    else:
+                        time.sleep(0.5)
+                    proc = self._proc
+                    if proc is not None and proc.poll() is not None:
+                        self.app.call_from_thread(self._check_proc)
+                        return
+        except Exception as e:
+            self.app.call_from_thread(self._log, f"[red]Error leyendo log: {e}[/]")
+
+    def _check_proc(self):
+        proc = self._proc
+        if proc is not None and proc.poll() is not None:
+            self._proc = None
+            try:
+                self.query_one("#vpn-start", ClickableLabel).display = True
+                self.query_one("#vpn-stop", ClickableLabel).display = False
+            except Exception:
+                pass
+            self._set_status(f"detenido (rc={proc.returncode})")
+            self._log(f"[#565f89]Proceso finalizado (rc={proc.returncode})[/]")
+
     def _on_finished(self, rc):
         self._proc = None
         self._worker = None
@@ -222,21 +312,31 @@ class VpnGuardTab(Vertical):
         proc = self._proc
         if proc is not None and proc.poll() is None:
             try:
-                proc.send_signal(signal.SIGINT)
+                os.killpg(proc.pid, signal.SIGINT)
                 try:
                     proc.wait(timeout=4)
                 except subprocess.TimeoutExpired:
-                    proc.terminate()
+                    os.killpg(proc.pid, signal.SIGTERM)
                     proc.wait()
             except Exception as e:
                 self._log(f"[red]Error al detener: {e}[/]")
+        self._running = False
         if self._worker is not None:
             try:
                 self._worker.cancel()
             except Exception:
                 pass
-        self._proc = None
         self._worker = None
-        self.query_one("#vpn-start", ClickableLabel).display = True
-        self.query_one("#vpn-stop", ClickableLabel).display = False
+        self._proc = None
+        try:
+            self._pid_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+        self._pid = None
+        try:
+            self.query_one("#vpn-start", ClickableLabel).display = True
+            self.query_one("#vpn-stop", ClickableLabel).display = False
+        except Exception:
+            pass
         self._set_status("detenido")
+        self._log("[#565f89]VPN Guard detenido[/]")

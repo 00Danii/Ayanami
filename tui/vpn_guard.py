@@ -402,7 +402,19 @@ def create_block_timer(
 
 
 
+def _set_process_name():
+    try:
+        import ctypes
+
+        libc = ctypes.CDLL("libc.so.6")
+        # PR_SET_NAME = 15 (máximo 16 bytes incluyendo el \0 final).
+        libc.prctl(15, b"ayanami-vpn", 0, 0, 0)
+    except Exception:
+        pass
+
+
 def main():
+    _set_process_name()
     parser = argparse.ArgumentParser(
         description="Detecta VPN con nDPI Reader y bloquea el dispositivo por MAC."
     )
