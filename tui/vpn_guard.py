@@ -20,6 +20,7 @@ import signal
 import subprocess
 import sys
 import threading
+from vpn_supervisor import VPNBlockSupervisor
 import time
 from datetime import datetime
 
@@ -469,7 +470,14 @@ def main():
     log("Detecciones habilitadas: " + ", ".join(sorted(vpn_names)))
 
     recent = {}
-    active_blocks = {}
+    active_blocks = {}  # Conservado por compatibilidad; ya no se usa en modo temporal.
+    supervisor = None
+    if args.apply and args.block_duration > 0:
+        supervisor = VPNBlockSupervisor(
+            duration=args.block_duration, log=log, interval=1.0,
+            block_device=args.block_device,
+        )
+        supervisor.start()
     process = None
 
     try:
@@ -521,10 +529,27 @@ def main():
             # detección, pero permite re-detectar tras una reconexión (nuevo
             # flujo / nuevo puerto de cliente) pasados unos segundos.
             DEDUP_TTL = 5
-            if args.block_device:
+            if supervisor is not None:
+                # Una clave por endpoint VPN.
+                # El supervisor mantiene un único bloqueo por MAC.
+                dedup_key = (
+                    "vpn",
+                    mac,
+                    remote_ip,
+                    remote_port,
+                    det["transport"],
+                )
+            elif args.block_device:
                 dedup_key = ("dev", mac)
             else:
-                dedup_key = ("flow", mac, client_port, remote_ip, remote_port, det["transport"])
+                dedup_key = (
+                    "flow",
+                    mac,
+                    client_port,
+                    remote_ip,
+                    remote_port,
+                    det["transport"],
+                )
             now = time.time()
             last = recent.get(dedup_key, 0)
             if now - last < DEDUP_TTL:
@@ -537,50 +562,27 @@ def main():
                 f"cliente_ip={client_ip} MAC={mac}"
             )
             flow_only = not args.block_device
-            installed, rules = install_mac_rule(
-                mac=mac,
-                remote_ip=remote_ip,
-                transport=det["transport"],
-                remote_port=remote_port,
-                apply=args.apply,
-                flow_only=flow_only,
-            )
-
-            # En modo dispositivo, instalar una regla de CONTEO (no bloqueante)
-            # para el flujo VPN, que servirá para saber si la VPN sigue activa.
-            watcher_rule = rules[0] if rules else None
-            if args.block_device:
-                if args.apply:
-                    ensure_chain("AYANAMI_CNT")
-                w_installed, w_rules = install_watcher(
+            if supervisor is not None:
+                try:
+                    supervisor.register(
+                        mac=mac, client_ip=client_ip, remote_ip=remote_ip,
+                        remote_port=remote_port, transport=det["transport"],
+                    )
+                except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+                    log(f"[VPN] Error al instalar bloqueo para {mac}: {exc}")
+            else:
+                # Simulación (--apply ausente) o bloqueo permanente (duration=0).
+                installed, rules = install_mac_rule(
                     mac=mac, remote_ip=remote_ip, transport=det["transport"],
-                    remote_port=remote_port, apply=args.apply,
+                    remote_port=remote_port, apply=args.apply, flow_only=flow_only,
                 )
-                if w_rules:
-                    watcher_rule = w_rules[0]
-            # En modo flujo, el watcher es la propia regla de bloqueo.
-            if not args.block_device:
-                watcher_rule = rules[0] if rules else None
-
-            # Bloqueo temporal: desbloquear automáticamente tras --block-duration.
-            if (args.block_duration > 0 and args.apply and installed
-                    and dedup_key not in active_blocks):
-                label = "dispositivo completo" if args.block_device else f"flujo {remote_ip}:{remote_port}"
-
-                create_block_timer(
-                    rules=rules,
-                    watcher_rule=watcher_rule,
-                    dedup_key=dedup_key,
-                    mac=mac,
-                    label=label,
-                    duration=args.block_duration,
-                    client_ip=client_ip,
-                    remote_ip=remote_ip,
-                    remote_port=remote_port,
-                    transport=det["transport"],
-                    flow_only=flow_only,
-                    active_blocks=active_blocks,
-                )
+                if args.block_device:
+                    if args.apply:
+                        ensure_chain("AYANAMI_CNT")
+                    install_watcher(
+                        mac=mac, remote_ip=remote_ip, transport=det["transport"],
+                        remote_port=remote_port, apply=args.apply,
+                    )
 
         code = process.wait()
         if code:
@@ -595,20 +597,9 @@ def main():
             except subprocess.TimeoutExpired:
                 process.terminate()
                 process.wait()
-        # Cancelar desbloqueos pendientes y retirar reglas activas.
-        for _key, entry in list(active_blocks.items()):
-            timer = entry[0]
-            rules = entry[1]
-            watcher = entry[2] if len(entry) > 2 else None
-            timer.cancel()
-            for rule in rules:
-                subprocess.run(["iptables", "-D", "FORWARD"] + rule,
-                               text=True, capture_output=True, check=False)
-            if watcher is not None and watcher is not rules:
-                subprocess.run(["iptables", "-D", "FORWARD"] + watcher,
-                               text=True, capture_output=True, check=False)
-        active_blocks.clear()
-        if args.block_duration > 0 and args.apply:
+        # Detener el supervisor antes de retirar las reglas que administra.
+        if supervisor is not None:
+            supervisor.stop()
             log("Reglas de bloqueo temporal retiradas al salir.")
 
 
