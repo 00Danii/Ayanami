@@ -10,17 +10,28 @@ import time
 
 
 class VPNBlockSupervisor:
-    def __init__(self, duration, log, interval=1.0, block_device=True):
+    def __init__(
+        self,
+        duration,
+        log,
+        interval=1.0,
+        block_device=True,
+        watch_duration=300,
+    ):
         if duration <= 0 or interval <= 0:
-            raise ValueError("duration e interval deben ser positivos")
+            raise ValueError(
+                "duration e interval deben ser positivos"
+            )
         self.duration = float(duration)
         self.interval = float(interval)
+        self.watch_duration = float(watch_duration)
         self.log = log
         self.block_device = block_device
         self.blocks = {}
         self.lock = threading.RLock()
         self.stop_event = threading.Event()
         self.thread = None
+
 
     @staticmethod
     def _run(*args):
@@ -72,8 +83,15 @@ class VPNBlockSupervisor:
                 if not owned_block:
                     self.log(f"[VPN] Regla preexistente para {mac}; no se asumirá su propiedad")
                     return False
-                state = {"mac": mac, "ip": client_ip, "block": block_rule,
-                         "flows": {}, "last_activity": time.monotonic()}
+                state = {
+                    "mac": mac,
+                    "ip": client_ip,
+                    "block": block_rule,
+                    "flows": {},
+                    "last_activity": time.monotonic(),
+                    "watch_started": None,
+                    "status": "BLOCKED",
+                }
                 self.blocks[key] = state
                 created = True
             else:
@@ -166,22 +184,37 @@ class VPNBlockSupervisor:
             timeout=10,
         )
         if result.returncode != 0:
-            self.log(f"[VPN] Error consultando contadores; se conservan bloqueos: {result.stderr.strip()}")
+            self.log(
+                f"[VPN] Error consultando contadores; "
+                f"se conservan bloqueos: {result.stderr.strip()}"
+            )
             return
+
         counters = self._read_counters(result.stdout)
         now = time.monotonic()
+
         with self.lock:
             for key, state in list(self.blocks.items()):
+                status = state.get("status", "BLOCKED")
                 valid = False
                 increased = False
+
                 for (remote_ip, remote_port, transport), flow in state["flows"].items():
                     target = "AYANAMI_CNT" if self.block_device else "REJECT"
-                    lookup = (state["mac"], remote_ip, transport, remote_port, target)
+                    lookup = (
+                        state["mac"],
+                        remote_ip,
+                        transport,
+                        remote_port,
+                        target,
+                    )
                     current = counters.get(lookup)
                     if current is None:
                         continue  # Regla ausente: no interpretar como inactividad
+
                     valid = True
                     previous = flow["count"]
+
                     if previous is None:
                         # Primera lectura del contador.
                         if current > 0:
@@ -193,22 +226,146 @@ class VPNBlockSupervisor:
                         # El contador se reinició.
                         # Conservamos el bloqueo por precaución.
                         increased = True
+
                     flow["count"] = current
+
                 if not valid:
-                    self.log(f"[VPN] Sin contador válido para {state['mac']}; bloqueo conservado")
+                    self.log(
+                        f"[VPN] Sin contador válido para "
+                        f"{state['mac']}; bloqueo conservado"
+                    )
                     continue
-                if increased:
-                    state["last_activity"] = now
-                if now - state["last_activity"] >= self.duration:
-                    self._unblock_locked(key, state)
+
+                # --------------------------------
+                # MODO BLOQUEO POR DISPOSITIVO
+                # --------------------------------
+                if self.block_device:
+                    if status == "BLOCKED":
+                        if increased:
+                            state["last_activity"] = now
+                        elif (
+                            now - state["last_activity"]
+                            >= self.duration
+                        ):
+                            self._enter_watching_locked(
+                                key,
+                                state,
+                            )
+
+                    elif status == "WATCHING":
+                        if increased:
+                            self._reactivate_block_locked(
+                                key,
+                                state,
+                            )
+                        elif (
+                            state["watch_started"] is not None
+                            and
+                            now - state["watch_started"]
+                            >= self.watch_duration
+                        ):
+                            self._unblock_locked(
+                                key,
+                                state,
+                            )
+
+                # --------------------------------
+                # MODO BLOQUEO POR FLUJO
+                # --------------------------------
+                else:
+                    if increased:
+                        state["last_activity"] = now
+                    elif (
+                        now - state["last_activity"]
+                        >= self.duration
+                    ):
+                        self._unblock_locked(
+                            key,
+                            state,
+                        )
+
+    def _enter_watching_locked(self, key, state):
+        """
+        Retira el bloqueo general del dispositivo,
+        pero conserva los watchers VPN.
+        """
+        if state.get("status") != "BLOCKED":
+            return
+
+        self._remove(state["block"])
+        state["status"] = "WATCHING"
+        state["watch_started"] = time.monotonic()
+
+        self.log(
+            f"[VPN] MAC={state['mac']} desbloqueada "
+            f"por inactividad. Vigilancia activa "
+            f"durante {self.watch_duration:.0f}s."
+        )
+
+    def _reactivate_block_locked(self, key, state):
+        """
+        Reinstala el bloqueo cuando un dispositivo
+        en vigilancia vuelve a generar tráfico VPN.
+        """
+        if state.get("status") != "WATCHING":
+            return
+
+        block_rule = state["block"]
+
+        try:
+            installed = self._add(block_rule)
+            if not installed:
+                self.log(
+                    f"[VPN] Regla DROP ya existente "
+                    f"para MAC={state['mac']}."
+                )
+                # No se asume propiedad de una regla ajena.
+                return
+
+            # Los watchers deben quedar antes del DROP.
+            # Reinsertamos los watchers administrados
+            # para garantizar su prioridad.
+            for flow in state["flows"].values():
+                if not flow["owned"]:
+                    continue
+                self._remove(flow["rule"])
+                self._add(flow["rule"])
+
+            state["status"] = "BLOCKED"
+            state["watch_started"] = None
+            state["last_activity"] = time.monotonic()
+
+            self.log(
+                f"[VPN] VPN reactivada: "
+                f"MAC={state['mac']}. "
+                f"Bloqueo reinstalado automáticamente."
+            )
+        except Exception as exc:
+            self.log(
+                f"[VPN] Error reactivando bloqueo "
+                f"de {state['mac']}: {exc}"
+            )
 
     def _unblock_locked(self, key, state):
+        """
+        Elimina definitivamente el dispositivo
+        del supervisor y retira sus reglas.
+        """
         for flow in state["flows"].values():
             if flow["owned"]:
                 self._remove(flow["rule"])
-        self._remove(state["block"])
+
+        # Solo retirar DROP si sigue instalado
+        # y pertenece a este supervisor.
+        if state.get("status") == "BLOCKED":
+            self._remove(state["block"])
+
         self.blocks.pop(key, None)
-        self.log(f"[VPN] Desbloqueo por inactividad: MAC={state['mac']}")
+
+        self.log(
+            f"[VPN] Vigilancia finalizada: "
+            f"MAC={state['mac']}"
+        )
 
     def _loop(self):
         while not self.stop_event.wait(self.interval):
@@ -223,4 +380,11 @@ class VPNBlockSupervisor:
             self.thread.join()
         with self.lock:
             for key, state in list(self.blocks.items()):
-                self._unblock_locked(key, state)
+                self._unblock_locked(
+                    key,
+                    state,
+                )
+        self.log(
+            "[VPN] Supervisor detenido. "
+            "Reglas temporales retiradas."
+        )
