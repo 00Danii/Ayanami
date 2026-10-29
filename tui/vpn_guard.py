@@ -200,33 +200,60 @@ def install_watcher(mac, remote_ip, transport, remote_port, apply):
 
 
 def get_watcher_packet_count(mac, remote_ip, transport, remote_port, watcher_rule=None):
-    """Devuelve el contador de paquetes de la regla watcher (flujo VPN)."""
+    """Devuelve los paquetes contabilizados por el watcher VPN."""
+
     if watcher_rule is None:
         return 0
+
     try:
-        out = subprocess.run(["iptables", "-L", "FORWARD", "-v", "-n", "-x"],
-                             text=True, capture_output=True, check=False)
-    except Exception:
+        result = subprocess.run(
+            ["iptables", "-L", "FORWARD", "-v", "-n", "-x"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
         return 0
-    total = 0
-    for line in out.stdout.splitlines():
+
+    if result.returncode != 0:
+        return 0
+
+    target = "AYANAMI_CNT" if "-j" in watcher_rule and (
+        watcher_rule[watcher_rule.index("-j") + 1] == "AYANAMI_CNT"
+    ) else "REJECT"
+
+    for line in result.stdout.splitlines():
+        parts = line.split()
+
+        if len(parts) < 10:
+            continue
+
+        if parts[2] != target:
+            continue
+
         if mac.lower() not in line.lower():
             continue
-        if remote_ip not in line:
+
+        if parts[8] != remote_ip:
             continue
-        if transport.lower() not in line.lower():
+
+        protocol_number = {
+            "tcp": "6",
+            "udp": "17",
+        }.get(transport.lower(), transport.lower())
+
+        if parts[3].lower() not in (transport.lower(), protocol_number):
             continue
-        # debe ser la regla watcher (salto a AYANAMI_CNT) o la de bloqueo flow
-        if "AYANAMI_CNT" not in line and "REJECT" not in line and "DROP" not in line:
+
+        if f"dpt:{remote_port}" not in line:
             continue
-        parts = line.split()
-        if not parts:
-            continue
+
         try:
-            total += int(parts[0])
+            return int(parts[0])
         except ValueError:
-            continue
-    return total
+            return 0
+
+    return 0
 
 
 def install_mac_rule(mac, remote_ip, transport, remote_port, apply, flow_only):
@@ -260,6 +287,118 @@ def install_mac_rule(mac, remote_ip, transport, remote_port, apply, flow_only):
         return False, []
     log(f"Regla instalada ({label}) en posición 1 de FORWARD.")
     return True, [rule]
+
+
+def create_block_timer(
+    rules,
+    watcher_rule,
+    dedup_key,
+    mac,
+    label,
+    duration,
+    client_ip,
+    remote_ip,
+    remote_port,
+    transport,
+    flow_only,
+    active_blocks,
+):
+    last = [
+        get_watcher_packet_count(
+            mac,
+            remote_ip,
+            transport,
+            remote_port,
+            watcher_rule=watcher_rule,
+        )
+    ]
+
+    def renew_or_unblock():
+        current = get_watcher_packet_count(
+            mac,
+            remote_ip,
+            transport,
+            remote_port,
+            watcher_rule=watcher_rule,
+        )
+
+        log(
+            f"[DEBUG TIMER] MAC={mac} | "
+            f"Anterior={last[0]} | Actual={current}"
+        )
+
+        if current > last[0]:
+            last[0] = current
+
+            log(
+                f"Tráfico VPN aún presente para MAC {mac} "
+                f"({current} pkts); renovando bloqueo {duration}s."
+            )
+
+            new_timer = threading.Timer(
+                duration,
+                renew_or_unblock,
+            )
+            new_timer.daemon = True
+
+            active_blocks[dedup_key] = (
+                new_timer,
+                rules,
+                watcher_rule,
+                client_ip,
+                remote_ip,
+                transport,
+                flow_only,
+                last,
+            )
+
+            new_timer.start()
+            return
+
+        for rule in rules:
+            subprocess.run(
+                ["iptables", "-D", "FORWARD"] + rule,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+        if watcher_rule is not None:
+            subprocess.run(
+                ["iptables", "-D", "FORWARD"] + watcher_rule,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+        active_blocks.pop(dedup_key, None)
+
+        log(
+            f"Desbloqueo automático: sin tráfico VPN "
+            f"para MAC {mac} ({label})"
+        )
+
+    timer = threading.Timer(duration, renew_or_unblock)
+    timer.daemon = True
+
+    active_blocks[dedup_key] = (
+        timer,
+        rules,
+        watcher_rule,
+        client_ip,
+        remote_ip,
+        transport,
+        flow_only,
+        last,
+    )
+
+    timer.start()
+
+    log(
+        f"Bloqueo temporal programado: "
+        f"{duration}s para MAC {mac}."
+    )
+
 
 
 def main():
@@ -328,7 +467,6 @@ def main():
     log(f"Duración de bloqueo: {'permanente' if args.block_duration == 0 else str(args.block_duration) + 's (auto-desbloqueo)'}")
     log(f"Aplicar: {'SÍ' if args.apply else 'NO (simulación)'}")
     log("Detecciones habilitadas: " + ", ".join(sorted(vpn_names)))
-    log("Pulsa Ctrl+C para detener la captura.")
 
     recent = {}
     active_blocks = {}
@@ -375,7 +513,10 @@ def main():
             if not mac:
                 log(f"VPN detectada ({det['app']}) en {client_ip} pero no se pudo obtener la MAC; no se puede bloquear por MAC. (IP: {client_ip})")
                 continue
-
+            log(f"[DEBUG] Flujo detectado: {det['app']}")
+            log(f"[DEBUG] Cliente: {client_ip}")
+            log(f"[DEBUG] MAC obtenida: {mac}")
+            log(f"[DEBUG] Destino VPN: {remote_ip}:{remote_port}/{det['transport']}")
             # Deduplicación con TTL: evita spam si ndpiReader repite la misma
             # detección, pero permite re-detectar tras una reconexión (nuevo
             # flujo / nuevo puerto de cliente) pasados unos segundos.
@@ -407,7 +548,7 @@ def main():
 
             # En modo dispositivo, instalar una regla de CONTEO (no bloqueante)
             # para el flujo VPN, que servirá para saber si la VPN sigue activa.
-            watcher_rule = rules[0] if (installed or True) else None
+            watcher_rule = rules[0] if rules else None
             if args.block_device:
                 if args.apply:
                     ensure_chain("AYANAMI_CNT")
@@ -415,10 +556,6 @@ def main():
                     mac=mac, remote_ip=remote_ip, transport=det["transport"],
                     remote_port=remote_port, apply=args.apply,
                 )
-                if w_installed or (not args.apply):
-                    # watcher debe ir ANTES del bloqueo: insertar de nuevo en pos 1
-                    # (ya se insertó en pos 1 por install_watcher, queda antes del block)
-                    pass
                 if w_rules:
                     watcher_rule = w_rules[0]
             # En modo flujo, el watcher es la propia regla de bloqueo.
@@ -430,37 +567,20 @@ def main():
                     and dedup_key not in active_blocks):
                 label = "dispositivo completo" if args.block_device else f"flujo {remote_ip}:{remote_port}"
 
-                initial = get_watcher_packet_count(mac, remote_ip, det["transport"], remote_port, watcher_rule=watcher_rule)
-
-                def _renew_or_unblock(r=rules, w=watcher_rule, k=dedup_key, m=mac, lbl=label,
-                                      dur=args.block_duration, cip=client_ip,
-                                      rip=remote_ip, tr=det["transport"],
-                                      flow=flow_only, last=[initial]):
-                    # Contar paquetes en la regla watcher (flujo VPN).
-                    current = get_watcher_packet_count(m, rip, tr, remote_port, watcher_rule=w)
-                    if current > last[0]:
-                        log(f"Tráfico VPN aún presente para MAC {m} ({current} pkts); renovando bloqueo {dur}s.")
-                        last[0] = current
-                        new_timer = threading.Timer(dur, _renew_or_unblock)
-                        new_timer.daemon = True
-                        new_timer.start()
-                        active_blocks[k] = (new_timer, r, w, cip, rip, tr, flow, last)
-                        return
-                    # Sin tráfico VPN nuevo: desbloquear (retirar bloqueo y watcher).
-                    for rule in r:
-                        subprocess.run(["iptables", "-D", "FORWARD"] + rule,
-                                       text=True, capture_output=True, check=False)
-                    if w is not None and w is not None:
-                        subprocess.run(["iptables", "-D", "FORWARD"] + w,
-                                       text=True, capture_output=True, check=False)
-                    log(f"Desbloqueo automático: sin tráfico VPN para MAC {m} ({lbl})")
-                    active_blocks.pop(k, None)
-
-                timer = threading.Timer(args.block_duration, _renew_or_unblock)
-                timer.daemon = True
-                timer.start()
-                active_blocks[dedup_key] = (timer, rules, watcher_rule, client_ip, remote_ip, det["transport"], flow_only, [initial])
-                log(f"Bloqueo temporal programado: {args.block_duration}s para MAC {mac}.")
+                create_block_timer(
+                    rules=rules,
+                    watcher_rule=watcher_rule,
+                    dedup_key=dedup_key,
+                    mac=mac,
+                    label=label,
+                    duration=args.block_duration,
+                    client_ip=client_ip,
+                    remote_ip=remote_ip,
+                    remote_port=remote_port,
+                    transport=det["transport"],
+                    flow_only=flow_only,
+                    active_blocks=active_blocks,
+                )
 
         code = process.wait()
         if code:
