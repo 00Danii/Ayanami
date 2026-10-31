@@ -65,6 +65,11 @@ def launch_vpn_guard(iface: str):
     ]
 
     try:
+        # Limpiar log anterior para evitar formatos mezclados
+        try:
+            log_path.write_text("")
+        except Exception:
+            pass
         log_handle = open(log_path, "a", buffering=1)
         proc = subprocess.Popen(
             cmd,
@@ -89,6 +94,8 @@ class VpnGuardTab(Vertical):
         super().__init__(**kwargs)
         self._proc = None
         self._worker = None
+        self._tail_running = False
+        self._tail_position = 0
         self._pid = None
         self._running = False
         self._blocked = {}  # mac -> {"ip":..., "since":...}
@@ -185,7 +192,9 @@ class VpnGuardTab(Vertical):
             pass
         self._set_status("INICIADO")
         self._log(f"[#565f89]VPN Guard ya en ejecución (PID {pid}). Siguiendo log: {self._log_path}[/]")
-        self._worker = self.run_worker(self._tail_log, name="vpn-guard-tail", group="vpn", thread=True)
+        if not self._tail_running:
+            self._tail_running = True
+            self._worker = self.run_worker(self._tail_log, name="vpn-guard-tail", group="vpn", thread=True)
 
     def _pid_alive(self, pid: int) -> bool:
         try:
@@ -214,6 +223,7 @@ class VpnGuardTab(Vertical):
 
         self._pid = pid
         self._running = True
+        self._tail_position = 0
         try:
             self._pid_path.write_text(str(pid))
         except Exception:
@@ -223,6 +233,7 @@ class VpnGuardTab(Vertical):
         self.query_one("#vpn-stop", ClickableLabel).display = True
         self._set_status("INICIADO")
         self._log(f"[#565f89]VPN Guard {msg} (PID {pid}). Log: {REPO_ROOT / 'vpn_guard.log'}[/]")
+        self._tail_running = True
         self._worker = self.run_worker(self._tail_log, name="vpn-guard-tail", group="vpn", thread=True)
 
     def _read_output(self):
@@ -306,16 +317,24 @@ class VpnGuardTab(Vertical):
             with open(path, "r") as handle:
                 handle.seek(0, 2)
                 size = handle.tell()
-                handle.seek(max(0, size - 4096))
+                if self._tail_position == 0:
+                    start = max(0, size - 4096)
+                else:
+                    start = min(self._tail_position, size)
+                handle.seek(start)
                 for line in handle:
                     if not self._running:
                         return
                     self.app.call_from_thread(self._handle_line, line.rstrip("\n"))
+                    self._tail_position = handle.tell()
                 while self._running:
+                    pos = handle.tell()
                     line = handle.readline()
                     if line:
                         self.app.call_from_thread(self._handle_line, line.rstrip("\n"))
+                        self._tail_position = handle.tell()
                     else:
+                        handle.seek(pos)
                         time.sleep(0.5)
                     proc = self._proc
                     if proc is not None and proc.poll() is not None:
@@ -323,6 +342,8 @@ class VpnGuardTab(Vertical):
                         return
         except Exception as e:
             self.app.call_from_thread(self._log, f"[red]Error leyendo log: {e}[/]")
+        finally:
+            self._tail_running = False
 
     def _check_proc(self):
         proc = self._proc
@@ -374,6 +395,8 @@ class VpnGuardTab(Vertical):
             except Exception:
                 pass
         self._worker = None
+        self._tail_running = False
+        self._tail_position = 0
         self._proc = None
         self._pid = None
         try:
