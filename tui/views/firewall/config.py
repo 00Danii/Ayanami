@@ -13,6 +13,7 @@ from firewall_ops import (
     load_whitelist,
 )
 from widgets.confirm_screen import ConfirmScreen
+from views.firewall.vpn_guard import launch_vpn_guard
 
 
 class ConfigTab(Vertical):
@@ -186,6 +187,9 @@ class ConfigTab(Vertical):
             # WAN/NAT/FORWARD ya se aplicaron; guardamos lo que sí quedó
             # configurado aunque no se haya podido completar el DNS.
             self._save_gateway_config(iface, lan_iface, "")
+            vpn_iface = lan_iface or iface
+            pid, msg = launch_vpn_guard(vpn_iface)
+            self.log(f"[#7dcfff]◆ VPN Guard: {msg} (PID {pid})[/]")
             return
 
         self.log(f"[#565f89]  → Interfaz DNS: {lan_iface}[/]")
@@ -229,6 +233,15 @@ class ConfigTab(Vertical):
 
         if self._save_gateway_config(iface, lan_iface, dns_target):
             self.app.notify(f"Gateway configurado en {iface}")
+            vpn_iface = lan_iface or iface
+            pid, msg = launch_vpn_guard(vpn_iface)
+            self.log(f"[#7dcfff]◆ VPN Guard: {msg} (PID {pid})[/]")
+            self.app.notify(f"VPN Guard {msg}")
+            try:
+                vpn_tab = self.app.query_one("#fw-panel-vpn")
+                vpn_tab._reattach_if_running()
+            except Exception:
+                pass
 
     def show_status(self):
         dns_conf = get_dns_block_file()

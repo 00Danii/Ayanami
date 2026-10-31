@@ -24,6 +24,64 @@ VPN_GUARD_SCRIPT = REPO_ROOT / "tui" / "vpn_guard.py"
 MAC_RE = re.compile(r"([0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5})")
 
 
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+        return True
+    except (ProcessLookupError, PermissionError):
+        return False
+
+
+def launch_vpn_guard(iface: str):
+    """Lanza (o reutiliza) el proceso VPN Guard de forma desacoplada.
+
+    Devuelve (pid, mensaje). Si ya estaba corriendo, devuelve su PID.
+    """
+    log_path = REPO_ROOT / "vpn_guard.log"
+    pid_path = REPO_ROOT / "vpn_guard.pid"
+
+    # Reutilizar si ya está corriendo
+    if pid_path.exists():
+        try:
+            pid = int(pid_path.read_text().strip())
+            if _pid_alive(pid):
+                return pid, "ya en ejecución"
+        except (ValueError, OSError):
+            pass
+        try:
+            pid_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    cmd = [
+        sys.executable, str(VPN_GUARD_SCRIPT),
+        "--interface", str(iface),
+        "--lan-iface", str(iface),
+        "--block-duration", "5",
+        "--block-device",
+        "--apply",
+    ]
+
+    try:
+        log_handle = open(log_path, "a", buffering=1)
+        proc = subprocess.Popen(
+            cmd,
+            stdout=log_handle,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+        log_handle.close()
+    except Exception as e:
+        return None, f"Error al lanzar: {e}"
+
+    try:
+        pid_path.write_text(str(proc.pid))
+    except Exception:
+        pass
+    return proc.pid, "iniciado"
+
 class VpnGuardTab(Vertical):
     """Pestaña del Firewall: detección de VPN con ndpiReader y bloqueo por MAC."""
 
@@ -146,48 +204,25 @@ class VpnGuardTab(Vertical):
             self.notify("Selecciona una interfaz LAN primero", severity="error")
             return
 
-        dur = 5
-        block_device = True
-        self._apply = True
-
-        cmd = [
-            sys.executable, str(VPN_GUARD_SCRIPT),
-            "--interface", str(iface),
-            "--lan-iface", str(iface),
-            "--block-duration", str(dur),
-            "--block-device",
-            "--apply",
-        ]
-
-        self._log(f"[#565f89]$ {' '.join(cmd)}[/]")
         self._set_status("INICIANDO")
 
-        log_path = REPO_ROOT / "vpn_guard.log"
-        try:
-            log_handle = open(log_path, "a", buffering=1)
-            self._proc = subprocess.Popen(
-                cmd,
-                stdout=log_handle,
-                stderr=subprocess.STDOUT,
-                start_new_session=True,
-            )
-            log_handle.close()
-        except Exception as e:
-            self._log(f"[red]Error al lanzar: {e}[/]")
+        pid, msg = launch_vpn_guard(str(iface))
+        if pid is None:
+            self._log(f"[red]{msg}[/]")
             self._set_status("error")
             return
 
-        self._pid = self._proc.pid
-        try:
-            self._pid_path.write_text(str(self._proc.pid))
-        except Exception as e:
-            self._log(f"[red]No se pudo guardar PID: {e}[/]")
+        self._pid = pid
         self._running = True
+        try:
+            self._pid_path.write_text(str(pid))
+        except Exception:
+            pass
 
         self.query_one("#vpn-start", ClickableLabel).display = False
         self.query_one("#vpn-stop", ClickableLabel).display = True
         self._set_status("INICIADO")
-        self._log(f"[#565f89]Proceso desacoplado. Log: {log_path}[/]")
+        self._log(f"[#565f89]VPN Guard {msg} (PID {pid}). Log: {REPO_ROOT / 'vpn_guard.log'}[/]")
         self._worker = self.run_worker(self._tail_log, name="vpn-guard-tail", group="vpn", thread=True)
 
     def _read_output(self):
@@ -317,13 +352,12 @@ class VpnGuardTab(Vertical):
                 os.killpg(pid, signal.SIGINT)
                 if proc is not None:
                     try:
-                        proc.wait(timeout=4)
+                        proc.wait(timeout=1)
                     except subprocess.TimeoutExpired:
-                        os.killpg(pid, signal.SIGTERM)
+                        os.killpg(pid, signal.SIGKILL)
                         proc.wait()
                 else:
-                    # Esperar a que el proceso termine
-                    for _ in range(40):
+                    for _ in range(10):
                         try:
                             os.kill(pid, 0)
                         except ProcessLookupError:
