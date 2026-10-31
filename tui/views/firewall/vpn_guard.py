@@ -102,7 +102,7 @@ class VpnGuardTab(Vertical):
             yield ClickableLabel("[Iniciar]", id="vpn-start", classes="vpn-action vpn-start", markup=False)
             yield ClickableLabel("[Detener]", id="vpn-stop", classes="vpn-action vpn-stop", markup=False)
 
-        yield RichLog(id="vpn-log", markup=True, highlight=True)
+        yield RichLog(id="vpn-log", markup=True, highlight=True, wrap=True)
 
     def on_mount(self):
         self.styles.height = "1fr"

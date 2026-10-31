@@ -38,7 +38,7 @@ DETECTION_RE = re.compile(
 
 
 def log(message):
-    print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {message}", flush=True)
+    print(f"[{datetime.now():%y-%m-%d %H:%M:%S}] {message}", flush=True)
 
 
 def normalize_ip(value):
