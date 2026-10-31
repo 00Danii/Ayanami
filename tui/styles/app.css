@@ -2118,9 +2118,23 @@ BackupsView {
 }
 
 .vpn-title-row {
-    height: auto;
-    align: left middle;
+    height: 1;
+    align: left top;
     margin-bottom: 1;
+}
+
+.vpn-title-row > .fw-card-title {
+    width: 1fr;
+}
+
+.vpn-status {
+    width: 1fr;
+    height: 1;
+    margin: 0;
+    padding: 0;
+    color: #7dcfff;
+    text-style: bold;
+    content-align: left top;
 }
 
 .vpn-title-actions {

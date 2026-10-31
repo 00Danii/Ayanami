@@ -39,20 +39,10 @@ class VpnGuardTab(Vertical):
         self._pid_path = REPO_ROOT / "vpn_guard.pid"
 
     def compose(self) -> ComposeResult:
-        with Vertical(classes="fw-card"):
-            with Horizontal(classes="vpn-title-row"):
-                yield Label("VPN Guard (ndpiReader)", classes="fw-card-title")
-                with Horizontal(classes="vpn-title-actions"):
-                    yield ClickableLabel("[Iniciar]", id="vpn-start", classes="vpn-action vpn-start", markup=False)
-                    yield ClickableLabel("[Detener]", id="vpn-stop", classes="vpn-action vpn-stop", markup=False)
-
-            yield Label(
-                "Detecta conexiones VPN en la red y bloquea el dispositivo por MAC. "
-                "Requiere ndpiReader compilado y ejecución como root.",
-                classes="fw-card-desc",
-            )
-
-            yield Label("Estado: detenido", id="vpn-status")
+        with Horizontal(classes="vpn-title-row"):
+            yield Label("VPN Guard (ndpiReader) DETENIDO", id="vpn-status", classes="vpn-status")
+            yield ClickableLabel("[Iniciar]", id="vpn-start", classes="vpn-action vpn-start", markup=False)
+            yield ClickableLabel("[Detener]", id="vpn-stop", classes="vpn-action vpn-stop", markup=False)
 
         yield RichLog(id="vpn-log", markup=True, highlight=True)
 
@@ -62,8 +52,19 @@ class VpnGuardTab(Vertical):
             self.query_one("#vpn-stop", ClickableLabel).display = False
         except Exception:
             pass
-        self.set_interval(2.0, self._check_proc)
+        try:
+            self.query_one("#vpn-status", Label).update("VPN Guard (ndpiReader) DETENIDO")
+        except Exception:
+            pass
+        try:
+            status = self.query_one("#vpn-status", Label)
+            status.styles.margin = (0, 0, 0, 0)
+            status.styles.height = 1
+            status.display = True
+        except Exception:
+            pass
         self._reattach_if_running()
+        self.set_interval(2.0, self._check_proc)
         if not VPN_GUARD_SCRIPT.exists():
             self._log(f"[red]No se encontró {VPN_GUARD_SCRIPT}[/]")
 
@@ -75,7 +76,7 @@ class VpnGuardTab(Vertical):
 
     def _set_status(self, text: str):
         try:
-            self.query_one("#vpn-status", Label).update(f"Estado: {text}")
+            self.query_one("#vpn-status", Label).update(f"VPN Guard (ndpiReader) {text}")
         except Exception:
             pass
 
@@ -124,7 +125,7 @@ class VpnGuardTab(Vertical):
             self.query_one("#vpn-stop", ClickableLabel).display = True
         except Exception:
             pass
-        self._set_status(f"ejecutando (PID {pid})")
+        self._set_status("INICIADO")
         self._log(f"[#565f89]VPN Guard ya en ejecución (PID {pid}). Siguiendo log: {self._log_path}[/]")
         self._worker = self.run_worker(self._tail_log, name="vpn-guard-tail", group="vpn", thread=True)
 
@@ -159,7 +160,7 @@ class VpnGuardTab(Vertical):
         ]
 
         self._log(f"[#565f89]$ {' '.join(cmd)}[/]")
-        self._set_status("iniciando...")
+        self._set_status("INICIANDO")
 
         log_path = REPO_ROOT / "vpn_guard.log"
         try:
@@ -185,7 +186,7 @@ class VpnGuardTab(Vertical):
 
         self.query_one("#vpn-start", ClickableLabel).display = False
         self.query_one("#vpn-stop", ClickableLabel).display = True
-        self._set_status(f"ejecutando (PID {self._proc.pid})")
+        self._set_status("INICIADO")
         self._log(f"[#565f89]Proceso desacoplado. Log: {log_path}[/]")
         self._worker = self.run_worker(self._tail_log, name="vpn-guard-tail", group="vpn", thread=True)
 
@@ -297,7 +298,7 @@ class VpnGuardTab(Vertical):
                 self.query_one("#vpn-stop", ClickableLabel).display = False
             except Exception:
                 pass
-            self._set_status(f"detenido (rc={proc.returncode})")
+            self._set_status("DETENIDO")
             self._log(f"[#565f89]Proceso finalizado (rc={proc.returncode})[/]")
 
     def _on_finished(self, rc):
@@ -305,7 +306,7 @@ class VpnGuardTab(Vertical):
         self._worker = None
         self.query_one("#vpn-start", ClickableLabel).display = True
         self.query_one("#vpn-stop", ClickableLabel).display = False
-        self._set_status(f"detenido (rc={rc})")
+        self._set_status("DETENIDO")
         self._log(f"[#565f89]Proceso finalizado (rc={rc})[/]")
 
     def stop_guard(self):
@@ -338,5 +339,5 @@ class VpnGuardTab(Vertical):
             self.query_one("#vpn-stop", ClickableLabel).display = False
         except Exception:
             pass
-        self._set_status("detenido")
+        self._set_status("DETENIDO")
         self._log("[#565f89]VPN Guard detenido[/]")
