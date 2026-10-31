@@ -311,14 +311,26 @@ class VpnGuardTab(Vertical):
 
     def stop_guard(self):
         proc = self._proc
-        if proc is not None and proc.poll() is None:
+        pid = self._pid if self._pid is not None else (proc.pid if proc is not None else None)
+        if pid is not None:
             try:
-                os.killpg(proc.pid, signal.SIGINT)
-                try:
-                    proc.wait(timeout=4)
-                except subprocess.TimeoutExpired:
-                    os.killpg(proc.pid, signal.SIGTERM)
-                    proc.wait()
+                os.killpg(pid, signal.SIGINT)
+                if proc is not None:
+                    try:
+                        proc.wait(timeout=4)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(pid, signal.SIGTERM)
+                        proc.wait()
+                else:
+                    # Esperar a que el proceso termine
+                    for _ in range(40):
+                        try:
+                            os.kill(pid, 0)
+                        except ProcessLookupError:
+                            break
+                        time.sleep(0.1)
+            except ProcessLookupError:
+                pass
             except Exception as e:
                 self._log(f"[red]Error al detener: {e}[/]")
         self._running = False
@@ -329,11 +341,11 @@ class VpnGuardTab(Vertical):
                 pass
         self._worker = None
         self._proc = None
+        self._pid = None
         try:
             self._pid_path.unlink(missing_ok=True)
         except Exception:
             pass
-        self._pid = None
         try:
             self.query_one("#vpn-start", ClickableLabel).display = True
             self.query_one("#vpn-stop", ClickableLabel).display = False
