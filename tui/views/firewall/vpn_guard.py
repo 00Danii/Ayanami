@@ -322,7 +322,11 @@ class VpnGuardTab(Vertical):
                 else:
                     start = min(self._tail_position, size)
                 handle.seek(start)
-                for line in handle:
+                while True:
+                    pos = handle.tell()
+                    line = handle.readline()
+                    if not line:
+                        break
                     if not self._running:
                         return
                     self.app.call_from_thread(self._handle_line, line.rstrip("\n"))
