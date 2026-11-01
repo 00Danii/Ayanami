@@ -35,57 +35,43 @@ def _pid_alive(pid: int) -> bool:
 
 
 def launch_vpn_guard(iface: str):
-    """Lanza (o reutiliza) el proceso VPN Guard de forma desacoplada.
+    """Inicia o reutiliza VPN Guard administrado por systemd."""
+    service = "ayanami-vpn-guard.service"
 
-    Devuelve (pid, mensaje). Si ya estaba corriendo, devuelve su PID.
-    """
-    log_path = REPO_ROOT / "vpn_guard.log"
-    pid_path = REPO_ROOT / "vpn_guard.pid"
-
-    # Reutilizar si ya está corriendo
-    if pid_path.exists():
-        try:
-            pid = int(pid_path.read_text().strip())
-            if _pid_alive(pid):
-                return pid, "ya en ejecución"
-        except (ValueError, OSError):
-            pass
-        try:
-            pid_path.unlink(missing_ok=True)
-        except Exception:
-            pass
-
-    cmd = [
-        sys.executable, str(VPN_GUARD_SCRIPT),
-        "--interface", str(iface),
-        "--lan-iface", str(iface),
-        "--block-duration", "5",
-        "--block-device",
-        "--apply",
-    ]
-
-    try:
-        # Limpiar log anterior para evitar formatos mezclados
-        try:
-            log_path.write_text("")
-        except Exception:
-            pass
-        log_handle = open(log_path, "a", buffering=1)
-        proc = subprocess.Popen(
-            cmd,
-            stdout=log_handle,
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
+    result = subprocess.run(
+        ["systemctl", "is-active", "--quiet", service],
+        check=False,
+    )
+    if result.returncode == 0:
+        status = "ya en ejecución"
+    else:
+        result = subprocess.run(
+            ["systemctl", "start", service],
+            capture_output=True,
+            text=True,
+            check=False,
         )
-        log_handle.close()
-    except Exception as e:
-        return None, f"Error al lanzar: {e}"
+        if result.returncode != 0:
+            return None, (
+                "No se pudo iniciar VPN Guard: "
+                + result.stderr.strip()
+            )
+        status = "iniciado"
 
+    result = subprocess.run(
+        ["systemctl", "show", service, "--property=MainPID", "--value"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     try:
-        pid_path.write_text(str(proc.pid))
-    except Exception:
-        pass
-    return proc.pid, "iniciado"
+        pid = int(result.stdout.strip())
+    except ValueError:
+        return None, "No se pudo obtener el PID del servicio"
+    if pid <= 0:
+        return None, "VPN Guard no tiene un proceso activo"
+    return pid, status
+
 
 class VpnGuardTab(Vertical):
     """Pestaña del Firewall: detección de VPN con ndpiReader y bloqueo por MAC."""
@@ -163,38 +149,49 @@ class VpnGuardTab(Vertical):
             self.stop_guard()
 
     def _reattach_if_running(self):
-        """Si VPN Guard ya está corriendo, reanuda el seguimiento del log."""
+        result = subprocess.run(
+            [
+                "systemctl", "show",
+                "ayanami-vpn-guard.service",
+                "--property=MainPID", "--value",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
         try:
-            if not self._pid_path.exists():
-                return
-            pid = int(self._pid_path.read_text().strip())
-        except (ValueError, OSError):
-            try:
-                self._pid_path.unlink(missing_ok=True)
-            except Exception:
-                pass
+            pid = int(result.stdout.strip())
+        except ValueError:
             return
-
-        if not self._pid_alive(pid):
-            try:
-                self._pid_path.unlink(missing_ok=True)
-            except Exception:
-                pass
+        if pid <= 0:
             return
 
         self._pid = pid
         self._running = True
         self._proc = None
         try:
-            self.query_one("#vpn-start", ClickableLabel).display = False
-            self.query_one("#vpn-stop", ClickableLabel).display = True
+            self.query_one(
+                "#vpn-start", ClickableLabel
+            ).display = False
+            lbl = self.query_one("#vpn-stop", ClickableLabel)
+            lbl.markup = False
+            lbl.update(f"[Detener {pid}]")
+            lbl.display = True
         except Exception:
             pass
         self._set_status("INICIADO")
-        self._log(f"[#565f89]VPN Guard ya en ejecución (PID {pid}). Siguiendo log: {self._log_path}[/]")
+        self._log(
+            f"[cyan]VPN Guard activo mediante systemd "
+            f"(PID {pid})[/]"
+        )
         if not self._tail_running:
             self._tail_running = True
-            self._worker = self.run_worker(self._tail_log, name="vpn-guard-tail", group="vpn", thread=True)
+            self._worker = self.run_worker(
+                self._tail_log,
+                name="vpn-guard-tail",
+                group="vpn",
+                thread=True,
+            )
 
     def _pid_alive(self, pid: int) -> bool:
         try:
@@ -350,6 +347,58 @@ class VpnGuardTab(Vertical):
             self._tail_running = False
 
     def _check_proc(self):
+        if self._proc is None and self._running:
+            result = subprocess.run(
+                [
+                    "systemctl", "is-active", "--quiet",
+                    "ayanami-vpn-guard.service",
+                ],
+                check=False,
+            )
+            if result.returncode != 0:
+                self._running = False
+                self._pid = None
+                self._set_status("DETENIDO")
+                try:
+                    self.query_one(
+                        "#vpn-start", ClickableLabel
+                    ).display = True
+                    lbl = self.query_one("#vpn-stop", ClickableLabel)
+                    lbl.markup = False
+                    lbl.update("[Detener]")
+                    lbl.display = False
+                except Exception:
+                    pass
+                self._log(
+                    "[yellow]VPN Guard no está activo[/]"
+                )
+                return
+            pid_result = subprocess.run(
+                [
+                    "systemctl", "show",
+                    "ayanami-vpn-guard.service",
+                    "--property=MainPID", "--value",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            try:
+                pid = int(pid_result.stdout.strip())
+                if pid > 0:
+                    self._pid = pid
+                    try:
+                        self.query_one("#vpn-start", ClickableLabel).display = False
+                        lbl = self.query_one("#vpn-stop", ClickableLabel)
+                        lbl.markup = False
+                        lbl.update(f"[Detener {pid}]")
+                        lbl.display = True
+                    except Exception:
+                        pass
+                    self._set_status("INICIADO")
+            except ValueError:
+                pass
+
         proc = self._proc
         if proc is not None and proc.poll() is not None:
             self._proc = None
@@ -370,28 +419,24 @@ class VpnGuardTab(Vertical):
         self._log(f"[#565f89]Proceso finalizado (rc={rc})[/]")
 
     def stop_guard(self):
-        proc = self._proc
-        pid = self._pid if self._pid is not None else (proc.pid if proc is not None else None)
-        if pid is not None:
-            try:
-                os.killpg(pid, signal.SIGINT)
-                if proc is not None:
-                    try:
-                        proc.wait(timeout=1)
-                    except subprocess.TimeoutExpired:
-                        os.killpg(pid, signal.SIGKILL)
-                        proc.wait()
-                else:
-                    for _ in range(10):
-                        try:
-                            os.kill(pid, 0)
-                        except ProcessLookupError:
-                            break
-                        time.sleep(0.1)
-            except ProcessLookupError:
-                pass
-            except Exception as e:
-                self._log(f"[red]Error al detener: {e}[/]")
+        """Detiene VPN Guard mediante systemd."""
+        result = subprocess.run(
+            ["systemctl", "stop", "ayanami-vpn-guard.service"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            self._log(
+                f"[red]Error al detener VPN Guard: "
+                f"{result.stderr.strip()}[/]"
+            )
+            self.notify(
+                "No se pudo detener VPN Guard",
+                severity="error",
+            )
+            return
+
         self._running = False
         if self._worker is not None:
             try:
@@ -408,9 +453,14 @@ class VpnGuardTab(Vertical):
         except Exception:
             pass
         try:
-            self.query_one("#vpn-start", ClickableLabel).display = True
-            self.query_one("#vpn-stop", ClickableLabel).display = False
+            self.query_one(
+                "#vpn-start", ClickableLabel
+            ).display = True
+            lbl = self.query_one("#vpn-stop", ClickableLabel)
+            lbl.markup = False
+            lbl.update("[Detener]")
+            lbl.display = False
         except Exception:
             pass
         self._set_status("DETENIDO")
-        self._log("[#565f89]VPN Guard detenido[/]")
+        self._log("[green]VPN Guard detenido correctamente[/]")
