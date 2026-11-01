@@ -2227,6 +2227,16 @@ VpnGuardTab {
     width: 1fr;
 }
 
+.svc-service-row {
+    height: 1;
+    align: left middle;
+    margin-bottom: 1;
+}
+
+.svc-service-row > .fw-card-title {
+    width: auto;
+}
+
 .svc-title-actions {
     width: auto;
     height: 1;

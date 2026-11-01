@@ -32,25 +32,52 @@ class ServicesTab(Vertical):
 
         with Horizontal(classes="svc-columns"):
             with Vertical(classes="svc-card"):
-                yield Label("ayanami-restore.service", classes="fw-card-title")
-                with Horizontal(classes="fw-gw-row"):
-                    yield ClickableLabel("[Iniciar]", id="svc-start-restore", classes="svc-action svc-green", markup=False)
-                    yield ClickableLabel("[Detener]", id="svc-stop-restore", classes="svc-action svc-red", markup=False)
+                with Horizontal(classes="svc-service-row"):
+                    yield Label("ayanami-restore.service", classes="fw-card-title")
+                    with Horizontal(classes="svc-title-actions"):
+                        yield ClickableLabel("[Iniciar]", id="svc-start-restore", classes="svc-action svc-green", markup=False)
+                        yield ClickableLabel("[Detener]", id="svc-stop-restore", classes="svc-action svc-red", markup=False)
 
             with Vertical(classes="svc-card"):
-                yield Label("ayanami-vpn-guard.service", classes="fw-card-title")
-                with Horizontal(classes="fw-gw-row"):
-                    yield ClickableLabel("[Iniciar]", id="svc-start-vpn", classes="svc-action svc-green", markup=False)
-                    yield ClickableLabel("[Detener]", id="svc-stop-vpn", classes="svc-action svc-red", markup=False)
+                with Horizontal(classes="svc-service-row"):
+                    yield Label("ayanami-vpn-guard.service", classes="fw-card-title")
+                    with Horizontal(classes="svc-title-actions"):
+                        yield ClickableLabel("[Iniciar]", id="svc-start-vpn", classes="svc-action svc-green", markup=False)
+                        yield ClickableLabel("[Detener]", id="svc-stop-vpn", classes="svc-action svc-red", markup=False)
 
         yield RichLog(id="svc-log", markup=True, highlight=True, wrap=True)
 
     def on_mount(self):
+        self._refresh_status()
         self._log("Listo. Usa los botones para administrar los servicios.")
 
     def _log(self, text: str):
         try:
             self.query_one("#svc-log", RichLog).write(text)
+        except Exception:
+            pass
+
+    def _refresh_status(self):
+        pairs = [
+            ("ayanami-restore.service", "svc-start-restore", "svc-stop-restore"),
+            ("ayanami-vpn-guard.service", "svc-start-vpn", "svc-stop-vpn"),
+        ]
+        for service, start_id, stop_id in pairs:
+            try:
+                result = subprocess.run(
+                    ["systemctl", "is-active", "--quiet", service],
+                    check=False,
+                )
+                active = result.returncode == 0
+                self.query_one(f"#{start_id}", ClickableLabel).display = not active
+                self.query_one(f"#{stop_id}", ClickableLabel).display = active
+            except Exception:
+                pass
+
+        try:
+            installed = Path("/etc/systemd/system/ayanami-restore.service").exists()
+            self.query_one("#svc-install", ClickableLabel).display = not installed
+            self.query_one("#svc-uninstall", ClickableLabel).display = installed
         except Exception:
             pass
 
@@ -81,6 +108,7 @@ class ServicesTab(Vertical):
         else:
             self._log("[#9ece6a]OK[/]")
             self.notify("Comando finalizado")
+        self._refresh_status()
 
     def on_clickable_label_pressed(self, event: ClickableLabel.Pressed):
         bid = event.label.id or ""
