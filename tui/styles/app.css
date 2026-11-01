@@ -955,7 +955,7 @@ FirewallView {
     height: 1fr;
 }
 
-#fw-panel-rules, #fw-panel-apps, #fw-panel-config, #fw-panel-vpn {
+#fw-panel-rules, #fw-panel-apps, #fw-panel-config, #fw-panel-vpn, #fw-panel-services {
     height: 1fr;
     padding: 1;
     border: solid #3b4261;
@@ -2162,4 +2162,74 @@ BackupsView {
 
 VpnGuardTab {
     height: 1fr;
+}
+
+.svc-columns {
+    height: auto;
+    margin-top: 1;
+}
+
+.svc-card {
+    width: 1fr;
+    height: auto;
+    margin-right: 1;
+}
+
+.svc-action {
+    width: auto;
+    
+    height: 1;
+    margin-right: 1;
+}
+
+.svc-green {
+    color: #9ece6a;
+}
+
+.svc-red {
+    color: #f7768e;
+}
+
+.svc-blue {
+    color: #7aa2f7;
+}
+
+#svc-log {
+    height: 1fr;
+    margin-top: 1;
+    background: #1a1b26;
+    border: solid #3b4261;
+}
+
+.svc-action:hover {
+    color: #7dcfff;
+}
+
+.svc-green:hover {
+    color: #2df94f;
+}
+
+.svc-red:hover {
+    color: #ff6b6b;
+}
+
+.svc-blue:hover {
+    color: #7dcfff;
+}
+
+.svc-title-row {
+    height: 1;
+    align: left middle;
+    margin-bottom: 1;
+}
+
+.svc-title-row > .fw-card-title {
+    width: 1fr;
+}
+
+.svc-title-actions {
+    width: auto;
+    height: 1;
+    align: left middle;
+    margin-left: 1;
 }

@@ -5,6 +5,7 @@ from views.firewall.whitelist import WhitelistTab
 from views.firewall.apps import AppsTab
 from views.firewall.config import ConfigTab
 from views.firewall.vpn_guard import VpnGuardTab
+from views.firewall.services import ServicesTab
 
 
 class FirewallView(Vertical):
@@ -18,12 +19,14 @@ class FirewallView(Vertical):
             yield Button("Lista Blanca", id="fw-tab-rules", classes="fw-tab")
             yield Button("Config", id="fw-tab-config", classes="fw-tab")
             yield Button("VPN Guard", id="fw-tab-vpn", classes="fw-tab")
+            yield Button("Servicios", id="fw-tab-services", classes="fw-tab")
 
         with ContentSwitcher(initial="fw-panel-apps", id="fw-content"):
             yield AppsTab(id="fw-panel-apps")
             yield WhitelistTab(id="fw-panel-rules")
             yield ConfigTab(id="fw-panel-config")
             yield VpnGuardTab(id="fw-panel-vpn")
+            yield ServicesTab(id="fw-panel-services")
 
     def on_button_pressed(self, event: Button.Pressed):
         mapping = {
@@ -31,6 +34,7 @@ class FirewallView(Vertical):
             "fw-tab-apps": "fw-panel-apps",
             "fw-tab-config": "fw-panel-config",
             "fw-tab-vpn": "fw-panel-vpn",
+            "fw-tab-services": "fw-panel-services",
         }
         panel_id = mapping.get(event.button.id)
         if panel_id:
