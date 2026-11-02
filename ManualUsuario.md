@@ -661,6 +661,18 @@ Las copias de seguridad se gestionan ahora en la vista **Respaldos** de la barra
 
 ---
 
+### 6.6 Arranque automático (systemd)
+
+AYANAMI puede instalar servicios para restaurar el gateway y lanzar VPN Guard al arrancar:
+
+- `systemd/install_ayanami_services.sh` — instala/desinstala ambos servicios.
+- `ayanami-restore.service` — restaura gateway, NAT, DNS, DoT y lista blanca.
+- `ayanami-vpn-guard.service` — inicia VPN Guard (bloqueo por MAC, 5 s).
+
+También se pueden administrar desde la pestaña **Servicios** del Firewall.
+
+---
+
 ## 7. Guardar y Cargar configuración
 
 La vista **Respaldos** (barra lateral) contiene las acciones **Guardar Copia** y **Cargar Copia**. Toda la configuración del firewall se guarda en **un único archivo**: `backup.json` (en la raíz del proyecto). Contiene:
