@@ -485,7 +485,7 @@ Debajo se listan los **backups disponibles** (`backups/backup-AAAA-MM-DD_HHMMSS_
 
 ## 6. El Firewall 
 
-La vista **Firewall** tiene **4 pestañas**: **Apps**, **Lista Blanca**, **Config** y **VPN Guard**. Se navega haciendo clic en las pestañas superiores.
+La vista **Firewall** tiene **5 pestañas**: **Apps**, **Lista Blanca**, **Config**, **VPN Guard** y **Servicios**. Se navega haciendo clic en las pestañas superiores.
 
 **Cómo funciona el firewall por dentro:**
 
@@ -649,16 +649,13 @@ Borra **todo** el estado del firewall:
 
 > ⚠️ Pide confirmación explícita. No borra `whitelist.json` ni `backup.json` (la configuración guardada se conserva; las entradas de la lista blanca quedan apagadas), pero **sí se borra la configuración del gateway**: se debe configurar de nuevo.
 
-### 6.4 Pestaña VPN Guard — detección y bloqueo por MAC
+### 6.5 Pestaña Servicios — administración de systemd
 
-Detecta conexiones VPN en la red con `ndpiReader` y bloquea el dispositivo por MAC. Requiere el binario `ndpiReader` en la raíz del proyecto y ejecución como root.
+Permite instalar, desinstalar, iniciar, detener y consultar los servicios `ayanami-restore.service` y `ayanami-vpn-guard.service`.
 
-- **Iniciar / Detener** — controla la captura.
-- **Modo** y **duración** están fijos: bloqueo por dispositivo completo, 5 segundos.
-- El bloqueo se aplica por MAC en `FORWARD`, por lo que sigue funcionando aunque el dispositivo cambie de IP (DHCP).
-- El supervisor mantiene un único hilo y reactiva el bloqueo si vuelve a detectar tráfico VPN.
-
-#### Copias de seguridad
+- **Instalar / Desinstalar** — ejecuta `systemd/install_ayanami_services.sh`.
+- **Estado** — consulta el estado de ambos servicios.
+- Cada servicio muestra **Iniciar** o **Detener** según su estado.
 
 Las copias de seguridad se gestionan ahora en la vista **Respaldos** de la barra lateral. Se explican en detalle en la [sección 7](#7-guardar-y-cargar-configuración).
 

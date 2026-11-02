@@ -204,8 +204,10 @@ Consecuencia práctica: **los archivos nuevos de `tui/` se importan plano, sin p
 ├── backups/                 # backups automáticos (no se commitean)
 │
 ├── systemd/
-│   └── install_backup_timer.sh   # instala/edita/desinstala el timer (OnCalendar/Persistent)
+│   ├── install_backup_timer.sh   # instala/edita/desinstala el timer (OnCalendar/Persistent)
+│   └── install_ayanami_services.sh # instala/desinstala servicios de arranque (restore + VPN Guard)
 │
+├── tui/restore_gateway.py  # restaurador del gateway para systemd (sin Textual)
 ├── ndpiReader            # binario nDPI (open source de ntop, https://github.com/ntop/nDPI) usado por VPN Guard
 ├── vpn_guard.py          # script externo lanzado por VpnGuardTab (detección VPN + bloqueo por MAC)
 │
@@ -252,7 +254,8 @@ Consecuencia práctica: **los archivos nuevos de `tui/` se importan plano, sin p
             ├── apps.py      # AppsTab: CRUD de apps + bloqueo por dominio
             ├── whitelist.py # WhitelistTab: lista blanca + IPRow
             ├── config.py    # ConfigTab: gateway, estado y limpiar
-            └── vpn_guard.py # VpnGuardTab: detección VPN con ndpiReader y bloqueo por MAC
+            ├── vpn_guard.py # VpnGuardTab: detección VPN con ndpiReader y bloqueo por MAC
+            ├── services.py  # ServicesTab: administración de servicios systemd
             └── app_modal.py # AppModal: formulario Registrar/Modificar app + APP_TYPES
 ```
 
@@ -1097,6 +1100,60 @@ Detecta VPNs con `ndpiReader` y bloquea el dispositivo por **MAC** en `FORWARD`.
 - `vpn_guard.py` (raíz del proyecto) — ejecuta `ndpiReader -R`, parsea líneas `Detected Realtime protocol: ... app=...`, resuelve la MAC del cliente vía ARP y bloquea con iptables. Usa `VPNBlockSupervisor` cuando hay bloqueo temporal.
 - `VPNBlockSupervisor` — un único hilo que lee `iptables-save -c -t filter` cada segundo. Mantiene estados `BLOCKED`/`WATCHING`: al dejar de ver tráfico VPN desbloquea temporalmente, pero conserva watchers; si reaparece tráfico, reactiva el bloqueo. Evita temporizadores individuales.
 - Bloqueo por MAC (no por IP): las IPs se reciclan por DHCP, pero la MAC persiste mientras el dispositivo siga en la misma L2.
+
+### 7.5.3 ndpiReader: compilación y modificación para VPN Guard
+
+`ndpiReader` proviene de la biblioteca open source **nDPI** de ntop (https://github.com/ntop/nDPI). Se compila y el binario se coloca en la raíz del proyecto (`ndpiReader`) para que `vpn_guard.py` lo use por defecto.
+
+Compilación típica:
+
+```bash
+git clone https://github.com/ntop/nDPI.git
+cd nDPI
+./autogen.sh
+./configure
+make
+```
+
+Para que VPN Guard detecte WireGuard, se modificó `example/ndpiReader.c` en la función `is_realtime_protocol`, agregando `NDPI_PROTOCOL_WIREGUARD` al arreglo `realtime_protos`:
+
+```c
+static int is_realtime_protocol(ndpi_protocol proto)
+{
+  static u_int16_t const realtime_protos[] = {
+    NDPI_PROTOCOL_YOUTUBE,
+    NDPI_PROTOCOL_YOUTUBE_UPLOAD,
+    NDPI_PROTOCOL_TIKTOK,
+    NDPI_PROTOCOL_GOOGLE,
+    NDPI_PROTOCOL_GOOGLE_CLASSROOM,
+    NDPI_PROTOCOL_GOOGLE_CLOUD,
+    NDPI_PROTOCOL_GOOGLE_DOCS,
+    NDPI_PROTOCOL_GOOGLE_DRIVE,
+    NDPI_PROTOCOL_GOOGLE_MAPS,
+    NDPI_PROTOCOL_GOOGLE_SERVICES,
+    NDPI_PROTOCOL_WIREGUARD
+  };
+  u_int16_t i;
+
+  for (i = 0; i < NDPI_ARRAY_LENGTH(realtime_protos); i++) {
+    if (proto.proto.app_protocol == realtime_protos[i]
+        || proto.proto.master_protocol == realtime_protos[i])
+      {
+        return 1;
+      }
+  }
+
+  return 0;
+}
+```
+
+Uso con VPN Guard:
+
+- `vpn_guard.py` lanza `ndpiReader -R` sobre la interfaz de captura.
+- Parsea líneas `Detected Realtime protocol: ... app=...`.
+- Resuelve la MAC del cliente vía ARP (`ip neigh` / `/proc/net/arp`).
+- Bloquea el dispositivo por MAC en `FORWARD` (y, en modo dispositivo, instala una regla de conteo en `AYANAMI_CNT` para supervisar actividad).
+- `VPNBlockSupervisor` mantiene un único hilo, lee `iptables-save -c -t filter` cada segundo y gestiona estados `BLOCKED`/`WATCHING`, reactivando el bloqueo si reaparece tráfico VPN.
 
 ### 7.6 `reset_apps_state` y el manejo del JSON de apps
 
