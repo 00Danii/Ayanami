@@ -49,7 +49,7 @@ class ServicesTab(Vertical):
 
     def on_mount(self):
         self._refresh_status()
-        self._log("Listo. Usa los botones para administrar los servicios.")
+        self._log("Usar los botones para administrar los servicios.")
 
     def _log(self, text: str):
         try:
