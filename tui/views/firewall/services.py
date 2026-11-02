@@ -82,6 +82,10 @@ class ServicesTab(Vertical):
             pass
 
     def _run(self, cmd: list[str], title: str):
+        try:
+            self.query_one("#svc-log", RichLog).clear()
+        except Exception:
+            pass
         self._log(f"\n[#e0af68]━━━ {title} ━━━[/]")
         self._log(f"[#565f89]$ {' '.join(cmd)}[/]")
         try:
