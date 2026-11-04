@@ -16,7 +16,7 @@ Herramienta en Python 3, diseñada para ejecutarse con permisos de root para la 
 
 ## TUI — Interfaz de Texto (recomendada)
 
-La TUI está construida con **Textual** y es la forma más completa y amigable de usar Ayanami. Incluye una barra lateral de navegación y **9 vistas**. Las vistas se importan y montan bajo demanda: el arranque solo construye **Interfaces** y las demás aparecen la primera vez que se abren.
+La TUI está construida con **Textual** y es la forma más completa y amigable de usar Ayanami. Incluye una barra lateral de navegación y **9 vistas**. La vista inicial es **Sistema**; las demás vistas se importan y montan bajo demanda la primera vez que se abren.
 
 | Vista | Descripción |
 |---|---|
@@ -46,78 +46,34 @@ La TUI está construida con **Textual** y es la forma más completa y amigable d
 
 ### Archivo de configuración y backups
 
-Toda la configuración del firewall se resume en un solo archivo, `backup.json` (en la raíz del proyecto):
+Toda la configuración del firewall se resume en `backup.json` (raíz del proyecto): lista blanca, apps, gateway y contenido de `/etc/dnsmasq.conf`.
 
-```json
-{
-  "version": 1,
-  "exported_at": "2026-09-25T12:00:00",
-  "hostname": "ayanami",
-  "gateway": {
-    "wan_iface": "eth0",
-    "lan_iface": "wlan0",
-    "dns_target": "10.42.0.1",
-    "applied_at": "2026-09-25T12:00:00"
-  },
-  "dnsmasq": {
-    "path": "/etc/dnsmasq.conf",
-    "included_at": "2026-09-25T12:00:00",
-    "available": true,
-    "encoding": "utf-8",
-    "size": 482,
-    "content": "interface=eno2\ndhcp-range=10.0.0.50,10.0.0.200,2h\n"
-  },
-  "stats": {
-    "whitelist_count": 1,
-    "apps_count": 22,
-    "blocked_count": 5,
-    "domains_count": 120
-  },
-  "whitelist_disabled": [],
-  "whitelist": ["10.0.0.5"],
-  "apps": { "...": { "domains": [], "blocked": false, "type": "Videojuegos" } }
-}
-```
+- **Guardar Copia** — exporta esa configuración y crea un backup inmediato.
+- **Cargar Copia** — restaura componentes seleccionados mediante switches (todos apagados por defecto).
+- `backup.json` se actualiza automáticamente al modificar lista blanca, apps o gateway.
+- Los backups automáticos se guardan en `backups/backup-YYYY-MM-DD_HHMMSS_ffffff.json` y se conservan las **últimas 5 copias**.
+- El timer de systemd permite elegir frecuencia y modo `Persistent`.
 
-- **Guardar Copia** (vista Respaldos) — abre un **selector de rutas** (o escribe la ruta a mano) para exportar lista blanca, apps, datos de referencia del gateway y el contenido actual de `/etc/dnsmasq.conf`. También crea un backup inmediato.
-- **Cargar Copia** — selecciona el archivo y muestra switches para elegir qué restaurar: lista blanca, apps/bloqueos, gateway guardado y, si está incluido, `dnsmasq.conf`. Todos empiezan apagados; activa los que quieras aplicar. Solo se aplican los componentes marcados y al final se actualiza la copia canónica `backup.json`. Si restauras el gateway, se aplican las mismas reglas que con **Configurar Gateway** usando las interfaces guardadas en la copia. Las copias antiguas sin el bloque `dnsmasq` siguen funcionando.
-- `backup.json` se actualiza automáticamente al modificar la lista blanca, las apps o el gateway, por lo que el timer siempre respalda el estado actual.
-- El gateway se guarda automáticamente cada vez que se configura con "Configurar Gateway". Al restaurar con el switch activado, se aplica el gateway desde la copia y se guarda de nuevo en `backup.json`.
-- En el bloque `dnsmasq`, `content` es el texto del archivo y `encoding` indica cómo decodificarlo (`utf-8` o `latin-1`, para no corromper bytes no UTF-8). El campo `path` es informativo: si activas el switch, la restauración siempre escribe en `/etc/dnsmasq.conf`.
-
-#### Backups automáticos (systemd timer)
-
-Los backups se guardan en `backups/backup-YYYY-MM-DD_HHMMSS_ffffff.json` (la copia canónica siempre es la raíz del repo) y se conservan las **últimas 5 copias**; al crear una nueva se elimina la más antigua. Cada copia incluye el contenido actual de `/etc/dnsmasq.conf` aunque la copia canónica sea antigua. La vista **Respaldos** permite crear uno ahora, actualizar el estado del timer, editarlo, instalarlo/desinstalarlo y restaurar o eliminar cada copia. El gateway se toma del último aplicado y guardado en `backup.json`, no de la interfaz seleccionada en la UI; cerrar Ayanami no cambia lo que respalda el timer. Si la copia canónica falta o está corrupta, el backup se reconstruye desde los archivos vivos y se escribe de forma atómica, sin dejar archivos parciales.
-
-Si activas el switch para restaurar `dnsmasq` en una copia que lo incluye, Ayanami escribe primero un temporal, lo valida con `dnsmasq --test`, guarda la versión actual en `/etc/dnsmasq.conf.ayanami.bak` y solo entonces reemplaza el archivo y reinicia `dnsmasq`. Si la validación falla, el archivo real no se modifica. El switch está apagado por defecto: si no lo activas, `/etc/dnsmasq.conf` no se toca. El servicio de backup corre como root, por lo que el timer también puede leer el contenido.
-
-El timer usa por defecto `OnCalendar=monthly` y `Persistent=true`, pero **se ejecuta según la programación configurada**: mensual, semanal, diaria o una expresión `OnCalendar` personalizada. La vista muestra siempre el `OnCalendar` real del timer instalado. Cada ejecución crea un archivo nuevo con fecha y hora; no se agrupan por mes. Los backups con formato corto `backup-YYYY-MM.json` también aparecen en la lista y se pueden restaurar o eliminar.
-
-Con `Persistent=true`, si el equipo estaba apagado cuando tocaba ejecutar, systemd recupera **una vez** la ejecución atrasada al volver a encenderse. Con `Persistent=false`, la ejecución perdida se descarta y se espera a la próxima fecha programada.
-
-Instalación del timer — **las rutas se detectan automáticamente** (usa `AYANAMI_DIR=/ruta` si el repo no está junto al script). También se puede instalar desde la vista Respaldos:
+Instala el timer:
 
 ```bash
 sudo systemd/install_backup_timer.sh
-
-# Personalizar la programación:
-sudo systemd/install_backup_timer.sh --calendar "Mon..Fri 03:00" --persistent false
 ```
 
-Desinstalación:
+Desinstala:
 
 ```bash
 sudo systemd/install_backup_timer.sh --uninstall
 ```
 
-Verificación:
+Verifica:
 
 ```bash
 systemctl list-timers ayanami-backup.timer --no-pager
-sudo systemctl start ayanami-backup.service   # ejecutar el backup ahora mismo
+sudo systemctl start ayanami-backup.service
 ```
 
-El servicio corre `tui/firewall_config.py`, que crea una copia con marca de tiempo y conserva solo las 5 más recientes. Si `backup.json` aún no existe, lo genera con el estado actual antes de respaldarlo.
+Más detalles: ver **Manual de Usuario** (operación) y **Manual del Programador** (estructura y validaciones).
 
 ### Atajos de teclado
 
@@ -129,8 +85,7 @@ El servicio corre `tui/firewall_config.py`, que crea una copia con marca de tiem
 ### Ejecutar la TUI
 
 ```bash
-cd tui
-sudo venv/bin/python tui.py
+sudo venv/bin/python tui/tui.py
 ```
 
 ---
@@ -146,7 +101,7 @@ sudo venv/bin/python tui.py
 
 ```bash
 sudo apt update
-sudo apt install -y network-manager iftop iptables dnsmasq nmap arp-scan
+sudo apt install -y network-manager iftop iptables dnsmasq nmap arp-scan conntrack iproute2 python3-venv
 ```
 
 > En otras distribuciones usa tu gestor de paquetes (`pacman`, `dnf`, etc.).
@@ -168,6 +123,22 @@ pip install -r requirements.txt
 
 El contenido del archivo incluye: `textual` (la TUI), `scapy` (sniffer), `python-nmap`, `qrcode` y utilidades relacionadas.
 
+### nDPI (para VPN Guard)
+
+VPN Guard necesita el binario `ndpiReader` en la raíz del proyecto. Es open source de **ntop** (https://github.com/ntop/nDPI). Para compilarlo:
+
+```bash
+git clone https://github.com/ntop/nDPI.git
+cd nDPI
+./autogen.sh
+./configure
+make
+cp example/ndpiReader /ruta/al/proyecto/ndpiReader
+chmod +x /ruta/al/proyecto/ndpiReader
+```
+
+Sustituye `/ruta/al/proyecto` por la ruta absoluta del repositorio. Para detectar WireGuard, el código fuente de `example/ndpiReader.c` debe incluir `NDPI_PROTOCOL_WIREGUARD` en `realtime_protos` (ver Manual del Programador).
+
 ### Permisos
 
 Las funciones que manipulan el firewall, crean el hotspot o capturan paquetes requieren privilegios de root.
@@ -179,6 +150,39 @@ sudo venv/bin/python tui/tui.py
 # Opción B: activar el venv y luego ejecutar
 source venv/bin/activate
 sudo python tui/tui.py
+```
+
+---
+
+## Inicio rápido
+
+1. Ejecuta la TUI con privilegios administrativos:
+
+   ```bash
+   sudo venv/bin/python tui/tui.py
+   ```
+
+2. Selecciona la **interfaz LAN** en la barra lateral.
+3. Accede a **Firewall → Config**.
+4. Selecciona la **interfaz WAN** y pulsa **Configurar Gateway**.
+5. Verifica en el log que IP Forward, NAT, DNS y DoT queden activos.
+6. Configura DHCP y DNS según tu red.
+7. Conecta un dispositivo cliente y comprueba la asignación de IP y el acceso a internet.
+8. Activa las funciones de bloqueo necesarias (apps, lista blanca, VPN Guard).
+
+### Servicios automáticos
+
+Para instalar y habilitar los servicios de arranque:
+
+```bash
+sudo systemd/install_ayanami_services.sh
+```
+
+Comprueba su estado:
+
+```bash
+systemctl is-active ayanami-restore.service
+systemctl is-active ayanami-vpn-guard.service
 ```
 
 ---
@@ -209,6 +213,14 @@ sudo python3 cli/ayanami.py
 - Muchas funciones requieren privilegios de administrador: ejecutar la herramienta con `sudo` o como root.
 - Manipular `iptables` y `dnsmasq` afecta la conectividad de la red; úsalo con cuidado y solo en entornos de prueba o con autorización.
 - El sniffer captura paquetes — evita usarlo en redes que no administras o sin permisos.
+
+
+## Documentación
+
+| Documento | Propósito |
+|---|---|
+| [Manual de Usuario](ManualUsuario.md) | Instalación, navegación, configuración y operación. |
+| [Manual del Programador](ManualProgramador.md) | Arquitectura, módulos, persistencia y mantenimiento. |
 
 ## Depuración y problemas comunes
 
