@@ -1,6 +1,6 @@
 # Ayanami
 
-**Ayanami** es una herramienta de control de red con **Interfaz de Texto (TUI)** y una versión CLI, ambas pensadas para Linux. Permite inspeccionar interfaces, crear un hotspot, detectar dispositivos, monitorear tráfico en tiempo real, esnifar paquetes con Scapy, gestionar un firewall con bloqueo por apps y una lista blanca de IPs y MACs, y consultar el estado del sistema.
+**Ayanami** es una herramienta de control de red con **interfaz de usuario basada en texto (TUI)** y una versión CLI, ambas pensadas para Linux. Permite inspeccionar interfaces, crear un hotspot, detectar dispositivos, monitorear tráfico en tiempo real, esnifar paquetes con Scapy, gestionar un firewall con bloqueo por apps y una lista blanca de direcciones IP y MAC, y consultar el estado del sistema.
 
 ```text
 ▄████▄ ██  ██ ▄████▄ ███  ██ ▄████▄ ██▄  ▄██ ██
