@@ -25,7 +25,12 @@ Este manual explica la funcionalidad completa del programa, con **especial énfa
 9. [Versión CLI](#9-versión-cli)
 10. [Archivos de datos](#10-archivos-de-datos)
 11. [Solución de problemas](#11-solución-de-problemas)
-12. [Advertencias de seguridad](#12-advertencias-de-seguridad)
+12. [Guía de primera configuración](#12-guía-de-primera-configuración)
+13. [Inicio y apagado seguro](#13-inicio-y-apagado-seguro)
+14. [Verificación después de reiniciar](#14-verificación-después-de-reiniciar)
+15. [Glosario](#15-glosario)
+16. [Capturas de pantalla](#16-capturas-de-pantalla)
+17. [Advertencias de seguridad](#17-advertencias-de-seguridad)
 
 ---
 
@@ -887,7 +892,51 @@ sudo python3 cli/ayanami.py
 
 ---
 
-## 12. Advertencias de seguridad
+## 12. Guía de primera configuración
+
+1. Selecciona la **interfaz global (LAN)** en la barra lateral (por defecto `eno2` si existe).
+2. En **Firewall → Config**, elige la **WAN** (por defecto `eno1` si existe) y pulsa **Configurar Gateway**.
+3. Verifica en el log que se aplicó NAT, DNS y DoT.
+4. Registra apps y activa su bloqueo si lo necesitas.
+5. Configura la lista blanca si hay dispositivos exentos.
+6. Crea una copia de seguridad (Respaldos → Guardar Copia).
+
+## 13. Inicio y apagado seguro
+
+- Antes de reiniciar, exporta la configuración.
+- Si usas servicios systemd, deja VPN Guard detenido o permite que se detenga limpiamente.
+- Evita interrumpir un backup en curso.
+
+## 14. Verificación después de reiniciar
+
+Comprueba:
+
+- `systemctl is-active ayanami-restore.service`
+- `systemctl is-active ayanami-vpn-guard.service`
+- `sysctl net.ipv4.ip_forward` → `1`
+- Interfaces `eno1`/`eno2` con IP.
+- `iptables -t nat -S` y `iptables -S FORWARD`.
+- Conectividad DNS y acceso a internet desde un cliente.
+
+## 15. Glosario
+
+- **LAN**: red local.
+- **WAN**: salida a internet.
+- **NAT**: traducción de direcciones.
+- **DHCP**: asignación de IP.
+- **DNS**: resolución de nombres.
+- **DPI**: inspección profunda de paquetes.
+- **DoT**: DNS sobre TLS (puerto 853).
+- **DoH**: DNS sobre HTTPS (443).
+- **VPN**: túnel cifrado.
+
+## 16. Capturas de pantalla
+
+Incluir capturas de cada vista, especialmente Firewall, VPN Guard y Servicios.
+
+---
+
+## 17. Advertencias de seguridad
 
 - Muchas funciones requieren **root** y manipulan `iptables` y `dnsmasq`: **afectan la conectividad de la red**. Usar Ayanami solo en redes que administras o con autorización.
 - El **sniffer** captura paquetes: evitar en redes ajenas.
