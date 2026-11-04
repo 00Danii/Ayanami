@@ -125,7 +125,7 @@ Conceptos que conviene tener claros:
 | **`nmcli`** | cliente de línea de comandos de NetworkManager | listar interfaces (`nmcli device status`), crear hotspot, WiFi. |
 | **`ip neigh`** | tabla de vecinos (ARP) | de aqui sale la lista de dispositivos del Scanner. |
 
-**El flujo DNS completo del gateway** (esto perimite entender el proceso de configuración):
+**El flujo DNS completo del gateway** (esto permite entender el proceso de configuración):
 
 ```mermaid
 flowchart LR
@@ -293,7 +293,7 @@ class AyanamiApp(App):
     ]
 ```
 
-- **`selected_interface` es el "estado global"**: lo escribe la barra lateral (`Sidebar`) y la vista Interfaces (botón "Global"); lo leen Hotspot, Scanner, Monitor, Sniffer y el gateway (como **LAN**). Si se agreaga una vista que necesita saber "qué interfaz estoy usando", leer `self.app.selected_interface`.
+- **`selected_interface` es el "estado global"**: lo escribe la barra lateral (`Sidebar`) y la vista Interfaces (botón "Global"); lo leen Hotspot, Scanner, Monitor, Sniffer y el gateway (como **LAN**). Si se agrega una vista que necesita saber "qué interfaz estoy usando", leer `self.app.selected_interface`.
 - `NAV_ORDER` es la lista de ids de navegación. `on_button_pressed` recibe el clic de cualquier botón de la app con id en esa lista y llama a `_show_view(btn_id)`. Si la vista no existe, `_show_view` la importa y la monta; si ya existe, solo cambia `ContentSwitcher.current`. **Por eso los botones del sidebar tienen el mismo id que las vistas** (`nav-firewall` → `FirewallView(id="nav-firewall")`). `VIEW_IMPORTS` define el módulo y la clase de cada vista para no importarlas todas al arrancar.
 - `action_refresh()` (tecla `r`) refresca varias vistas **menos el firewall** (las listas del firewall se refrescan solas con cada acción).
 
@@ -427,7 +427,7 @@ Los tres modales que ya existen y que se pueden reutilizar:
 
 ### 5.6 Trabajo pesado: `run_worker` y `call_from_thread`
 
-Todo lo que toca el sistema (iptables, dnsmasq, reinicios, capture) corre en **hilos**, porque si no la UI se congela:
+Todo lo que toca el sistema (iptables, dnsmasq, reinicios, captura) corre en **hilos**, porque si no la UI se congela:
 
 ```python
 self.run_worker(mi_funcion_lenta, name="identificador", group="firewall", thread=True)
@@ -1631,7 +1631,7 @@ Tabla rápida para orientarse:
 | Colores, bordes, tamaños | `tui/styles/app.css` | todo el tema vive aqui |
 | Qué se ve al abrir Ayanami | `tui/tui.py` → `ContentSwitcher(initial=...)` | |
 | Orden o nombre de las vistas | `tui/widgets/sidebar.py` → `NAV_ITEMS` + `tui.py` → `NAV_ORDER` | **id** de botón y vista deben coincidir |
-| Comportamiento de **AppRRow**: datos de una app | `views/firewall/apps.py` + `widgets/app_row.py` | el CRUD está en `apps.py`; el render en `app_row.py` |
+| Comportamiento de **AppRow**: datos de una app | `views/firewall/apps.py` + `widgets/app_row.py` | el CRUD está en `apps.py`; el render en `app_row.py` |
 | Tipos de apps (`Videojuegos`, etc.) | `views/firewall/app_modal.py` → `APP_TYPES` + CSS `.app-type-*` + defaults `"Videojuegos"` | actualiza TODOS los puntos que usan type (app_row, _filtered_names, AppModal) |
 | Validación de IP/CIDR/rango | `firewall_ops.py` → `IP_RE`, `CIDR_RE`, `RANGE_RE`, `is_valid_*` | |
 | Reglas iptables de la lista blanca | `firewall_ops.py` → `apply_whitelist()` | comentarios `ayanami-wl`/`ayanami-wl-dns` son el marcador |
@@ -1795,7 +1795,7 @@ sudo venv/bin/python tui.py
 
 ## 18. Bugs y errores conocidos 
 
-Estos errores ya surgieron durante el proceso de desarrollo; leerlas ahora ahorra horas:
+Estos errores ya surgieron durante el desarrollo; conocerlos puede facilitar su identificación y corrección:
 
 1. **`DirectoryTree` se traga el evento `NodeSelected`**: su handler interno llama `event.stop()` y re-emite `DirectorySelected` / `FileSelected`. Por eso `PathPicker` usa `on_directory_tree_directory_selected` y `on_directory_tree_file_selected` (que además traen `event.path` resuelto). **Nunca** `on_tree_node_selected` en un Screen que contenga un DirectoryTree: no se dispara jamás.
 2. **Los modales no se confirman con Enter**: `ConfirmScreen`, `AppModal` y `PathPicker` no tienen binding de Enter; se confirma con clic (o Tab+Enter sobre el botón). Si se necesita Enter, agregar el binding explícitamente.
