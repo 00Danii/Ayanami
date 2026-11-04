@@ -1092,7 +1092,7 @@ El bloqueo *funciona* porque todos los clientes que consultan DNS **plano (puert
 - **VPN** encapsula el DNS dentro del túnel: ni el DNAT ni el `DROP` 853 lo alcanzan. Única vía: filtrar por IP del servidor VPN.
 - El DNAT al puerto 53 solo captura consultas **en tránsito por el gateway**: si el dispositivo resuelve a través de otra ruta (router con NAT propio que resuelve por su cuenta), Ayanami no ve la consulta.
 
-### 7.5.2 VPN Guard (`views/firewall/vpn_guard.py` + `vpn_supervisor.py` + `cli/vpn_guard.py`)
+### 7.5.2 VPN Guard (`views/firewall/vpn_guard.py` + `vpn_supervisor.py` + `tui/vpn_guard.py`)
 
 Detecta VPNs con `ndpiReader` y bloquea el dispositivo por **MAC** en `FORWARD`. Componentes:
 
