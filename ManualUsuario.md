@@ -29,8 +29,7 @@ Este manual explica la funcionalidad completa del programa, con **especial énfa
 13. [Inicio y apagado seguro](#13-inicio-y-apagado-seguro)
 14. [Verificación después de reiniciar](#14-verificación-después-de-reiniciar)
 15. [Glosario](#15-glosario)
-16. [Capturas de pantalla](#16-capturas-de-pantalla)
-17. [Advertencias de seguridad](#17-advertencias-de-seguridad)
+16. [Advertencias de seguridad](#16-advertencias-de-seguridad)
 
 ---
 
@@ -929,14 +928,9 @@ Comprueba:
 - **DoT**: DNS sobre TLS (puerto 853).
 - **DoH**: DNS sobre HTTPS (443).
 - **VPN**: túnel cifrado.
-
-## 16. Capturas de pantalla
-
-Incluir capturas de cada vista, especialmente Firewall, VPN Guard y Servicios.
-
 ---
 
-## 17. Advertencias de seguridad
+## 16. Advertencias de seguridad
 
 - Muchas funciones requieren **root** y manipulan `iptables` y `dnsmasq`: **afectan la conectividad de la red**. Usar Ayanami solo en redes que administras o con autorización.
 - El **sniffer** captura paquetes: evitar en redes ajenas.
