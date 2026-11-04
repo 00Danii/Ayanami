@@ -44,12 +44,12 @@ Ayanami es una herramienta de **control de red y firewall** para Linux con dos i
 ```mermaid
 flowchart LR
     subgraph TUI["TUI · Textual"]
-        VIEWS["CAPA UI<br/>tui/views/<br/><br/>Interfaces<br/>Scanner<br/>Firewall<br/>Monitor<br/>Sniffer<br/>Hotspot"]
+        VIEWS["CAPA UI<br/>tui/views/<br/><br/>Interfaces<br/>Scanner<br/>Firewall<br/>Monitor<br/>Sniffer<br/>Hotspot<br/>VPN Guard<br/>Servicios"]
 
-        LOGIC["CAPA LÓGICA<br/><br/>tui/firewall_ops.py<br/>tui/network.py<br/>tui/firewall_config.py<br/>tui/scanner.py<br/>tui/system.py"]
+        LOGIC["CAPA LÓGICA<br/><br/>tui/firewall_ops.py<br/>tui/network.py<br/>tui/firewall_config.py<br/>tui/scanner.py<br/>tui/system.py<br/>tui/vpn_guard.py<br/>tui/vpn_supervisor.py<br/>tui/restore_gateway.py"]
     end
 
-    SYSTEM["SISTEMA LINUX<br/><br/>iptables<br/>dnsmasq<br/>nmcli<br/>conntrack<br/>ip neigh<br/>/proc<br/>Scapy"]
+    SYSTEM["SISTEMA LINUX<br/><br/>iptables<br/>dnsmasq<br/>nmcli<br/>conntrack<br/>ip neigh<br/>/proc<br/>Scapy<br/>systemd<br/>ndpiReader"]
 
     JSON["PERSISTENCIA<br/><br/>apps_firewall.json<br/>whitelist.json<br/>backup.json"]
 
@@ -164,7 +164,7 @@ Fijadas en `requirements.txt`:
 | `qrcode==8.2` | Código QR ASCII de la contraseña del hotspot |
 | `rich==15.0.0` | Formato de texto enriquecido (usado por Textual por debajo) |
 
-Dependencias del **sistema** (no pip): `nmcli` (NetworkManager), `iptables`, `dnsmasq`, `iftop`, `nmap`, `arp-scan`.
+Dependencias del **sistema** (no pip): `nmcli` (NetworkManager), `iptables`, `dnsmasq`, `iftop`, `nmap`, `arp-scan`, `ndpiReader` (binario de nDPI, open source de ntop).
 
 ### Importante: cómo se ejecuta y por qué
 
@@ -176,12 +176,13 @@ from views.firewall.apps import AppsTab
 import network
 ```
 
-Esto funciona porque la TUI se lanza **con el directorio `tui/` como cwd**, de modo que Python lo agrega al `sys.path`:
+Esto funciona porque al ejecutar un archivo, Python agrega el directorio del script a `sys.path` (no necesariamente el cwd). El procedimiento oficial es:
 
 ```bash
-cd tui
-sudo venv/bin/python tui.py
+sudo venv/bin/python tui/tui.py
 ```
+
+desde la raíz del proyecto. El comando `cd tui && sudo venv/bin/python tui.py` es una alternativa, pero no es el procedimiento recomendado.
 
 Consecuencia práctica: **los archivos nuevos de `tui/` se importan plano, sin prefijo `tui.`**.
 
@@ -209,7 +210,6 @@ Consecuencia práctica: **los archivos nuevos de `tui/` se importan plano, sin p
 │
 ├── tui/restore_gateway.py  # restaurador del gateway para systemd (sin Textual)
 ├── ndpiReader            # binario nDPI (open source de ntop, https://github.com/ntop/nDPI) usado por VPN Guard
-├── vpn_guard.py          # script externo lanzado por VpnGuardTab (detección VPN + bloqueo por MAC)
 │
 ├── venv/                    # entorno virtual (no se commitea)
 │
@@ -1097,9 +1097,31 @@ El bloqueo *funciona* porque todos los clientes que consultan DNS **plano (puert
 Detecta VPNs con `ndpiReader` y bloquea el dispositivo por **MAC** en `FORWARD`. Componentes:
 
 - `VpnGuardTab` — pestaña del Firewall que lanza `vpn_guard.py` como proceso externo (`subprocess.Popen`) y lee su salida línea a línea en un worker. Hardcodea: 5 s, dispositivo completo, `--apply`.
-- `vpn_guard.py` (raíz del proyecto) — ejecuta `ndpiReader -R`, parsea líneas `Detected Realtime protocol: ... app=...`, resuelve la MAC del cliente vía ARP y bloquea con iptables. Usa `VPNBlockSupervisor` cuando hay bloqueo temporal.
+- `vpn_guard.py` (`tui/vpn_guard.py`) — ejecuta `ndpiReader -R`, parsea líneas `Detected Realtime protocol: ... app=...`, resuelve la MAC del cliente vía ARP y bloquea con iptables. Usa `VPNBlockSupervisor` cuando hay bloqueo temporal.
 - `VPNBlockSupervisor` — un único hilo que lee `iptables-save -c -t filter` cada segundo. Mantiene estados `BLOCKED`/`WATCHING`: al dejar de ver tráfico VPN desbloquea temporalmente, pero conserva watchers; si reaparece tráfico, reactiva el bloqueo. Evita temporizadores individuales.
 - Bloqueo por MAC (no por IP): las IPs se reciclan por DHCP, pero la MAC persiste mientras el dispositivo siga en la misma L2.
+
+#### A. Arquitectura de VPN Guard
+
+Responsabilidades:
+- `VpnGuardTab`: presentación y controles.
+- `vpn_guard.py`: procesamiento y coordinación de la detección.
+- `ndpiReader`: identificación de protocolos mediante DPI.
+- `VPNBlockSupervisor`: supervisión de dispositivos bloqueados.
+- `iptables`: aplicación de restricciones.
+- ARP: asociación de direcciones IP y MAC.
+
+#### B. Ciclo de detección
+
+1. Selección de la interfaz.
+2. Inicio de la captura.
+3. Análisis de paquetes mediante nDPI.
+4. Identificación de un protocolo VPN.
+5. Obtención de la dirección IP del cliente.
+6. Resolución de la dirección MAC.
+7. Aplicación de las reglas de bloqueo.
+8. Supervisión de la actividad.
+9. Retirada o reactivación de restricciones según corresponda.
 
 ### 7.5.3 ndpiReader: compilación y modificación para VPN Guard
 
@@ -1160,6 +1182,52 @@ Uso con VPN Guard:
 `firewall_ops.reset_apps_state()` pone `<blocked> = False` en **todas** las apps del `apps_firewall.json`. Se usa solo desde `flush_all()`.
 
 ---
+
+## 7.7 Restauración automática al arranque
+
+Flujo de `ayanami-restore.service`:
+
+1. Linux inicia el sistema.
+2. NetworkManager configura las interfaces.
+3. `ayanami-restore.service` se ejecuta (oneshot) después de `network-online.target`.
+4. `tui/restore_gateway.py` lee `backup.json` (`get_saved_gateway()`).
+5. Se recupera WAN/LAN y `dns_target`.
+6. Se habilita `net.ipv4.ip_forward=1`.
+7. Se aplican NAT (`MASQUERADE`) y reenvío `FORWARD`.
+8. Se recuperan redirección DNS (DNAT 53) y bloqueo DoT (853).
+9. Se reconstruyen las reglas de la lista blanca (`apply_whitelist()`).
+10. Se comprueba el resultado (salida `[OK] Gateway AYANAMI restaurado`).
+
+Si una interfaz guardada no existe, esa parte se omite y se informa el error. La restauración es idempotente: puede ejecutarse varias veces sin duplicar reglas porque usa `iptables -C ... || iptables -A ...`.
+
+## 7.8 Servicios systemd
+
+| Unidad | Tipo | Responsabilidad |
+|---|---|---|
+| `ayanami-restore.service` | oneshot | Restaurar gateway, NAT, DNS, DoT y lista blanca |
+| `ayanami-vpn-guard.service` | simple | Ejecutar VPN Guard (bloqueo por MAC, 5 s) |
+| `ayanami-backup.service` | oneshot | Generar respaldo |
+| `ayanami-backup.timer` | timer | Programar respaldos |
+
+Archivos:
+- `systemd/install_ayanami_services.sh` — instala/desinstala/habilita los servicios y configura `sysctl.d/90-ayanami.conf`.
+- `tui/restore_gateway.py` — restaurador sin Textual.
+- `tui/vpn_guard.py` — proceso de detección VPN.
+
+Variables: `AYANAMI_DIR`, `AYANAMI_VENV`, `AYANAMI_LAN_IFACE`. Logs: `vpn_guard.log`, `journalctl -u ayanami-restore.service`.
+
+## 7.9 Fuentes de configuración y estado aplicado
+
+| Componente | Fuente de configuración | Estado aplicado |
+|---|---|---|
+| Apps | `apps_firewall.json` | Archivo dnsmasq de bloqueo |
+| Lista blanca | `whitelist.json` | Reglas iptables |
+| Gateway | `backup.json` | IP forward, NAT, FORWARD |
+| DHCP | `/etc/dnsmasq.conf` | Servicio dnsmasq |
+| VPN Guard | parámetros del módulo | Proceso y reglas de bloqueo |
+| Respaldos | `backup.json` + estado actual | Archivos en `backups/` |
+
+La configuración deseada no siempre coincide con el estado aplicado: por ejemplo, una app marcada como bloqueada en JSON requiere que el archivo dnsmasq se haya escrito y recargado.
 
 ## 8. Persistencia y backups
 
