@@ -1,8 +1,8 @@
 # Manual de Usuario — Ayanami
 
-> Herramienta de control de red y firewall con **Interfaz de Texto (TUI)** y una versión **CLI** para Linux.
+> Herramienta de control de red y firewall con **interfaz de usuario basada en texto (TUI)** y una versión **CLI** para Linux.
 
-Este manual explica la funcionalidad completa del programa, con **especial énfasis en el módulo de firewall**, que es el corazón de Ayanami: bloqueo por aplicaciones (dominios), lista blanca de IPs y MACs, gateway/NAT y backups de configuración.
+Este manual explica la funcionalidad completa del programa, con **especial énfasis en el módulo de firewall**, que es el corazón de Ayanami: bloqueo por aplicaciones (dominios), lista blanca de direcciones IP y MAC, gateway/NAT y backups de configuración.
 
 ```
 ▄████▄ ██  ██ ▄████▄ ███  ██ ▄████▄ ██▄  ▄██ ██
@@ -45,7 +45,7 @@ Funcionalidades principales:
 | **Scanner** | Detecta dispositivos en la red LAN y muestra detalles (MAC, fabricante, puertos). |
 | **Monitor** | Monitorea ancho de banda por host en tiempo real. |
 | **Sniffer** | Captura y analiza paquetes con Scapy (todo el tráfico, por dispositivo o RAW). |
-| **Firewall** | Bloqueo por apps (dominios), lista blanca de IPs y MACs, gateway/NAT. |
+| **Firewall** | Bloqueo por apps (dominios), lista blanca de direcciones IP y MAC, gateway/NAT. |
 | **DHCP** | Estado del servicio `dnsmasq`, su configuración y reinicio del servicio. |
 | **Respaldos** | Copias manuales de la configuración y gestión de los backups automáticos (timer, restaurar y eliminar). |
 | **Sistema** | Dashboard tipo *fastfetch*: CPU, memoria, disco, procesos, temperatura y red. |
@@ -90,8 +90,7 @@ Dependencias incluidas: `textual` (TUI), `scapy` (sniffer), `python-nmap`, `qrco
 ### TUI (recomendada)
 
 ```bash
-cd tui
-sudo venv/bin/python tui.py
+sudo venv/bin/python tui/tui.py
 ```
 
 O activando el entorno:
@@ -119,6 +118,10 @@ La barra lateral contiene:
 
 - **Interfaz Global (LAN)**: un selector (`Select`) con todas las interfaces de red. La interfaz elegida aquí es la "global" que usan otros módulos (scanner, monitor, sniffer y el gateway como **LAN**). Por defecto se elige `eno2` si está disponible. Si se cambia la interfaz aquí, todos los módulos la usan.
 - **Navegación** con 9 botones: Sistema, Firewall, Respaldos, DHCP, Scanner, Monitor, Sniffer, Interfaces y Hotspot.
+
+### Selección de interfaces y relación entre módulos
+
+La interfaz global seleccionada en la barra lateral es la **LAN** que usan scanner, monitor, sniffer y el gateway. La **WAN** se elige aparte en la pestaña Config del Firewall. Los módulos dependen de esa selección: si cambias la interfaz global, todos los módulos que la usan se actualizan. Por defecto se elige `eno2` si está disponible; la WAN por defecto es `eno1` si está disponible.
 
 ### Atajos de teclado
 
@@ -169,7 +172,7 @@ Muestra las interfaces de red del equipo, tal como las reporta `nmcli device sta
 
 #### Cómo interpretarla
 
-- Para usar Ayanami como **router (gateway)**, la interfaz global debe ser la **LAN** (la que apunta a tus dispositivos), y la **WAN** (la que tiene internet) se elige aparte en la pestaña Config del Firewall.
+- Para usar Ayanami como **puerta de enlace (gateway)**, la interfaz global debe ser la **LAN** (la que apunta a tus dispositivos), y la **WAN** (la que tiene internet) se elige aparte en la pestaña Config del Firewall.
 - Una interfaz "desconectada" puede estar sin cable/WiFi, apagada por software, o sin configuración de red (`unavailable` en NetworkManager).
 
 ---
@@ -285,7 +288,7 @@ Muestra el **tráfico de red en tiempo real** de la interfaz global, agrupado po
 | Sección | Qué muestra |
 |---|---|
 | **REMOTE HOST** | Nombre de host del destino (resolución inversa). |
-| **CONNECTION** | SRC, DST, SERVICE, PROTO, puertos origen (SPORT) y destino (DPORT), dirección del flujo (**FLOW**: `OUTBOUND`, o `UPLOAD`/`DOWNLOAD` si filtrás por un host) y tipo de red (**NETWORK**: `LAN` si el destino es IP privada, `INTERNET` si es pública). También el **TTL** inicial del paquete. |
+| **CONNECTION** | SRC, DST, SERVICE, PROTO, puertos origen (SPORT) y destino (DPORT), dirección del flujo (**FLOW**: `OUTBOUND`, o `UPLOAD`/`DOWNLOAD` si filtras por un host) y tipo de red (**NETWORK**: `LAN` si el destino es IP privada, `INTERNET` si es pública). También el **TTL** inicial del paquete. |
 | **TRAFFIC** | RATE (KB/s), PACKETS y TOTAL (MB) del flujo. |
 | **TIMELINE** | FIRST (cuándo se vio el flujo por primera vez) y LAST (último paquete). |
 
@@ -386,7 +389,7 @@ Dashboard tipo *fastfetch* que se **auto-refresca cada 1 segundo** (no tiene bot
 
 - **Verde** → uso < 50 % — normal.
 - **Ámbar** → uso entre 50 % y 80 % — atención.
-- **Rojo** → uso ≥ 80 % — alto; revisá qué está consumiendo.
+- **Rojo** → uso ≥ 80 % — alto; revisa qué está consumiendo.
 
 ---
 
@@ -541,7 +544,7 @@ Abajo de la lista hay una línea con dos cosas:
 | `Mostrando "x" de "y" apps` | Cuántas filas estás viendo y cuántas hay en total **con el filtro/búsqueda actual**. |
 | `▸ Cargar más ("x")` | Texto verde: un clic agrega el siguiente tramo de apps a la lista. El número entre paréntesis es cuántas apps faltan mostrar. |
 
-- La lista **no se dibuja completa de una vez**: se muestran de a 25 para que la app no se congele cuando tenés muchas apps registradas. Usá **Cargar más** para ver el resto.
+- La lista **no se dibuja completa de una vez**: se muestran de a 25 para que la app no se congele cuando tienes muchas apps registradas. Usa **Cargar más** para ver el resto.
 - El pie se recalcula solo: al cambiar el filtro, el orden o la búsqueda vuelve a la primera página.
 - Cuando ya mostrás todas las apps del filtro, el enlace **Cargar más** desaparece.
 - Si el filtro o la búsqueda no deja ninguna app, el pie dice `Sin apps para mostrar`.
@@ -593,7 +596,7 @@ El input muestra el placeholder con los cuatro formatos; se agrega con el botón
 
 #### Configurar el Gateway (NAT)
 
-Convierte al equipo en **router/gateway** de la red:
+Convierte al equipo en **puerta de enlace (gateway)** de la red:
 
 1. En el selector elige la **interfaz con internet** (WAN). Por defecto se usa `eno1` si está disponible.
 2. Pulsa **Configurar Gateway**. La **LAN** se toma de la interfaz global (barra lateral).
@@ -620,13 +623,21 @@ El bloqueo de Ayanami es **por DNS**: el dnsmasq local responde `0.0.0.0` para l
 | **iPhone / iPad** con perfil de DNS cifrado (Cloudflare, NextDNS…) | DoT (853) o DoH (443) | ✅ solo si usa 853; ⚠️ NO si usa DoH |
 | **Laptop** con 8.8.8.8 / 1.1.1.1 como DNS | DNS plano (53) | ✅ Sí — el DNAT redirige cualquier destino al 53 |
 | **Laptop** con `systemd-resolved` y `DNSOverTLS=yes` | DoT (853) | ✅ Sí (se le corta el 853) |
-| **Cualquier dispositivo con VPN** (WireGuard/OpenVPN) | Encriptado dentro del túnel | ❌ No — el DNS viaja dentro del túnel |
+| **Cualquier dispositivo con VPN** (WireGuard/OpenVPN) | Encriptado dentro del túnel | ⚠️ El DNS escapa al bloqueo DNS, pero VPN Guard puede detectar y bloquear el dispositivo por MAC |
 
 **Aclaraciones:**
 
 - **Poner una IP de DNS a mano (ej: `8.8.8.8`) NO evade el bloqueo**: son consultas planas al puerto 53 y el DNAT las captura igual (no mira el destino, solo `--dport 53`).
 - **DoH (443) es el límite por diseño**: no se puede bloquear con una regla de puerto sin bloquear toda la web, porque comparte el puerto con el HTTPS normal. Los navegadores con "DNS seguro" activado por defecto (Chrome) pueden consultar por ahí.
-- **VPN es bypasseo completo**: el DNS va encriptado dentro del túnel y lo resuelve el servidor VPN, fuera del alcance de Ayanami. Para bloquear ese dispositivo habría que filtrar por **IP del servidor VPN** (o sacar la VPN), no por DNS.
+- **VPN**: el DNS va encriptado dentro del túnel y lo resuelve el servidor VPN, fuera del alcance del bloqueo DNS. Sin embargo, VPN Guard puede identificar determinados protocolos VPN y restringir el dispositivo por MAC. No garantiza detectar todas las VPN (especialmente las que usan HTTPS/443 como Stealth).
+
+Mecanismos de bloqueo:
+
+| Mecanismo | Función | Limitación principal |
+|---|---|---|
+| Bloqueo DNS | Impide resolver dominios registrados como bloqueados | Puede eludirse mediante resolución cifrada no controlada |
+| Bloqueo DoT | Restringe conexiones DNS sobre TLS en el puerto 853 | No bloquea DoH sobre HTTPS |
+| VPN Guard | Identifica determinados protocolos VPN y restringe dispositivos detectados | Depende de nDPI y de las condiciones de captura |
 
 #### Ver Estado
 
@@ -649,6 +660,23 @@ Borra **todo** el estado del firewall:
 
 > ⚠️ Pide confirmación explícita. No borra `whitelist.json` ni `backup.json` (la configuración guardada se conserva; las entradas de la lista blanca quedan apagadas), pero **sí se borra la configuración del gateway**: se debe configurar de nuevo.
 
+### 6.4 Pestaña VPN Guard — detección y bloqueo por MAC
+
+Detecta conexiones VPN en la red con `ndpiReader` y bloquea el dispositivo por MAC. Requiere el binario `ndpiReader` en la raíz del proyecto y ejecución como root.
+
+1. **¿Qué es VPN Guard?** Complementa el bloqueo por dominios identificando tráfico asociado a VPN mediante inspección profunda de paquetes (DPI).
+2. **Requisitos**: binario `ndpiReader` (open source de ntop) en la raíz del proyecto, permisos de root y una interfaz a supervisar.
+3. **Interfaz**: muestra estado (INICIADO/DETENIDO), botones [Iniciar]/[Detener] con PID y un log de salida.
+4. **Inicio y detención**: activa o detiene la supervisión; el proceso queda desacoplado y sigue corriendo al cerrar la TUI.
+5. **Detección**: identifica protocolos VPN reconocidos por nDPI (WireGuard, OpenVPN, etc.).
+6. **Bloqueo**: restringe el dispositivo detectado por MAC en `FORWARD`.
+7. **Inactividad**: si el dispositivo deja de generar tráfico, se desbloquea temporalmente y se vuelve a evaluar si reaparece.
+8. **Excepciones**: no sustituye a la lista blanca; esta sigue eximiendo dispositivos de las reglas de bloqueo.
+9. **Limitaciones**: depende de la capacidad de identificación de nDPI; puede haber falsos positivos o negativos. No detecta todas las VPN (especialmente las que usan HTTPS/443 como Stealth).
+10. **Diagnóstico**: revisar que `ndpiReader` exista, que la interfaz sea correcta, que el servicio esté activo y consultar `vpn_guard.log`.
+
+---
+
 ### 6.5 Pestaña Servicios — administración de systemd
 
 Permite instalar, desinstalar, iniciar, detener y consultar los servicios `ayanami-restore.service` y `ayanami-vpn-guard.service`.
@@ -656,6 +684,10 @@ Permite instalar, desinstalar, iniciar, detener y consultar los servicios `ayana
 - **Instalar / Desinstalar** — ejecuta `systemd/install_ayanami_services.sh`.
 - **Estado** — consulta el estado de ambos servicios.
 - Cada servicio muestra **Iniciar** o **Detener** según su estado.
+
+`ayanami-restore.service` restaura gateway, NAT, redirección DNS, DoT y lista blanca al arrancar. `ayanami-vpn-guard.service` inicia VPN Guard con bloqueo por MAC y 5 s de supervisión.
+
+Para verificar: `systemctl is-active ayanami-restore.service` y `systemctl is-active ayanami-vpn-guard.service`. Si falla, revisar `journalctl -u ayanami-restore.service`.
 
 Las copias de seguridad se gestionan ahora en la vista **Respaldos** de la barra lateral. Se explican en detalle en la [sección 7](#7-guardar-y-cargar-configuración).
 
@@ -841,14 +873,16 @@ sudo python3 cli/ayanami.py
 | Problema | Solución |
 |---|---|
 | **`nmcli` no disponible** | Instalar NetworkManager o ejecuta las funciones manualmente. |
-| **`scapy` falla (sniffer)** | `pip show scapy` y probar co: `python3 -c "from scapy.all import sniff; print('OK')"`. |
+| **`scapy` falla (sniffer)** | `pip show scapy` y probar con: `python3 -c "from scapy.all import sniff; print('OK')"`. |
 | **`iftop` no está instalado** | `sudo apt install iftop`. |
 | **Errores de permisos** | Reintentar con `sudo` (iptables, sysctl, hotspot, arp-scan necesitan root). |
-| **La TUI no arranca** | Verificar que `textual` esté instalado y ejecuta desde la carpeta `tui/`. |
-| **Cargo un archivo y dice "no es válido"** | El archivo debe ser una configuración de Ayanami exportada (JSON con `version`, `apps`, `whitelist`). Los backups del mes sirven. |
-| **Al desbloquear apps la red se corta** | Es normal: reiniciar NetworkManager es lo que aplica las reglas DNS. |
-| **El hotspot falla ("IP config unavailable")** | Revisar que no haya un `.conf` malformado en `/etc/NetworkManager/dnsmasq-shared.d/`. Consulta `PROBLEMAS.txt` del proyecto. |
+| **Cargo un archivo y dice "no es válido"** | El archivo debe ser una configuración de Ayanami exportada (JSON con `version`, `apps`, `whitelist`). Los backups sirven. |
+| **Al desbloquear apps la red se corta** | Es normal: reiniciar NetworkManager aplica las reglas DNS. |
+| **El hotspot falla ("IP config unavailable")** | Revisar que no haya un `.conf` malformado en `/etc/NetworkManager/dnsmasq-shared.d/`. Consulta `PROBLEMAS.txt`. |
 | **Un dispositivo "se escapa" del bloqueo (DNS privado/VPN)** | Los protocolos DoT (853) están bloqueados por el gateway, pero DoH (443) y VPN no se pueden bloquear por puerto. Ver la tabla de **Alcance del bloqueo de DNS** en la sección 6.3. |
+| **VPN Guard no detecta** | Verificar que `ndpiReader` exista en la raíz del proyecto, que se ejecute con root, que la interfaz supervisada sea correcta y revisar `vpn_guard.log`. |
+| **Un servicio systemd falla** | Ejecutar `systemctl status ayanami-restore.service` o `ayanami-vpn-guard.service` y `journalctl -u <servicio> -n 60`. |
+| **La TUI no arranca** | Verificar que `textual` esté instalado y ejecuta desde la raíz: `sudo venv/bin/python tui/tui.py`. |
 | **La lista de apps no se refresca** | Cambiar de pestaña dentro de Firewall o hacer una acción (la tecla `r` no refresca el panel Firewall). |
 
 ---
@@ -856,7 +890,8 @@ sudo python3 cli/ayanami.py
 ## 12. Advertencias de seguridad
 
 - Muchas funciones requieren **root** y manipulan `iptables` y `dnsmasq`: **afectan la conectividad de la red**. Usar Ayanami solo en redes que administras o con autorización.
-- El **sniffer** captura paquetes: evítar en redes ajenas.
+- El **sniffer** captura paquetes: evitar en redes ajenas.
 - **Reiniciar NetworkManager** (consecuencia de bloquear/desbloquear apps) corta momentáneamente la red, incluido el hotspot.
 - **Limpiar Firewall** elimina el gateway configurado: se tiene que configurar de nuevo.
 - Antes de **cerrar** sesiones o firewalls críticos, considerar exportar la configuración (vista Respaldos → Guardar Copia) para poder recuperarla con Cargar Copia.
+- Si pierdes conectividad remota, recuperar acceso físico o por consola local, revisar `iptables -L FORWARD`, `systemctl status ayanami-restore.service` y restaurar desde un backup.
