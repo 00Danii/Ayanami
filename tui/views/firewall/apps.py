@@ -480,8 +480,20 @@ class AppsTab(Vertical):
         def _work():
             from firewall_ops import get_dns_block_file
             dns_conf = get_dns_block_file()
+            remaining_domains = []
+            for name, info in data.items():
+                if name in visible:
+                    continue
+                if isinstance(info, dict) and info.get("blocked"):
+                    domains = info.get("domains", [])
+                    if isinstance(domains, list):
+                        remaining_domains.extend(domains)
             if os.path.exists(dns_conf):
-                os.remove(dns_conf)
+                try:
+                    os.remove(dns_conf)
+                except OSError:
+                    pass
+            write_block_domains(remaining_domains)
             self.app.call_from_thread(self._schedule_apply)
             self.app.call_from_thread(
                 self.notify,
